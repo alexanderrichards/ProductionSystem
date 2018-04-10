@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<!-- Add jQuery library using Google CDN (Content Delivery Network)-->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.3/jquery.min.js"></script>
+
+<!-- Add fancyBox cdnjs.com CDN-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/jquery.fancybox.css" type="text/css" media="screen" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/2.1.5/jquery.fancybox.pack.js"></script>
+
+<!-- Add dataTables CDN -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.12/css/jquery.dataTables.css"> 
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.12/js/jquery.dataTables.js"></script>
+<!-- Add Select extension for dataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.2.0/css/select.dataTables.min.css">
+<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/select/1.2.0/js/dataTables.select.min.js"></script>
+
+<!-- Latest compiled and minified Bootstrap CSS/Javascript -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+<!-- Optional Bootstrap theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+<!-- Bootbox -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootbox.js/4.4.0/bootbox.min.js"></script>
+
+<!-- Charts.js -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.1.6/Chart.min.js"></script>
+
+<script type="text/javascript" src="webapp_script"></script>
+
+<style>
+  body {margin-left:10%; margin-right: 10%; padding:0;}
+  #contextmenu {position: absolute; display: none;}
+  #contextmenu li:hover {cursor: pointer;}
+  #notification {
+      position: fixed;
+      top: 0;
+      left: 10%;
+      width: 80%;
+  }
+  #tableBody {width: 100%;}
+  /* remove the cell highlighting that happens only in firefox when ctrl-clicking, see:
+   http://stackoverflow.com/questions/27170878/disable-ctrlclick-selection-in-jquery-datatables
+  */
+  #tableBody tbody tr td { -moz-user-select: none; }
+  .img-circle {border-radius: 50%;}
+  #identicon {width: 50px; height: 50px;}
+</style>
+
+<head>
+  <title>LZ Production Requests</title>
+</head>
+
+<body>
+  <div id="notification"></div>
+
+  <div class="page-header">
+    <div align="right">
+      {{ user.dn }} <img id="identicon" class="img-circle" src="https://www.gravatar.com/avatar/{{ user.email| gravitar_hash }}?d=identicon">
+    </div>
+    <h1>LZ Production Requests</h1>
+    <div align="right">
+      <img border="0" alt="Monitoring daemon status" src="https://img.shields.io/badge/monitoringd-{{services['monitoringd'].name}}-{{services['monitoringd'].value}}.svg">
+      <a href="https://dirac.gridpp.ac.uk:8443/DIRAC/?view=tabs&theme=Grey&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:," style="text-decoration:none">
+	<img border="0" alt="DIRAC status" src="https://img.shields.io/badge/DIRAC-{{services['DIRAC'].name}}-{{services['DIRAC'].value}}.svg">
+      </a>
+      {% if user.admin %}
+      <button id="Admins" class="btn btn-default" alt="Admins">
+        <span class="glyphicon glyphicon-user text-primary"></span> Admins
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="container">
+      <canvas id="myChart" height="200"></canvas>
+    </div>
+    <table id="tableBody" class="display" data-source="/api" cellspacing="0"></table>
+    <button id="NewRequest" class="btn btn-default" alt="Submit New Request"><span class="glyphicon glyphicon-plus-sign text-primary"></span> New Request</button>
+    <button onclick="location.href='/csv_export'" type="submit" id="Export" class="btn btn-default" alt="Export"><span class="glyphicon glyphicon-cloud-download text-primary"></span> Export</button>
+  </div>
+
+  <hr>
+  <div class="page-footer" align="right">
+    <a href="https://github.com/alexanderrichards/LZProduction/issues">
+      <span class="glyphicon glyphicon-bullhorn text-primary"></span> Report a problem
+    </a>
+  </div>
+</body>
+
+<foot>
+  <!-- Context Menu -->
+  <div id="contextmenu" class="dropdown">
+    <ul class="dropdown-menu" role="menu" style="display:block;">
+      <li class="dropdown-header">Choose an action...</li>
+      <li role="separator" class="divider"></li>
+      <li class="dropdown-header">User</li>
+      <li id="contextInfo"><a><span class="glyphicon glyphicon-info-sign"> Info</span></a></li>
+      <li id="contextEdit"><a><span class="glyphicon glyphicon glyphicon-pencil text-warning"> Edit</span></a></li>
+      <li id="contextCopy"><a><span class="glyphicon glyphicon-duplicate text-primary"> Copy</span></a></li>
+      {% if user.admin %}
+      <li role="separator" class="divider"></li>
+      <li class="dropdown-header">Admin</li>
+      <li id="contextApprove"><a><span class="glyphicon glyphicon-ok-sign text-success"> Approve</span></a></li>
+      <li id="contextDelete"><a><span class="glyphicon glyphicon-minus-sign text-danger"> Delete</span></a></li>
+      {% endif %}
+    </ul>
+  </div>
+</foot>
+</html>
