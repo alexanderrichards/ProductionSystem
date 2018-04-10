@@ -5,7 +5,7 @@ import jinja2
 import cherrypy
 from sqlalchemy import create_engine
 from daemonize import Daemonize
-from productionsystem.sql.models import SQLTableBase, Requests
+from productionsystem.sql.models import SQLTableBase, Requests, Services, Users
 from productionsystem.sql.registry import SessionRegistry
 from .services import HTMLPageServer
 
@@ -51,6 +51,14 @@ class WebApp(Daemonize):
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
         cherrypy.tree.mount(Requests(),
                             '/requests',
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+
+        cherrypy.tree.mount(Services(),
+                            '/services',
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+
+        cherrypy.tree.mount(Users(),
+                            '/users',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
 #        cherrypy.tree.mount(Admins(template_env),
 #                            '/admins',
