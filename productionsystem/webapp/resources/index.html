@@ -48,7 +48,7 @@
 </style>
 
 <head>
-  <title>LZ Production Requests</title>
+  <title>{{ title }}</title>
 </head>
 
 <body>
@@ -58,7 +58,7 @@
     <div align="right">
       {{ user.dn }} <img id="identicon" class="img-circle" src="https://www.gravatar.com/avatar/{{ user.email| gravitar_hash }}?d=identicon">
     </div>
-    <h1>LZ Production Requests</h1>
+    <h1>{{ heading }}</h1>
     <div align="right">
       <img border="0" alt="Monitoring daemon status" src="https://img.shields.io/badge/monitoringd-{{services['monitoringd'].name}}-{{services['monitoringd'].value}}.svg">
       <a href="https://dirac.gridpp.ac.uk:8443/DIRAC/?view=tabs&theme=Grey&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:," style="text-decoration:none">

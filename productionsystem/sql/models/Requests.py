@@ -177,5 +177,5 @@ class Requests(SQLTableBase):
         with managed_session() as session:
             session.add(request)
 
-
+# Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
 Requests.parametricjobs = ParametricJobs()

@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from daemonize import Daemonize
 from productionsystem.sql.models import SQLTableBase, Requests
 from productionsystem.sql.registry import SessionRegistry
-
+from .services import HTMLPageServer
 
 class WebApp(Daemonize):
     """LZ Production Web Server Daemon."""
@@ -46,9 +46,9 @@ class WebApp(Daemonize):
         }
 
         cherrypy.config.update(config)  # global vars need updating global config
-#        cherrypy.tree.mount(HTMLPageServer(template_env),
-#                            '/',
-#                            {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
+        cherrypy.tree.mount(HTMLPageServer(),
+                            '/',
+                            {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
         cherrypy.tree.mount(Requests(),
                             '/requests',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
