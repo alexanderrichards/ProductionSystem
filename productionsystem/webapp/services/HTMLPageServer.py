@@ -6,11 +6,10 @@ import pkg_resources
 import cherrypy
 from cherrypy.lib.static import serve_fileobj
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
+from productionsystem.apache_utils import check_credentials, dummy_credentials
 from productionsystem.sql import managed_session
-from lzproduction.sql.utils import db_session
+from productionsystem.sql.models import Services
 from lzproduction.sql.statuses import SERVICESTATUS
-from lzproduction.sql.tables import Services, ParametricJobs, Users, Requests
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 MINS = 60
