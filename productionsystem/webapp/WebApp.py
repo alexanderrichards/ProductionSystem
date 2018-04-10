@@ -28,7 +28,7 @@ class WebApp(Daemonize):
     def main(self):
         """Daemon main."""
 #        create_all_tables(self._dburl)
-        SessionRegistry.get_instance(self._dburl)
+        SessionRegistry.setup(self._dburl)
 
         config = {
             'global': {

@@ -31,10 +31,19 @@ class SingletonMeta(type):
         """Get instance."""
         instance = vars(cls).get('__instance__')
         if instance is None:
-            instance = cls.__new__(cls, *args, **kwargs)
-            instance.__init__(*args, **kwargs)
-            setattr(cls, '__instance__', instance)
+            cls.setup(*args, **kwargs)
         return instance
+
+    def setup(cls, *args, **kwargs):
+        """Setup the instance."""
+        instance = vars(cls).get('__instance__')
+        if instance is not None:
+            raise InstantiationError("Singleton class '%s' can not be setup again. Call "
+                                     "%s.get_instance() instead to get the current instance."
+                                     % (cls.__name__, cls.__name__))
+        instance = cls.__new__(cls, *args, **kwargs)
+        instance.__init__(*args, **kwargs)
+        setattr(cls, '__instance__', instance)
 
 
 def singleton(cls):

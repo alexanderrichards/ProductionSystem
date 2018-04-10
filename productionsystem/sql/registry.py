@@ -1,5 +1,6 @@
 """SQLAlchemy global session registry."""
 import logging
+from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -36,6 +37,19 @@ class SessionRegistry(scoped_session):
             self.rollback()
         self.remove()
 
-
+@contextmanager
 def managed_session():
-    return SessionRegistry.get_instance()
+    """Transactional scoped DB session context."""
+    logger = logging.getLogger(__name__)
+    session_registry = SessionRegistry.get_instance()
+    try:
+        yield session_registry()
+        session_registry.commit()
+        logger.debug("DB transaction committed.")
+    except:  # pylint: disable=bare-except
+        logger.exception("Problem with DB session, rolling back.")
+        session_registry.rollback()
+        raise
+    finally:
+        session_registry.remove()
+
