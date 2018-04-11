@@ -12,7 +12,7 @@ class JSONTableEncoder(json.JSONEncoder):
     def default(self, obj):
         """Override base default method."""
         if isinstance(obj, Enum):
-            return obj.name
+            return obj.name.capitalize()
         if isinstance(obj, SQLTableBase):
             return dict(obj, status=obj.status.name)
         if isinstance(obj, datetime):

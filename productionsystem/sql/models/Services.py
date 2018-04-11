@@ -6,8 +6,15 @@ from sqlalchemy import Column, Integer, TEXT, TIMESTAMP, Enum
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from ..registry import managed_session
-from ..statuses import SERVICESTATUS
+from productionsystem.enums import ServiceStatus
 from .SQLTableBase import SQLTableBase
+from ..JSONTableEncoder import JSONTableEncoder
+
+
+def json_handler(*args, **kwargs):
+    """Handle JSON encoding of response."""
+    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
+    return json.dumps(value, cls=JSONTableEncoder)
 
 
 @cherrypy.expose
@@ -18,7 +25,7 @@ class Services(SQLTableBase):
     __tablename__ = 'services'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     name = Column(TEXT, nullable=False)
-    status = Column(Enum(SERVICESTATUS), nullable=False)
+    status = Column(Enum(ServiceStatus), nullable=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     logger = logging.getLogger(__name__)
 

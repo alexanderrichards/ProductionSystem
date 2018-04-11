@@ -60,9 +60,9 @@
     </div>
     <h1>{{ heading }}</h1>
     <div align="right">
-      <img border="0" alt="Monitoring daemon status" src="https://img.shields.io/badge/monitoringd-{{services['monitoringd'].name}}-{{services['monitoringd'].value}}.svg">
+      <img border="0" alt="Monitoring daemon status" src="https://img.shields.io/badge/monitoringd-{{statuses['monitoringd'].name}}-{{statuses['monitoringd'].value}}.svg">
       <a href="https://dirac.gridpp.ac.uk:8443/DIRAC/?view=tabs&theme=Grey&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:," style="text-decoration:none">
-	<img border="0" alt="DIRAC status" src="https://img.shields.io/badge/DIRAC-{{services['DIRAC'].name}}-{{services['DIRAC'].value}}.svg">
+	<img border="0" alt="DIRAC status" src="https://img.shields.io/badge/DIRAC-{{statuses['DIRAC'].name}}-{{statuses['DIRAC'].value}}.svg">
       </a>
       {% if user.admin %}
       <button id="Admins" class="btn btn-default" alt="Admins">

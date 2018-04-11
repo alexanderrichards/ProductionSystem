@@ -8,7 +8,7 @@ credentials against a local DB.
 from functools import wraps
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.sql.utils import db_session
+from productionsystem.sql import managed_session
 from productionsystem.sql.models import Users
 
 
@@ -65,7 +65,7 @@ def check_credentials(func):
             raise cherrypy.HTTPError(401, 'Unauthorized: Cert not verified for user DN: %s, CA: %s.'
                                      % (client_dn, client_ca))
 
-        with db_session() as session:
+        with managed_session() as session:
             try:
                 user = session.query(Users) \
                     .filter_by(dn=client_dn, ca=client_ca) \
@@ -87,6 +87,7 @@ def check_credentials(func):
 
 
 def dummy_credentials(func):
+    """Assign dummy credentials for testing."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         cherrypy.request.verified_user = Users(dn='dn', ca='ca', email='test@email.com',

@@ -1,8 +1,17 @@
 """Status enums for use in SQL tables."""
-from enum import unique, IntEnum
+from enum import unique, Enum, IntEnum
 
 
-__all__ = ('DiracStatus', 'LocalStatus', 'STATUS_MAP')
+__all__ = ('ServiceStatus', 'DiracStatus', 'LocalStatus', 'STATUS_MAP')
+
+
+@unique
+class ServiceStatus(Enum):
+    """Service Status Enum."""
+
+    UNKNOWN = 'lightgrey'
+    DOWN = 'red'
+    UP = 'brightgreen'  # pylint: disable=invalid-name
 
 
 @unique
