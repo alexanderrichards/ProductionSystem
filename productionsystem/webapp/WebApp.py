@@ -1,13 +1,10 @@
 """LZ Production Web Server."""
-import os
-import pkg_resources
-import jinja2
 import cherrypy
-from sqlalchemy import create_engine
 from daemonize import Daemonize
-from productionsystem.sql.models import SQLTableBase, Requests, Services, Users
 from productionsystem.sql.registry import SessionRegistry
+from productionsystem.sql.models import Requests, Services, Users
 from .services import HTMLPageServer
+
 
 class WebApp(Daemonize):
     """LZ Production Web Server Daemon."""
@@ -27,7 +24,6 @@ class WebApp(Daemonize):
 
     def main(self):
         """Daemon main."""
-#        create_all_tables(self._dburl)
         SessionRegistry.setup(self._dburl)
 
         config = {

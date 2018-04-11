@@ -5,9 +5,10 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from productionsystem.singleton import singleton, InstantiationError
+from productionsystem.singleton import singleton
 
 from .models import SQLTableBase
+
 
 @singleton
 class SessionRegistry(scoped_session):
@@ -22,20 +23,6 @@ class SessionRegistry(scoped_session):
         super(SessionRegistry, self).__init__(sessionmaker(engine))
         self._logger = logging.getLogger(__name__)
 
-    def __enter__(self):
-        return self()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            try:
-                self.commit()
-            except:
-                self._logger.exception("Problem committing to DB, rolling back.")
-                self.rollback()
-        else:
-            self._logger.exception("Problem with DB session, rolling back.")
-            self.rollback()
-        self.remove()
 
 @contextmanager
 def managed_session():
