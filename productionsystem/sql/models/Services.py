@@ -1,4 +1,5 @@
 """Services Table."""
+import json
 import logging
 from datetime import datetime
 import cherrypy
@@ -7,7 +8,7 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from ..registry import managed_session
 from productionsystem.enums import ServiceStatus
-from .SQLTableBase import SQLTableBase
+from ..SQLTableBase import SQLTableBase
 from ..JSONTableEncoder import JSONTableEncoder
 
 

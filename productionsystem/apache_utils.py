@@ -8,11 +8,9 @@ credentials against a local DB.
 from functools import wraps
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.sql import managed_session
-from productionsystem.sql.models import Users
+import productionsystem.sql as sql
 
-
-__all__ = ('apache_client_convert', 'check_credentials', 'admin_only')
+__all__ = ('apache_client_convert', 'check_credentials', 'admin_only', 'dummy_credentials')
 
 
 def apache_client_convert(client_dn, client_ca=None):
@@ -65,9 +63,9 @@ def check_credentials(func):
             raise cherrypy.HTTPError(401, 'Unauthorized: Cert not verified for user DN: %s, CA: %s.'
                                      % (client_dn, client_ca))
 
-        with managed_session() as session:
+        with sql.managed_session() as session:
             try:
-                user = session.query(Users) \
+                user = session.query(sql.models.Users) \
                     .filter_by(dn=client_dn, ca=client_ca) \
                     .one()
             except MultipleResultsFound:
@@ -90,7 +88,7 @@ def dummy_credentials(func):
     """Assign dummy credentials for testing."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        cherrypy.request.verified_user = Users(dn='dn', ca='ca', email='test@email.com',
-                                               suspended=False, admin=True)
+        cherrypy.request.verified_user = sql.models.Users(dn='dn', ca='ca', email='test@email.com',
+                                                          suspended=False, admin=True)
         return func(*args, **kwargs)
     return wrapper

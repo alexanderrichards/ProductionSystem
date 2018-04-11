@@ -3,7 +3,7 @@
 import json
 from enum import Enum
 from datetime import datetime
-from .models import SQLTableBase
+from .SQLTableBase import SQLTableBase
 
 
 class JSONTableEncoder(json.JSONEncoder):

@@ -7,7 +7,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from productionsystem.singleton import singleton
 
-from .models import SQLTableBase
+from .SQLTableBase import SQLTableBase
 
 
 @singleton

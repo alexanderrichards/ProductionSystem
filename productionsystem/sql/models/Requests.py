@@ -12,7 +12,7 @@ from productionsystem.apache_utils import check_credentials, admin_only, dummy_c
 from productionsystem.enums import LocalStatus
 from ..registry import managed_session
 from ..JSONTableEncoder import JSONTableEncoder
-from .SQLTableBase import SQLTableBase
+from ..SQLTableBase import SQLTableBase
 from .Users import Users
 from .ParametricJobs import ParametricJobs
 
