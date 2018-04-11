@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
-from productionsystem.enums import LocalStatus
+from ..enums import LocalStatus
 from ..registry import managed_session
 from ..JSONTableEncoder import JSONTableEncoder
 from ..SQLTableBase import SQLTableBase

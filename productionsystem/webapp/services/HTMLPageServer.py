@@ -6,7 +6,7 @@ import hashlib
 import pkg_resources
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.enums import ServiceStatus
+from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
 from productionsystem.jinja2_utils import jinja2_filter
 from productionsystem.sql import managed_session

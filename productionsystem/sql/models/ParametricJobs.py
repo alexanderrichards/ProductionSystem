@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
-from productionsystem.enums import LocalStatus
+from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 from ..JSONTableEncoder import JSONTableEncoder
