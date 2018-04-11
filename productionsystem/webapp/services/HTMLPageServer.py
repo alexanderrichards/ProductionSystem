@@ -2,15 +2,30 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 import jinja2
+import hashlib
 import pkg_resources
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from productionsystem.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
+from productionsystem.jinja2_utils import jinja2_filter
 from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services
-from productionsystem.enums import ServiceStatus
 
 MINS = 60
+
+
+@jinja2_filter
+def gravitar_hash(email_add):
+    """
+    Hash an email address.
+    Generate a gravitar compatible hash from an email address.
+    Args:
+        email_add (str): The target email address
+    Returns:
+        str: The hash string
+    """
+    return hashlib.md5(email_add.strip().lower()).hexdigest()
 
 
 class HTMLPageServer(object):
@@ -46,4 +61,3 @@ class HTMLPageServer(object):
                     for service in query.filter(Services.name != 'monitoringd').all():
                         data['statuses'][service.name] = service.status
             return self._template_env.get_template('index.html').render(data)
-
