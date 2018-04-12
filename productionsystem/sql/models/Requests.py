@@ -106,22 +106,51 @@ class Requests(SQLTableBase):
         """REST Get method."""
         cls.logger.debug("In GET: reqid = %r", request_id)
         requester = cherrypy.request.verified_user
+
+        if request_id is not None:
+            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+                request_id = int(request_id)
+
         with managed_session() as session:
-            query = session.query(cls, Users)
             if not requester.admin:
-                query = session.query(cls)
-                query = query.filter_by(requester_id=requester.id)
+                query = session.query(cls).filter_by(requester_id=requester.id)
+                if request_id is None:
+                    cls._datatable_format_headers()
+                    return query.all()
+                try:
+                    request = query.filter_by(id=request_id).one()
+                except NoResultFound:
+                    message = "No Request found with id: %s" % request_id
+                    cls.logger.warning(message)
+                    raise cherrypy.NotFound(message)
+                except MultipleResultsFound:
+                    message = "Multiple Requests found with id: %s!" % request_id
+                    cls.logger.error(message)
+                    raise cherrypy.HTTPError(500, message)
+                return request
 
-            if request_id is not None:
-                with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-                    request_id = int(request_id)
-                query = query.filter_by(id=request_id)
-            cls._datatable_format_headers()
-            if requester.admin:
-                return [dict(request, requester=user.name, status=request.status.name.capitalize())
+            query = session.query(cls, Users)
+            if request_id is None:
+                cls._datatable_format_headers()
+                return [dict(request,
+                             requester=user.name,
+                             status=request.status.name.capitalize())
                         for request, user in query.join(Users, cls.requester_id == Users.id).all()]
-            return query.all()
-
+            try:
+                request, user = query.filter_by(id=request_id)\
+                                     .join(Users, cls.requester_id == Users.id)\
+                                     .one()
+            except NoResultFound:
+                message = "No Request found with id: %s" % request_id
+                cls.logger.warning(message)
+                raise cherrypy.NotFound(message)
+            except MultipleResultsFound:
+                message = "Multiple Requests found with id: %s!" % request_id
+                cls.logger.error(message)
+                raise cherrypy.HTTPError(500, message)
+            return dict(request,
+                        requester=user.name,
+                        status=request.status.name.capitalize())
 
     @classmethod
     @check_credentials
