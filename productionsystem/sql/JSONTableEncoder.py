@@ -14,7 +14,7 @@ class JSONTableEncoder(json.JSONEncoder):
         if isinstance(obj, Enum):
             return obj.name.capitalize()
         if isinstance(obj, SQLTableBase):
-            return dict(obj, status=obj.status.name)
+            return dict(obj, status=obj.status.name.capitalize())
         if isinstance(obj, datetime):
             return obj.isoformat(' ')
         return super(json.JSONEncoder, self).default(obj)

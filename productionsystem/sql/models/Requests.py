@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 import cherrypy
-from sqlalchemy import Column, Integer, TIMESTAMP, ForeignKey, Enum
+from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
@@ -35,6 +35,7 @@ class Requests(SQLTableBase):
 
     __tablename__ = 'requests'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    description = Column(TEXT, nullable=True)
     requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
@@ -82,6 +83,20 @@ class Requests(SQLTableBase):
                 session.merge(self).status = status
             self.logger.info("Request %s moved to state %s", self.id, status.name)
 
+    @staticmethod
+    def _datatable_format_headers():
+        columns = [{"data": None, "defaultContent": r"<span class='glyphicon glyphicon-plus-sign text-primary details-control' style='cursor:pointer'></span>", "orderable": False},
+                   {"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
+                   {"data": "description", "title": "Description", "width": "80%"},
+                   {"data": "status", "title": "Status", "width": "7.5%"},
+                   {"data": "request_date", "title": "Request Date", "width": "7.5%"}]
+        if cherrypy.request.verified_user.admin:
+            columns[2]['width'] = "70%"
+            columns.append({"data": "requester", "title": "Requester", "width": "10%"})
+
+        cherrypy.response.headers['Datatable-Order'] = json.dumps([[1, "desc"]])
+        cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
+
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out(handler=json_handler)
@@ -101,9 +116,9 @@ class Requests(SQLTableBase):
                 with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
                     request_id = int(request_id)
                 query = query.filter_by(id=request_id)
-
+            cls._datatable_format_headers()
             if requester.admin:
-                return [dict(request, requester=user.name, status=request.status.name)
+                return [dict(request, requester=user.name, status=request.status.name.capitalize())
                         for request, user in query.join(Users, cls.requester_id == Users.id).all()]
             return query.all()
 
@@ -130,7 +145,9 @@ class Requests(SQLTableBase):
                 message = "Multiple Requests found with id: %s!" % request_id
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
+
             session.delete(request)
+            cls.logger.info("Request %d deleted.", request_id)
 
     @classmethod
     @check_credentials
@@ -158,6 +175,7 @@ class Requests(SQLTableBase):
                 raise cherrypy.HTTPError(500, message)
 
             request.status = LocalStatus[status.upper()]
+            cls.logger.info("Request %d changed to status %s", request_id, status.upper())
 
     @classmethod
     @cherrypy.tools.json_in()
@@ -174,6 +192,7 @@ class Requests(SQLTableBase):
                                                                     ('allowed'))))
         with managed_session() as session:
             session.add(request)
+            cls.logger.info("New Request %d added", request.id)
 
 # Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
 Requests.parametricjobs = ParametricJobs()
