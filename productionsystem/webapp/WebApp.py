@@ -1,4 +1,5 @@
 """LZ Production Web Server."""
+import pkg_resources
 import cherrypy
 from daemonize import Daemonize
 from productionsystem.sql.registry import SessionRegistry
@@ -25,13 +26,13 @@ class WebApp(Daemonize):
     def main(self):
         """Daemon main."""
         SessionRegistry.setup(self._dburl)
-
+        static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/resources/static')
         config = {
             'global': {
                 'tools.gzip.on': True,
-#                'tools.staticdir.root': html_resources,
-#                'tools.staticdir.on': True,
-#                'tools.staticdir.dir': '',
+                'tools.staticdir.root': static_resources,
+                'tools.staticdir.on': True,
+                'tools.staticdir.dir': '',
                 'server.socket_host': self._socket_host,
                 'server.socket_port': self._socket_port,
                 'server.thread_pool': self._thread_pool,
