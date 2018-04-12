@@ -16,6 +16,7 @@ $(document).ready(function() {
         },
         success: function(response, status, request){
           $("#tableBody").DataTable({data: response,
+                                     bDestroy: true,
                                      autoWidth: false,
                                      order: JSON.parse(request.getResponseHeader('Datatable-Order')),
                                      columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
@@ -27,6 +28,34 @@ $(document).ready(function() {
                                      })
         }
       });
+    };
+
+    refresh_subtable = function(){
+        $.ajax({
+            url: `/requests/${request_id}/parametricjobs`,
+            type: "GET",
+            cache: true,
+            dataType: "json",
+            error: function(request, status, error){
+              console.warn(`Error getting table data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
+            },
+            statusCode: {
+              400: function() {
+                console.warn("Bad request! Request can probably not be cast to integer.");
+              }
+            },
+            success: function(response, status, request){
+              $(`#subtable-${request_id}`).DataTable({data: response,
+                                                      bDestroy: true,
+                                                      autoWidth: false,
+                                                      paging: false,
+                                                      searching: false,
+                                                      info: false,
+                                                      order: JSON.parse(request.getResponseHeader('Datatable-Order')),
+                                                      columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
+                                                      });
+            }
+        });
     };
 
     // Reload table ajax every 5 mins
@@ -44,135 +73,27 @@ $(document).ready(function() {
 		type: "PUT",
 		data: {'reschedule': true},
 		success: function(){
-		    subtable.ajax.reload();
+		    refresh_subtable();
 		}});
-
-/*     $.ajax({url: '/parametricjobs/' + macro_id,
-		type: "PUT",
-		data: {'reschedule': true},
-		success: function() {
-		    $("#tableBody").DataTable().ajax.reload();
-		    var datatable = $("#tableBody").DataTable();
-		    var row_id = $("tr td.rowid:contains('"+ request_id +"')");
-		    var tr = row_id.closest("tr");
-		    var row = datatable.row(tr);
-		    $.ajax({url: '/parametricjobs/' + request_id,
-			    type: "GET",
-			    success: function(data) {
-				row.child(data).show();
-			    }});
-		}});
-*/
     });
 
-    // Table row details subtable show/hide
+    // Request parametricjob subtable.
     /////////////////////////////////////////////////////
-    function formatoutput(parametricjob){
-	var output = '';
-	if (parametricjob.sim_lfn_outputdir != null){
-	    output = output.concat(parametricjob.sim_lfn_outputdir + "<br>");
-	}
-	if (parametricjob.mctruth_lfn_outputdir != null){
-	    output = output.concat(parametricjob.mctruth_lfn_outputdir + "<br>");
-	}
-	if (parametricjob.reduction_lfn_outputdir != null){
-	    output = output.concat(parametricjob.reduction_lfn_outputdir + "<br>");
-	}
-	if (parametricjob.der_lfn_outputdir != null){
-	    output = output.concat(parametricjob.der_lfn_outputdir + "<br>");
-	}
-	if (parametricjob.lzap_lfn_outputdir != null){
-	    output = output.concat(parametricjob.lzap_lfn_outputdir + "<br>");
-	}
-	return output;
-    }
-
-    function formatprogress(parametricjob){
-	var striped = parametricjob.num_running + parametricjob.num_submitted > 0? "progress-bar-striped active": "";
-	var percent_completed = 100 * parametricjob.num_completed / parametricjob.njobs;
-	var percent_failed = 100 * parametricjob.num_failed / parametricjob.njobs;
-	var percent_running = 100 * parametricjob.num_running / parametricjob.njobs;
-	var percent_submitted = 100 * parametricjob.num_submitted / parametricjob.njobs;
-	var num_other = parametricjob.njobs - (parametricjob.num_submitted + parametricjob.num_running + parametricjob.num_completed + parametricjob.num_failed)
-	var percent_other = 100 * num_other / parametricjob.njobs;
-	return `
-            <div class="container" style="width:150px;border:0px;padding:0px;padding-top:15px">
-              <div class="progress" style="background:rgba(214, 214, 214, 1)">
-                <div class="progress-bar progress-bar-success ${striped}" role="progressbar" style="width:${percent_completed}%">
-                  ${parametricjob.num_completed}
-                </div>
-                <div class="progress-bar progress-bar-danger ${striped}" role="progressbar" style="width:${percent_failed}%">
-                  ${parametricjob.num_failed}
-                </div>
-                <div class="progress-bar progress-bar-info ${striped}" role="progressbar" style="width:${percent_running}%">
-                  ${parametricjob.num_running}
-                </div>
-                <div class="progress-bar progress-bar-warning ${striped}" role="progressbar" style="width:${percent_submitted}%">
-                  ${parametricjob.num_submitted}
-                </div>
-                <div class="progress-bar ${striped}" role="progressbar" style="width:${percent_other}%;background:grey">
-                  ${num_other}
-                </div>
-              </div>
-            </div>`;
-    }
-
-    function formatreschedule(parametricjob){
-       return `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" macroid="${parametricjob.id}" requestid="${parametricjob.request_id}"></span>`;
-    }
-
     $("#tableBody tbody").on("click", "tr td span.details-control", function() {
-	var datatable = $("#tableBody").DataTable();
-	var tr = $(this).closest("tr");
-	var row = datatable.row(tr);
-	var request_id = datatable.cell(row, $("td.rowid", tr)).data();
-	if (row.child.isShown()){
+        var datatable = $("#tableBody").DataTable();
+        var tr = $(this).closest("tr");
+        var row = datatable.row(tr);
+        var request_id = datatable.cell(row, $("td.rowid", tr)).data();
+        $(this).toggleClass("glyphicon-plus-sign")
+        $(this).toggleClass("glyphicon-minus-sign")
+        $(this).toggleClass("text-primary")
+        $(this).toggleClass("text-danger")
+        if (row.child.isShown()){
             row.child.hide();
-	}
-	else{
-            row.child($("<table>", {id: "subtable-" + request_id})).show()
-            $("#subtable-" + request_id).DataTable({ajax: {url: '/parametricjobs/' + request_id,
-                                                           type: "GET",
-                                                           cache: true,
-                                                           dataSrc: function(json) {
-							       var return_data = new Array();
-							       var data = json.data
-							       for(var i=0;i< data.length; i++){
-								   return_data.push({
-								       'macro': data[i].macro,
-								       'njobs': data[i].njobs,
-								       'nevents': data[i].nevents,
-								       'seed': data[i].seed,
-								       'output': formatoutput(data[i]),
-								       'status': data[i].reschedule? 'Rescheduled': data[i].status,
-								       'progress': formatprogress(data[i]),
-								       'reschedule': data[i].status == 'Failed'? formatreschedule(data[i]): ''
-								   })
-							       }
-							       return return_data;
-							   }},
-                                                    autoWidth: true,
-                                                    paging: false,
-                                                    searching: false,
-                                                    info: false,
-                                                    //columnDefs: [ { defaultContent: "-", data: null, targets: "_all" } ],
-                                                    columns: [
-							{ data: 'macro', title: 'Macro' },
-							{ data: 'njobs', title: 'NJobs' },
-							{ data: 'nevents', title: 'NEvents' },
-							{ data: 'seed', title: 'Seed' },
-							{ data: 'output', title: 'Output' },
-							{ data: 'status', title: 'Status' },
-							{ data: 'progress', title: 'Progress' },
-							{ data: 'reschedule', orderable: false }
-                                                    ],
-						    order: [[5, 'desc']]
-                                                   });
-	}
-	$(this).toggleClass("glyphicon-plus-sign")
-	$(this).toggleClass("glyphicon-minus-sign")
-	$(this).toggleClass("text-primary")
-	$(this).toggleClass("text-danger")
+            return
+        }
+        row.child($("<table>", {id: `subtable-${request_id}`})).show()
+        refresh_subtable();
     });
 
     /////////////////////////////////////////////////////

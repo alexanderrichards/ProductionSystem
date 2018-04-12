@@ -84,6 +84,10 @@ class ParametricJobs(SQLTableBase):
             this.reschedule = False
         return status
 
+    @staticmethod
+    def _datatable_format_headers():
+        cherrypy.response.headers['Datatable-Order'] = json.dumps([[5, 'desc']])
+        cherrypy.response.headers["Datatable-Columns"]
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
@@ -96,16 +100,35 @@ class ParametricJobs(SQLTableBase):
         Returns all ParametricJobs for a given request id.
         """
         cls.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id, parametricjob_id)
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+
         requester = cherrypy.request.verified_user
         with managed_session() as session:
             query = session.query(cls)\
                            .filter_by(request_id=request_id)
-            if parametricjob_id is not None:
-                query = query.filter_by(id=parametricjob_id)
             if not requester.admin:
                 query = query.join(cls.request)\
                              .filter_by(requester_id=requester.id)
-            return query.all()
+            if parametricjob_id is None:
+                cls._datatable_format_headers()
+                return query.all()
+
+            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
+                parametricjob_id = int(parametricjob_id)
+
+            try:
+                # Does this need to be before the join? will id be requestid or parametricjob id?
+                parametricjob = query.filter_by(id=parametricjob_id).one()
+            except NoResultFound:
+                message = "No ParametricJobs found with id: %s" % parametricjob_id
+                cls.logger.error(message)
+                raise cherrypy.NotFound(message)
+            except MultipleResultsFound:
+                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
+                cls.logger.error(message)
+                raise cherrypy.HTTPError(500, message)
+            return parametricjob
 
     @classmethod
     @check_credentials
