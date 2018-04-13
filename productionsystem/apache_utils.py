@@ -88,7 +88,7 @@ def dummy_credentials(func):
     """Assign dummy credentials for testing."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        cherrypy.request.verified_user = sql.models.Users(dn='dn', ca='ca', email='test@email.com',
+        cherrypy.request.verified_user = sql.models.Users(id=17, dn='dn', ca='ca', email='test@email.com',
                                                           suspended=False, admin=True)
         return func(*args, **kwargs)
     return wrapper

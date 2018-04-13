@@ -41,7 +41,6 @@ $(document).ready(function() {
         },
         success: function(response, status, request){
           columns = [{data: null,
-                      className: "OUCH",
                       defaultContent: "<span class='glyphicon glyphicon-plus-sign text-primary details-control' style='cursor:pointer'></span>",
                       orderable: false}]
           $("#tableBody").DataTable({data: response,
@@ -58,7 +57,7 @@ $(document).ready(function() {
       });
     };
 
-    function refresh_subtable(){
+    function refresh_subtable(request_id){
         $.ajax({
             url: `/requests/${request_id}/parametricjobs`,
             type: "GET",
@@ -73,6 +72,9 @@ $(document).ready(function() {
               }
             },
             success: function(response, status, request){
+              columns = [{data: null,
+                          defaultContent: `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" macroid="${parametricjob.id}" requestid="${request_id}"></span>`,
+                          orderable: false}]
               $(`#subtable-${request_id}`).DataTable({data: response,
                                                       bDestroy: true,
                                                       autoWidth: false,
@@ -108,21 +110,21 @@ $(document).ready(function() {
 
     // Reschedule macros
     /////////////////////////////////////////////////////
-    $("#tableBody tbody").on("click", "span.reschedule", function(){
+    $("#tableBody").on("click", "tbody span.reschedule", function(){
 	var macro_id = $(this).attr('macroid');
 	var subtable = $(this).closest("table").DataTable();
-//	var request_id = $(this).attr('requestid');
-	$.ajax({url: `/parametricjobs/${macro_id}`,
+	var request_id = $(this).attr('requestid');
+	$.ajax({url: `requests/${request_id}/parametricjobs/${macro_id}`,
 		type: "PUT",
 		data: {'reschedule': true},
 		success: function(){
-		    refresh_subtable();
+		    refresh_subtable(request_id);
 		}});
     });
 
     // Request parametricjob subtable.
     /////////////////////////////////////////////////////
-    $("#tableBody tbody").on("click", "tr td span.details-control", function() {
+    $("#tableBody").on("click", "tbody tr td span.details-control", function() {
         var datatable = $("#tableBody").DataTable();
         var tr = $(this).closest("tr");
         var row = datatable.row(tr);
@@ -136,7 +138,7 @@ $(document).ready(function() {
             return
         }
         row.child($("<table>", {id: `subtable-${request_id}`})).show()
-        refresh_subtable();
+        refresh_subtable(request_id);
     });
 
     /////////////////////////////////////////////////////

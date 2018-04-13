@@ -9,7 +9,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
-from productionsystem.apache_utils import check_credentials
+from productionsystem.apache_utils import check_credentials, dummy_credentials
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus
 from ..registry import managed_session
@@ -96,7 +96,8 @@ class ParametricJobs(SQLTableBase):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out(handler=json_handler)
-    @check_credentials
+#    @check_credentials
+    @dummy_credentials
     def GET(cls, request_id, parametricjob_id=None):  # pylint: disable=invalid-name
         """
         REST Get method.
@@ -116,7 +117,9 @@ class ParametricJobs(SQLTableBase):
                              .filter_by(requester_id=requester.id)
             if parametricjob_id is None:
                 cls._datatable_format_headers()
-                return query.all()
+                parametricjobs = query.all()
+                session.expunge_all()
+                return parametricjobs
 
             with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
                 parametricjob_id = int(parametricjob_id)
@@ -132,6 +135,7 @@ class ParametricJobs(SQLTableBase):
                 message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
+            session.expunge(parametricjob)
             return parametricjob
 
     @classmethod

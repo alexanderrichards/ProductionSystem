@@ -115,7 +115,9 @@ class Requests(SQLTableBase):
                 query = session.query(cls).filter_by(requester_id=requester.id)
                 if request_id is None:
                     cls._datatable_format_headers()
-                    return query.all()
+                    requests = query.all()
+                    session.expunge_all()
+                    return requests
                 try:
                     request = query.filter_by(id=request_id).one()
                 except NoResultFound:
@@ -126,6 +128,7 @@ class Requests(SQLTableBase):
                     message = "Multiple Requests found with id: %s!" % request_id
                     cls.logger.error(message)
                     raise cherrypy.HTTPError(500, message)
+                session.expunge(request)
                 return request
 
             query = session.query(cls, Users)
