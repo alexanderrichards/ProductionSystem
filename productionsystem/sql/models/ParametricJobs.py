@@ -34,7 +34,7 @@ class ParametricJobs(SQLTableBase):
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     priority = Column(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3)
     site = Column(TEXT, nullable=False, default='ANY')
-    status = Column(Enum(LocalStatus), nullable=False)
+    status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     reschedule = Column(Boolean, nullable=False, default=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     num_jobs = Column(Integer, nullable=False)
@@ -86,8 +86,12 @@ class ParametricJobs(SQLTableBase):
 
     @staticmethod
     def _datatable_format_headers():
+        columns = [{'data': 'id', 'title': 'ID'},
+                   {'data': 'status', 'title': 'Status'},
+                   {'data': 'progress', 'title': 'Progress', 'orderable': False},
+                   {'data': 'reschedule', 'orderable': False}]
         cherrypy.response.headers['Datatable-Order'] = json.dumps([[5, 'desc']])
-        cherrypy.response.headers["Datatable-Columns"]
+        cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')

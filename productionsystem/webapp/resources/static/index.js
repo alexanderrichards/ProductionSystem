@@ -1,6 +1,36 @@
 $(document).ready(function() {
 
-    refresh_table = function(){
+    function formatprogress(parametricjob){
+        var striped = parametricjob.num_running + parametricjob.num_submitted > 0? "progress-bar-striped active": "";
+        var percent_completed = 100 * parametricjob.num_completed / parametricjob.njobs;
+        var percent_failed = 100 * parametricjob.num_failed / parametricjob.njobs;
+        var percent_running = 100 * parametricjob.num_running / parametricjob.njobs;
+        var percent_submitted = 100 * parametricjob.num_submitted / parametricjob.njobs;
+        var num_other = parametricjob.njobs - (parametricjob.num_submitted + parametricjob.num_running + parametricjob.num_completed + parametricjob.num_failed)
+        var percent_other = 100 * num_other / parametricjob.njobs;
+        return `
+                <div class="container" style="width:150px;border:0px;padding:0px;padding-top:15px">
+                  <div class="progress" style="background:rgba(214, 214, 214, 1)">
+                    <div class="progress-bar progress-bar-success ${striped}" role="progressbar" style="width:${percent_completed}%">
+                      ${parametricjob.num_completed}
+                    </div>
+                    <div class="progress-bar progress-bar-danger ${striped}" role="progressbar" style="width:${percent_failed}%">
+                      ${parametricjob.num_failed}
+                    </div>
+                    <div class="progress-bar progress-bar-info ${striped}" role="progressbar" style="width:${percent_running}%">
+                      ${parametricjob.num_running}
+                    </div>
+                    <div class="progress-bar progress-bar-warning ${striped}" role="progressbar" style="width:${percent_submitted}%">
+                      ${parametricjob.num_submitted}
+                    </div>
+                    <div class="progress-bar ${striped}" role="progressbar" style="width:${percent_other}%;background:grey">
+                      ${num_other}
+                    </div>
+                  </div>
+                </div>`;
+    }
+
+    function refresh_table(){
       $.ajax({
         url: "/requests",
         type: "GET",
@@ -9,11 +39,6 @@ $(document).ready(function() {
         error: function(request, status, error){
           console.warn(`Error getting table data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
         },
-        statusCode: {
-          400: function() {
-            console.warn("Bad request! Request can probably not be cast to integer.");
-          }
-        },
         success: function(response, status, request){
           $("#tableBody").DataTable({data: response,
                                      bDestroy: true,
@@ -21,16 +46,15 @@ $(document).ready(function() {
                                      order: JSON.parse(request.getResponseHeader('Datatable-Order')),
                                      columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
                                      columnDefs: [{targets: "_all", className: "dt-body-left dt-head-left",
-                                                   render: function(data, type, row){
-                                                     return data.length > 40 ? data.substr( 0, 40 ) +'…' : data;
-                                                   }
-                                                  }]
+                                                   render: function(data, type, row, meta){
+                                                     return type === 'display' && data.length > 40 ? data.substr( 0, 40 ) +'…' : data;
+                                                   }}]
                                      })
         }
       });
     };
 
-    refresh_subtable = function(){
+    function refresh_subtable(){
         $.ajax({
             url: `/requests/${request_id}/parametricjobs`,
             type: "GET",
@@ -41,7 +65,7 @@ $(document).ready(function() {
             },
             statusCode: {
               400: function() {
-                console.warn("Bad request! Request can probably not be cast to integer.");
+                console.warn("Bad request! Request id can probably not be cast to integer.");
               }
             },
             success: function(response, status, request){
@@ -53,6 +77,21 @@ $(document).ready(function() {
                                                       info: false,
                                                       order: JSON.parse(request.getResponseHeader('Datatable-Order')),
                                                       columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
+                                                      columnDefs: [{"targets": "progress",
+                                                                    "render": function ( data, type, row, meta ) {
+                                                                                return formatprogress(row);
+                                                                              }
+                                                                    },
+                                                                    {"targets": "status",
+                                                                     "render": function(data, type, row, meta){
+                                                                                return row.reschedule? 'Rescheduled': row.status;
+                                                                               }
+                                                                     },
+                                                                     {"targets": "reschedule",
+                                                                     "render": function(data, type, row, meta){
+                                                                                return row.status == 'Failed'? `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" macroid="${row.id}" requestid="${row.request_id}"></span>`: '';
+                                                                               }
+                                                                     }]
                                                       });
             }
         });
@@ -79,6 +118,7 @@ $(document).ready(function() {
 
     // Request parametricjob subtable.
     /////////////////////////////////////////////////////
+//    $(".details-control").click(function(){
     $("#tableBody tbody").on("click", "tr td span.details-control", function() {
         var datatable = $("#tableBody").DataTable();
         var tr = $(this).closest("tr");
