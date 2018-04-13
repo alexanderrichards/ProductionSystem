@@ -85,8 +85,7 @@ class Requests(SQLTableBase):
 
     @staticmethod
     def _datatable_format_headers():
-        columns = [{"data": None, "defaultContent": r"<span class='glyphicon glyphicon-plus-sign text-primary details-control' style='cursor:pointer'></span>", "orderable": False},
-                   {"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
+        columns = [{"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
                    {"data": "description", "title": "Description", "width": "80%"},
                    {"data": "status", "title": "Status", "width": "7.5%"},
                    {"data": "request_date", "title": "Request Date", "width": "7.5%"}]

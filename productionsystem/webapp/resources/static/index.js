@@ -40,11 +40,15 @@ $(document).ready(function() {
           console.warn(`Error getting table data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
         },
         success: function(response, status, request){
+          columns = [{data: null,
+                      className: "OUCH",
+                      defaultContent: "<span class='glyphicon glyphicon-plus-sign text-primary details-control' style='cursor:pointer'></span>",
+                      orderable: false}]
           $("#tableBody").DataTable({data: response,
                                      bDestroy: true,
                                      autoWidth: false,
                                      order: JSON.parse(request.getResponseHeader('Datatable-Order')),
-                                     columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
+                                     columns: columns.concat(JSON.parse(request.getResponseHeader('Datatable-Columns'))),
                                      columnDefs: [{targets: "_all", className: "dt-body-left dt-head-left",
                                                    render: function(data, type, row, meta){
                                                      return type === 'display' && data.length > 40 ? data.substr( 0, 40 ) +'…' : data;
@@ -118,7 +122,6 @@ $(document).ready(function() {
 
     // Request parametricjob subtable.
     /////////////////////////////////////////////////////
-//    $(".details-control").click(function(){
     $("#tableBody tbody").on("click", "tr td span.details-control", function() {
         var datatable = $("#tableBody").DataTable();
         var tr = $(this).closest("tr");
