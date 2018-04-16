@@ -8,7 +8,7 @@ import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
-from productionsystem.jinja2_utils import jinja2_filter
+from productionsystem.webapp.jinja2_utils import jinja2_filter
 from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services, Users
 
