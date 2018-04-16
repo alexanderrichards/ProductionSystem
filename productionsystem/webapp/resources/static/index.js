@@ -38,6 +38,13 @@ $(document).ready(function() {
         dataType: "json",
         error: function(request, status, error){
           console.warn(`Error getting table data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
+          bootstrap_alert("Attention!", `Error getting table data! status: ${status} error: ${error}`, "alert-danger");
+        },
+        statusCode: {
+          404: function(){
+            console.warn(`404: Not Found when getting requests`)
+            bootstrap_alert("Attention!", `404: Not Found when getting requests`, "alert-warning");
+          }
         },
         success: function(response, status, request){
           columns = [{data: null,
@@ -65,11 +72,17 @@ $(document).ready(function() {
             cache: true,
             dataType: "json",
             error: function(request, status, error){
-              console.warn(`Error getting table data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
+              console.warn(`Error getting subtable data!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
+              bootstrap_alert("Attention!", `Error getting subtable data! status: ${status} error: ${error}`, "alert-danger");
             },
             statusCode: {
-              400: function() {
-                console.warn("Bad request! Request id can probably not be cast to integer.");
+              404: function(){
+                console.warn(`404: Not Found when requesting parametricjobs for request '${request_id}'`)
+                bootstrap_alert("Attention!", `404: Not Found when requesting parametricjobs for request '${request_id}'`, "alert-warning");
+              },
+              400: function(){
+                console.warn(`Bad request! Request id '${request_id}' can probably not be cast to integer.`);
+                bootstrap_alert("Attention!", `Bad request! Request id '${request_id}'`, "alert-danger");
               }
             },
             success: function(response, status, request){
@@ -109,6 +122,25 @@ $(document).ready(function() {
     setInterval(refresh_table(), 300000);  // 5 mins
 
 
+    // New request button
+    /////////////////////////////////////////////////////
+    $("#NewRequest").fancybox({
+    	type: "iframe",
+    	href: "/newrequest.html",
+    	title: "Submit New Request"
+    });
+    /////////////////////////////////////////////////////
+
+    // Admins button
+    /////////////////////////////////////////////////////
+    $("#Admins").fancybox({
+    	type: "ajax",
+    	href: "/admins",
+    	title: "Admin Management",
+    	afterClose: function(){refresh_table();}
+    });
+    /////////////////////////////////////////////////////
+
     // Reschedule macros
     /////////////////////////////////////////////////////
     $("#tableBody").on("click", "tbody tr td span.reschedule", function(){
@@ -121,7 +153,13 @@ $(document).ready(function() {
 	$.ajax({url: `requests/${request_id}/parametricjobs/${parametricjob_id}`,
 		type: "PUT",
 		data: {'reschedule': true},
+		error: function(request, status, error){
+		  console.warn(`Error rescheduling job!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
+		  bootstrap_alert("Attention!", `Error rescheduling job! status: ${status} error: ${error}`, "alert-danger");
+		},
 		success: function(){
+		    console.log(`Parametric job ${parametricjob_id} from request ${request_id} successfully rescheduled.`)
+		    bootstrap_alert("Success!", `Parametricjob '${parametricjob_id} rescheduled'`, "alert-success");
 		    refresh_subtable(request_id);
 		}});
     });
@@ -147,18 +185,9 @@ $(document).ready(function() {
 
     /////////////////////////////////////////////////////
 
-    // New request button
-    /////////////////////////////////////////////////////
-    $("#NewRequest").fancybox({
-    	type: "iframe",
-    	href: "/newrequest.html",
-    	title: "Submit New Request"
-    });
-    /////////////////////////////////////////////////////
-
     // Double click a row
     /////////////////////////////////////////////////////
-    $("#tableBody tbody").on("dblclick", "tr", function(e){
+    $("#tableBody").on("dblclick", "tbody tr", function(e){
     	$.fancybox({
                 type: "ajax",
                 href: "/requests/" + $("#tableBody").DataTable().cell($(this), $("td.rowid", this)).data()
@@ -166,20 +195,10 @@ $(document).ready(function() {
     });
     /////////////////////////////////////////////////////
 
-    // Admins button
-    /////////////////////////////////////////////////////
-    $("#Admins").fancybox({
-    	type: "ajax",
-    	href: "/admins",
-    	title: "Admin Management",
-    	afterClose: function(){refresh_table();}
-    });
-    /////////////////////////////////////////////////////
-
     // Table row selection
     /////////////////////////////////////////////////////
     var last_selected = 0;
-    $("#tableBody tbody").on("click", "tr", function(e){
+    $("#tableBody").on("click", "tbody tr", function(e){
 	var table_body = $("#tableBody tbody");
 	var table_rows = $("#tableBody tbody tr");
         var new_selected = $(table_rows).index($(this));
