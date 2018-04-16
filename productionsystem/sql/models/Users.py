@@ -61,7 +61,9 @@ class Users(SQLTableBase):
         with managed_session() as session:
             query = session.query(cls)
             if user_id is None:
-                return query.all()
+                users = query.all()
+                session.expunge_all()
+                return users
 
             with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
                 user_id = int(user_id)
@@ -76,6 +78,7 @@ class Users(SQLTableBase):
                 message = 'Multiple matching users found.'
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
+            session.expunge(user)
             return user
 
     @classmethod

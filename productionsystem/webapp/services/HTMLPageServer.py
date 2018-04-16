@@ -10,7 +10,7 @@ from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
 from productionsystem.jinja2_utils import jinja2_filter
 from productionsystem.sql import managed_session
-from productionsystem.sql.models import Services
+from productionsystem.sql.models import Services, Users
 
 MINS = 60
 
@@ -61,3 +61,9 @@ class HTMLPageServer(object):
                     for service in query.filter(Services.name != 'monitoringd').all():
                         data['statuses'][service.name] = service.status
             return self._template_env.get_template('index.html').render(data)
+
+
+    @cherrypy.expose
+    @dummy_credentials
+    def admins(self):
+        return self._template_env.get_template('admins.html').render({'users': Users.GET()})

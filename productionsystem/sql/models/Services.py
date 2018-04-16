@@ -43,7 +43,9 @@ class Services(SQLTableBase):
         with managed_session() as session:
             query = session.query(cls)
             if service_id is None:
-                return query.all()
+                services = query.all()
+                session.expunge_all()
+                return services
 
             try:
                 service_id = int(service_id)
@@ -62,4 +64,5 @@ class Services(SQLTableBase):
                 message = 'Multiple matching services found.'
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
+            session.expunge(service)
             return service

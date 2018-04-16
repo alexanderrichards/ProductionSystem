@@ -150,29 +150,29 @@ $(document).ready(function() {
     // New request button
     /////////////////////////////////////////////////////
     $("#NewRequest").fancybox({
-	type: "iframe",
-	href: "/newrequest.html",
-	title: "Submit New Request"
+    	type: "iframe",
+    	href: "/newrequest.html",
+    	title: "Submit New Request"
     });
     /////////////////////////////////////////////////////
 
     // Double click a row
     /////////////////////////////////////////////////////
     $("#tableBody tbody").on("dblclick", "tr", function(e){
-	$.fancybox({
-            type: "ajax",
-            href: "/requests/" + $("#tableBody").DataTable().cell($(this), $("td.rowid", this)).data()
-	});
+    	$.fancybox({
+                type: "ajax",
+                href: "/requests/" + $("#tableBody").DataTable().cell($(this), $("td.rowid", this)).data()
+	    });
     });
     /////////////////////////////////////////////////////
 
     // Admins button
     /////////////////////////////////////////////////////
     $("#Admins").fancybox({
-	type: "ajax",
-	href: "/admins",
-	title: "Admin Management",
-	afterClose: function(){location.reload();}
+    	type: "ajax",
+    	href: "/admins",
+    	title: "Admin Management",
+    	afterClose: function(){refresh_table();}
     });
     /////////////////////////////////////////////////////
 
