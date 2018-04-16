@@ -2,11 +2,11 @@ $(document).ready(function() {
 
     function formatprogress(parametricjob){
         var striped = parametricjob.num_running + parametricjob.num_submitted > 0? "progress-bar-striped active": "";
-        var percent_completed = 100 * parametricjob.num_completed / parametricjob.njobs;
-        var percent_failed = 100 * parametricjob.num_failed / parametricjob.njobs;
-        var percent_running = 100 * parametricjob.num_running / parametricjob.njobs;
-        var percent_submitted = 100 * parametricjob.num_submitted / parametricjob.njobs;
-        var num_other = parametricjob.njobs - (parametricjob.num_submitted + parametricjob.num_running + parametricjob.num_completed + parametricjob.num_failed)
+        var percent_completed = 100 * parametricjob.num_completed / parametricjob.num_jobs;
+        var percent_failed = 100 * parametricjob.num_failed / parametricjob.num_jobs;
+        var percent_running = 100 * parametricjob.num_running / parametricjob.num_jobs;
+        var percent_submitted = 100 * parametricjob.num_submitted / parametricjob.num_jobs;
+        var num_other = parametricjob.num_jobs - (parametricjob.num_submitted + parametricjob.num_running + parametricjob.num_completed + parametricjob.num_failed)
         var percent_other = 100 * num_other / parametricjob.njobs;
         return `
                 <div class="container" style="width:150px;border:0px;padding:0px;padding-top:15px">
@@ -41,6 +41,7 @@ $(document).ready(function() {
         },
         success: function(response, status, request){
           columns = [{data: null,
+                      width: '20px',
                       defaultContent: "<span class='glyphicon glyphicon-plus-sign text-primary details-control' style='cursor:pointer'></span>",
                       orderable: false}]
           $("#tableBody").DataTable({data: response,
@@ -73,7 +74,12 @@ $(document).ready(function() {
             },
             success: function(response, status, request){
               columns = [{data: null,
-                          defaultContent: `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" macroid="${parametricjob.id}" requestid="${request_id}"></span>`,
+                          title: 'Progress',
+                          width: '160px',
+                          orderable: false},
+                         {data: null,
+                          width: '20px',
+                          defaultContent: `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" requestid="${request_id}"></span>`,
                           orderable: false}]
               $(`#subtable-${request_id}`).DataTable({data: response,
                                                       bDestroy: true,
@@ -82,22 +88,17 @@ $(document).ready(function() {
                                                       searching: false,
                                                       info: false,
                                                       order: JSON.parse(request.getResponseHeader('Datatable-Order')),
-                                                      columns: JSON.parse(request.getResponseHeader('Datatable-Columns')),
-                                                      columnDefs: [{"targets": "progress",
+                                                      columns: JSON.parse(request.getResponseHeader('Datatable-Columns')).concat(columns),
+                                                      columnDefs: [{"targets": -2,
                                                                     "render": function ( data, type, row, meta ) {
                                                                                 return formatprogress(row);
                                                                               }
-                                                                    },
-                                                                    {"targets": "status",
-                                                                     "render": function(data, type, row, meta){
-                                                                                return row.reschedule? 'Rescheduled': row.status;
+                                                                   },
+                                                                   {"targets": -1,
+                                                                    "render": function(data, type, row, meta){
+                                                                                return row.status == 'Failed'? data: '';
                                                                                }
-                                                                     },
-                                                                     {"targets": "reschedule",
-                                                                     "render": function(data, type, row, meta){
-                                                                                return row.status == 'Failed'? `<span class="glyphicon glyphicon-repeat text-primary reschedule" style="cursor:pointer" macroid="${row.id}" requestid="${row.request_id}"></span>`: '';
-                                                                               }
-                                                                     }]
+                                                                   }]
                                                       });
             }
         });
@@ -110,11 +111,14 @@ $(document).ready(function() {
 
     // Reschedule macros
     /////////////////////////////////////////////////////
-    $("#tableBody").on("click", "tbody span.reschedule", function(){
-	var macro_id = $(this).attr('macroid');
+    $("#tableBody").on("click", "tbody tr td span.reschedule", function(){
 	var subtable = $(this).closest("table").DataTable();
+	var tr = $(this).closest("tr");
+    var row = subtable.row(tr);
+    var parametricjob_id = subtable.cell(row, $("td.rowid", tr)).data();
 	var request_id = $(this).attr('requestid');
-	$.ajax({url: `requests/${request_id}/parametricjobs/${macro_id}`,
+	console.log(`Rescheduling parametric job ${parametricjob_id} from request ${request_id}`)
+	$.ajax({url: `requests/${request_id}/parametricjobs/${parametricjob_id}`,
 		type: "PUT",
 		data: {'reschedule': true},
 		success: function(){

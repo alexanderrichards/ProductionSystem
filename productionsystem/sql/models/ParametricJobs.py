@@ -86,11 +86,9 @@ class ParametricJobs(SQLTableBase):
 
     @staticmethod
     def _datatable_format_headers():
-        columns = [{'data': 'id', 'title': 'ID'},
-                   {'data': 'status', 'title': 'Status'},
-                   {'data': 'progress', 'title': 'Progress', 'orderable': False},
-                   {'data': 'reschedule', 'orderable': False}]
-        cherrypy.response.headers['Datatable-Order'] = json.dumps([[5, 'desc']])
+        columns = [{'data': 'id', 'title': 'ID', 'className': 'rowid'},
+                   {'data': 'status', 'title': 'Status'}]
+        cherrypy.response.headers['Datatable-Order'] = json.dumps([[0, 'desc']])
         cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
 
     @classmethod
