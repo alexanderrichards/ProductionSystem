@@ -15,8 +15,12 @@ setup(
     tests_require=["mock", 'pylint', 'coverage'],
     test_suit="test.*",
     entry_points={
-        'WebApp': ['basic = productionsystem.webapp.WebApp']
+        'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
+                     'requests = productionsystem.sql.models.Requests:Requests'],
+        'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
+        'WebApp': ['basic = productionsystem.webapp.WebApp:WebApp']
     },
+    scripts=['productionsystem/webapp-daemon.py'],
     # metadata for upload to PyPI
     author="Alexander Richards",
     author_email="a.richards@imperial.ac.uk",
