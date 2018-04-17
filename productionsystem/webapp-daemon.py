@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # Dynamic imports to module level
     ###########################################################################
     # Add the python src path to the sys.path for future imports
-    WebApp = pkg_resources.load_entry_point('productionsystem', 'WebApp', 'basic')
+    WebApp = pkg_resources.load_entry_point('productionsystem', 'daemons', 'webapp')
 
     # Logging setup
     ###########################################################################
