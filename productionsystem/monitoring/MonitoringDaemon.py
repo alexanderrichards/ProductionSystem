@@ -6,8 +6,8 @@ from datetime import datetime
 import requests
 from daemonize import Daemonize
 from productionsystem.sql.registry import SessionRegistry, managed_session
-from productionsystem.sql.models import Requests
-from productionsystem.sql.enums import LocalStatus
+from productionsystem.sql.models import Requests, Services
+from productionsystem.sql.enums import LocalStatus, ServiceStatus
 
 MINS = 60
 
@@ -25,10 +25,10 @@ class MonitoringDaemon(Daemonize):
 
     def exit(self):
         """Update the monitoringd status on exit."""
-        with db_session(reraise=False) as session:
+        with managed_session() as session:
             session.query(Services)\
                    .filter(Services.name == "monitoringd")\
-                   .update({'status': SERVICESTATUS.Down})
+                   .update({'status': ServiceStatus.DOWN})
         super(MonitoringDaemon, self).exit()
 
     def main(self):
@@ -50,16 +50,16 @@ class MonitoringDaemon(Daemonize):
         This function checks the status of the DIRAC status as well as updating the
         timestamp for the current monitoringd service.
         """
-        with db_session() as session:
+        with managed_session() as session:
             query = session.query(Services)
 
             # DIRAC
             query_dirac = query.filter(Services.name == "DIRAC")
-            status = SERVICESTATUS.Down
+            status = ServiceStatus.DOWN
             if requests.get("https://dirac.gridpp.ac.uk/DIRAC/",
                             cert=self.cert, verify=self.verify)\
                        .status_code == 200:
-                status = SERVICESTATUS.Up
+                status = ServiceStatus.UP
             if query_dirac.one_or_none() is None:
                 session.add(Services(name='DIRAC', status=status))
             else:
@@ -68,9 +68,9 @@ class MonitoringDaemon(Daemonize):
             # monitoringd
             query_monitoringd = query.filter(Services.name == "monitoringd")
             if query_monitoringd.one_or_none() is None:
-                session.add(Services(name='monitoringd', status=SERVICESTATUS.Up))
+                session.add(Services(name='monitoringd', status=ServiceStatus.UP))
             else:
-                query_monitoringd.update({'status': SERVICESTATUS.Up})
+                query_monitoringd.update({'status': ServiceStatus.UP})
 
     def monitor_requests(self):
         """

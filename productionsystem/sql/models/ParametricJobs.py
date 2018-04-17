@@ -67,7 +67,7 @@ class ParametricJobs(SQLTableBase):
             for job in jobfactory(self, dirac_job):
                 result = dirac.submit(job)
                 if not result['OK']:
-                    self.logger.error("Error submitting dirac job.")
+                    self.logger.error("Error submitting dirac job: %s", result['Message'])
                     raise Exception(result['Message'])
                 diracjobs.append(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
         self.dirac_jobs = diracjobs
