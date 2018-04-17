@@ -87,7 +87,7 @@ class MonitoringDaemon(Daemonize):
                                         .all()
             reschedule_requests = session.query(Requests)\
                                          .filter_by(status=LocalStatus.FAILED)\
-                                         .join(Requests.parametricjobs)\
+                                         .join(Requests.parametric_jobs)\
                                          .filter_by(reschedule=True)\
                                          .all()
             monitored_requests.extend(reschedule_requests)

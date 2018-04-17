@@ -14,6 +14,11 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 
 
+def expandpath(path):
+    """Expand filesystem path."""
+    return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
+
+
 if __name__ == '__main__':
     app_name = os.path.splitext(os.path.basename(__file__))[0]
     lzprod_root = os.path.dirname(
@@ -32,7 +37,9 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--log-dir', default=os.path.join(lzprod_root, 'log'),
                         help="Path to the log directory. Will be created if doesn't exist "
                              "[default: %(default)s]")
-    parser.add_argument('-c', '--cert', default=os.path.expanduser('~/.globus/usercert.pem'),
+    parser.add_argument('-c', '--config', default='~/.config/productionsystem/productionsystem.conf',
+                        help="The config file [default: %(default)s]")
+    parser.add_argument('-r', '--cert', default=os.path.expanduser('~/.globus/usercert.pem'),
                         help='Path to cert .pem file [default: %(default)s]')
     parser.add_argument('-k', '--key', default=os.path.expanduser('~/.globus/userkey.pem'),
                         help='Path to key .pem file. Note must be an unencrypted key. '
@@ -57,6 +64,13 @@ if __name__ == '__main__':
                         help="Run the daemon in a debug interactive monitoring mode. "
                              "(debugging only)")
     args = parser.parse_args()
+
+    real_config = expandpath(args.config)
+    if not os.path.exists(real_config):
+        logging.warning("Config file '%s' does not exist")
+        real_config = None
+    config = importlib.import_module('productionsystem.config')
+    config.ConfigSystem.setup(real_config)
 
     # Modify the verify arg based on trusted_cas path
     if args.trusted_cas:
