@@ -27,7 +27,7 @@ class DiracJobs(SQLTableBase):
     __tablename__ = 'diracjobs'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     parametricjob_id = Column(Integer, ForeignKey('parametricjobs.id'), nullable=False)
-#    parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
+    parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
     status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
     reschedules = Column(Integer, nullable=False, default=0)
     logger = logging.getLogger(__name__)
@@ -78,5 +78,3 @@ class DiracJobs(SQLTableBase):
                 raise cherrypy.HTTPError(500, message)
             session.expunge(diracjob)
             return diracjob
-
-DiracJobs.parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
