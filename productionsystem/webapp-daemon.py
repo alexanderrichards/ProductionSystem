@@ -9,14 +9,15 @@ import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
+
+def expandpath(path):
+    """Expand filesystem path."""
+    return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
+
+
 if __name__ == '__main__':
     app_name = os.path.splitext(os.path.basename(__file__))[0]
-    lzprod_root = os.path.dirname(
-        os.path.dirname(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.path.realpath(
-                        os.path.abspath(__file__))))))
+    lzprod_root = os.path.dirname(os.path.dirname(expandpath(__file__)))
 
     parser = argparse.ArgumentParser(description='Run the LZ production web server.')
     parser.add_argument('-v', '--verbose', default=logging.INFO, action="store_const",
@@ -38,27 +39,32 @@ if __name__ == '__main__':
                         help="The number of threads in the pool [default: %(default)s]")
     parser.add_argument('-i', '--pid-file', default=os.path.join(lzprod_root, 'webserver-daemon.pid'),
                         help="The pid file used by the daemon [default: %(default)s]")
+    parser.add_argument('-c', '--config', default='~/.config/productionsystem/productionsystem.conf',
+                        help="The config file [default: %(default)s]")
     parser.add_argument('--debug-mode', action='store_true', default=False,
                         help="Run the daemon in a debug interactive monitoring mode. "
                              "(debugging only)")
     args = parser.parse_args()
 
-    # Dynamic imports to module level
-    ###########################################################################
-    # Add the python src path to the sys.path for future imports
-    WebApp = pkg_resources.load_entry_point('productionsystem', 'daemons', 'webapp')
+    real_config = expandpath(args.config)
+    if not os.path.exists(real_config):
+        logging.warning("Config file '%s' does not exist")
+        real_config = None
+    config = importlib.import_module('productionsystem.config')
+    config.ConfigSystem.setup(real_config)
 
     # Logging setup
     ###########################################################################
     # check and create logging dir
-    if not os.path.isdir(args.log_dir):
-        if os.path.exists(args.log_dir):
-            raise Exception("%s path already exists and is not a directory so cant make log dir"
-                            % args.log_dir)
-        os.mkdir(args.log_dir)
+    real_logdir = expandpath(args.log_dir)
+    if not os.path.exists(real_logdir):
+        os.makedirs(real_logdir)
+    elif not os.path.isdir(real_logdir):
+        raise Exception("%s path already exists and is not a directory so cant make log dir"
+                        % real_logdir)
 
     # setup the handler
-    fhandler = TimedRotatingFileHandler(os.path.join(args.log_dir, 'LZWebServer.log'),
+    fhandler = TimedRotatingFileHandler(os.path.join(real_logdir, 'LZWebServer.log'),
                                         when='midnight', backupCount=5)
     if args.debug_mode:
         fhandler = logging.StreamHandler()
@@ -77,8 +83,13 @@ if __name__ == '__main__':
         cherrypy_logger.handlers = []
 
     # setup the main app logger
-    logger = logging.getLogger("LZWebServer")
+    logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
+
+    # Dynamic imports to module level
+    ###########################################################################
+    # Add the python src path to the sys.path for future imports
+    WebApp = pkg_resources.load_entry_point(config.getConfig('Core').get('plugin', 'productionsystem'), 'daemons', 'webapp')
 
     # Daemon setup
     ###########################################################################
