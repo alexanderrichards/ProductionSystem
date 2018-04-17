@@ -13,8 +13,9 @@ from ..enums import LocalStatus
 from ..registry import managed_session
 from ..JSONTableEncoder import JSONTableEncoder
 from ..SQLTableBase import SQLTableBase
+from ..models import ParametricJobs
 from .Users import Users
-from .ParametricJobs import ParametricJobs
+#from .ParametricJobs import ParametricJobs
 
 
 def json_handler(*args, **kwargs):
@@ -45,43 +46,33 @@ class Requests(SQLTableBase):
 
     def submit(self):
         """Submit Request."""
-        with db_session() as session:
-            parametricjobs = session.query(ParametricJobs).filter_by(request_id=self.id).all()
-            session.expunge_all()
-            session.merge(self).status = LocalStatus.SUBMITTING
-
         self.logger.info("Submitting request %s", self.id)
-
-        submitted_jobs = []
         try:
-            for job in parametricjobs:
+            for job in self.parametric_jobs:
                 job.submit()
-                submitted_jobs.append(job)
         except:
             self.logger.exception("Exception while submitting request %s", self.id)
-            self.logger.info("Resetting associated ParametricJobs")
-            for job in submitted_jobs:
-                job.reset()
-
+            raise
 
     def update_status(self):
         """Update request status."""
-        with db_session() as session:
-            parametricjobs = session.query(ParametricJobs).filter_by(request_id=self.id).all()
-            session.expunge_all()
+        if not self.parametric_jobs:
+            self.logger.warning("No parametric jobs associated with request: %d. returning status unknown", self.id)
+            self.status = LocalStatus.UNKNOWN
+            return
 
         statuses = []
-        for job in parametricjobs:
+        for job in self.parametric_jobs:
             try:
-                statuses.append(job.update_status())
+                job.update_status()
             except:
                 self.logger.exception("Exception updating ParametricJob %s", job.id)
+            statuses.append(job.status)
 
-        status = max(statuses or [self.status])
+        status = max(statuses)
         if status != self.status:
-            with db_session(reraise=False) as session:
-                session.merge(self).status = status
-            self.logger.info("Request %s moved to state %s", self.id, status.name)
+            self.status = status
+            self.logger.info("Request %d moved to state %s", self.id, status.name)
 
     @staticmethod
     def _datatable_format_headers():
@@ -224,6 +215,7 @@ class Requests(SQLTableBase):
         with managed_session() as session:
             session.add(request)
             cls.logger.info("New Request %d added", request.id)
+
 
 # Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
 Requests.parametricjobs = ParametricJobs()

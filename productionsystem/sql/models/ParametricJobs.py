@@ -1,7 +1,10 @@
 """ParametricJobs Table."""
 import json
 import logging
+import pkg_resources
 from datetime import datetime
+from collections import defaultdict, Counter
+from copy import deepcopy
 
 import cherrypy
 from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint
@@ -10,18 +13,23 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, dummy_credentials
+from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
-from ..enums import LocalStatus
+from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 from ..JSONTableEncoder import JSONTableEncoder
-#from .DiracJobs import DiracJobs
+from .DiracJobs import DiracJobs
 
 
 def json_handler(*args, **kwargs):
     """Handle JSON encoding of response."""
     value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
     return json.dumps(value, cls=JSONTableEncoder)
+
+
+def dummy_jobfactory(parametricjob, diracjob):
+    return []
 
 
 @cherrypy.expose
@@ -44,7 +52,7 @@ class ParametricJobs(SQLTableBase):
     num_running = Column(Integer, nullable=False, default=0)
     request_id = Column(Integer, ForeignKey('requests.id'), nullable=False)
     request = relationship("Requests", back_populates="parametric_jobs")
-#    diracjobs = relationship("DiracJobs", back_populates="parametricjob")
+    dirac_jobs = relationship("DiracJobs", back_populates="parametricjob", cascade="all, delete-orphan")
 
     @hybrid_property
     def num_other(self):
@@ -53,36 +61,101 @@ class ParametricJobs(SQLTableBase):
 
     def submit(self):
         """Submit parametric job."""
-        with db_session() as session:
-            session.bulk_insert_mappings(DiracJobs, [{'id': i, 'parametricjob_id': self.id}
-                                                     for i in dirac_ids])
-
-    def reset(self):
-        """Reset parametric job."""
-        with db_session(reraise=False) as session:
-            dirac_jobs = session.query(DiracJobs).filter_by(parametricjob_id=self.id)
-            dirac_job_ids = [j.id for j in dirac_jobs.all()]
-            dirac_jobs.delete(synchronize_session=False)
-        with dirac_api_client() as dirac:
-            logger.info("Removing Dirac jobs %s from ParametricJob %s", dirac_job_ids, self.id)
-            dirac.kill(dirac_job_ids)
-            dirac.delete(dirac_job_ids)
+        diracjobs = []
+        jobfactory = pkg_resources.load_entry_point('productionsystem', 'monitoring.dirac', 'jobfactory')
+        with dirac_api_job_client() as (dirac, dirac_job):
+            for job in jobfactory(self, dirac_job):
+                result = dirac.submit(job)
+                if not result['OK']:
+                    self.logger.error("Error submitting dirac job.")
+                    raise Exception(result['Message'])
+                diracjobs.append(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
+        self.dirac_jobs = diracjobs
 
     def update_status(self):
-        """Update the status of parametric job."""
-        local_statuses = DiracJobs.update_status(self)
-        # could just have DiracJobs return this... maybe better
-#        local_statuses = Counter(status.local_status for status in dirac_statuses.elements())
-        status = max(local_statuses or [self.status])
-        with db_session() as session:
-            this = session.merge(self)
-            this.status = status
-            this.num_completed = local_statuses[LOCALSTATUS.Completed]
-            this.num_failed = local_statuses[LOCALSTATUS.Failed]
-            this.num_submitted = local_statuses[LOCALSTATUS.Submitted]
-            this.num_running = local_statuses[LOCALSTATUS.Running]
-            this.reschedule = False
-        return status
+        """
+        Bulk update status.
+        This method updates all DIRAC jobs which belong to the given
+        parametricjob.
+        """
+        # Group jobs by status
+
+        if not self.dirac_jobs:
+            self.logger.warning("No dirac jobs associated with parametricjob: %d. returning status unknown", self.id)
+            self.status = LocalStatus.UNKNOWN
+            self.reschedule = False
+            self.num_completed = 0
+            self.num_failed = 0
+            self.num_submitted = 0
+            self.num_running = 0
+            return
+
+        job_types = defaultdict(set)
+        for job in self.dirac_jobs:
+            job_types[job.status].add(job.id)
+            # add auto-reschedule jobs
+            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and job.reschedules < 2:
+                job_types['Reschedule'].add(job.id)
+
+        reschedule_jobs = job_types['Reschedule'] if job_types[DiracStatus.DONE] else set()
+        monitor_jobs = job_types[DiracStatus.RUNNING] | \
+                       job_types[DiracStatus.RECEIVED] | \
+                       job_types[DiracStatus.QUEUED] | \
+                       job_types[DiracStatus.WAITING] | \
+                       job_types[DiracStatus.CHECKING] | \
+                       job_types[DiracStatus.MATCHED] | \
+                       job_types[DiracStatus.UNKNOWN] | \
+                       job_types[DiracStatus.COMPLETED]
+
+        if self.reschedule:
+            reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
+
+        # Reschedule jobs
+        if reschedule_jobs:
+            self.logger.info("Rescheduling jobs: %s", list(reschedule_jobs))
+            with dirac_api_client() as dirac:
+                result = deepcopy(dirac.reschedule(reschedule_jobs))
+            if result['OK']:
+                self.logger.info("Rescheduled jobs: %s", result['Value'])
+                skipped_jobs = reschedule_jobs.difference(result["Value"])
+                if skipped_jobs:
+                    self.logger.warning("Failed to reschedule jobs: %s", list(skipped_jobs))
+                monitor_jobs.update(result['Value'])
+                reschedule_jobs = set(result['Value'])
+            else:
+                self.logger.error("Problem rescheduling jobs: %s", result['Message'])
+
+        # Update status
+        with dirac_api_client() as dirac:
+            dirac_answer = deepcopy(dirac.status(monitor_jobs))
+        if not dirac_answer['OK']:
+            self.logger.error("Problem getting monitored job statuses from DIRAC for parametricjob is %d.", self.id)
+            self.reschedule = False
+            return
+        dirac_statuses = dirac_answer['Value']
+
+        skipped_jobs = monitor_jobs.difference(dirac_statuses)
+        if skipped_jobs:
+            self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
+
+        statuses = Counter()
+        for job in self.dirac_jobs:
+            if job.id in reschedule_jobs:
+                job.reschedules += 1
+            if job.id in dirac_statuses:
+                job.status = DiracStatus[dirac_statuses[job.id]['Status'].upper()]
+            statuses.update(job.status.local_status)
+
+        status = max(statuses)
+        if status != self.status:
+            self.status = status
+            self.logger.info("ParametricJob %d moved to state %s", self.id, status.name)
+
+        self.num_completed = statuses[LocalStatus.COMPLETED]
+        self.num_failed = statuses[LocalStatus.FAILED]
+        self.num_submitted = statuses[LocalStatus.SUBMITTED]
+        self.num_running = statuses[LocalStatus.RUNNING]
+        self.reschedule = False
 
     @staticmethod
     def _datatable_format_headers():
@@ -161,3 +234,6 @@ class ParametricJobs(SQLTableBase):
             if reschedule and not job.reschedule:
                 job.reschedule = True
                 job.status = LocalStatus.SUBMITTING
+
+
+#ParametricJobs.diracjobs = DiracJobs()
