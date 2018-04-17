@@ -16,36 +16,10 @@
 <!-- TiTaToggle CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/titatoggle/1.2.11/titatoggle-dist-min.css">
 <script type="text/javascript">
-$(document).ready(function() {
-
-  $("form").submit(function(event){
-    event.preventDefault();  // prevent default submission as doesn't create json content.
-    $.ajax({url: "/requests",
-            type: "POST",
-            data: JSON.stringify($(this).serializeArray()),
-            contentType: "application/json; charset=utf-8",
-            error: function(request, status, error){
-              console.warn(`Error submitting request!\nstatus: ${status}\nerror: ${error}\nrequest: ` + JSON.stringify(request));
-              parent.bootstrap_alert("Attention!", `Error submitting request! status: ${status} error: ${error}`, "alert-danger");
-            },
-            success: function(result){
-               console.log("Successfully posted request.")
-		       parent.refresh_table();
-		       parent.bootstrap_alert("Success!", "Request added", "alert-success");
-            }
-    });
-    parent.$.fancybox.close();
-  });
-});
+{{ newrequest_script }}
 </script>
 <style>
-  .macro-selection {width: 100%;
-                    overflow-x:auto;
-                    overflow-y:auto;
-                    overflow: -moz-scrollbars-horizontal;}
-  .required { color: red;
-              font-weight: bold;
-            }
+{{ newrequest_style }}
 </style>
 </head>
 <body>
@@ -56,7 +30,7 @@ $(document).ready(function() {
         </div>
         <div class="panel-body">
             <form>
-                {{ form_html }}
+                {{ newrequest_form }}
                 <br>
                 <button type="submit" class="btn btn-primary">
                     <span class="glyphicon glyphicon-send"></span> Submit

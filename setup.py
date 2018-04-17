@@ -18,6 +18,7 @@ setup(
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
                      'requests = productionsystem.sql.models.Requests:Requests'],
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
+        'webapp.streams': ['newrequest = productionsystem.webapp.resource_utils:newrequest_streams'],
         'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp']
     },
     scripts=['productionsystem/webapp-daemon.py'],

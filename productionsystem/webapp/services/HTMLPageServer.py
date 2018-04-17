@@ -72,5 +72,7 @@ class HTMLPageServer(object):
     @dummy_credentials
     def newrequest(self):
         """Return new request page."""
-        form_html = pkg_resources.resource_stream('productionsystem', 'webapp/resources/newrequest_form.html')
-        return self._template_env.get_template('newrequest.html').render({'form_html': form_html.read()})
+        script, style, form = pkg_resources.load_entry_point('productionsystem', 'webapp.streams', 'newrequest')()
+        return self._template_env.get_template('newrequest.html').render({'newrequest_script': script.read(),
+                                                                          'newrequest_style': style.read(),
+                                                                          'newrequest_form': form.read()})
