@@ -126,7 +126,7 @@ $(document).ready(function() {
     /////////////////////////////////////////////////////
     $("#NewRequest").fancybox({
     	type: "iframe",
-    	href: "/newrequest.html",
+    	href: "/newrequest",
     	title: "Submit New Request"
     });
     /////////////////////////////////////////////////////

@@ -62,8 +62,15 @@ class HTMLPageServer(object):
                         data['statuses'][service.name] = service.status
             return self._template_env.get_template('index.html').render(data)
 
-
     @cherrypy.expose
     @dummy_credentials
     def admins(self):
+        """Return admins page."""
         return self._template_env.get_template('admins.html').render({'users': Users.GET()})
+
+    @cherrypy.expose
+    @dummy_credentials
+    def newrequest(self):
+        """Return new request page."""
+        form_html = pkg_resources.resource_stream('productionsystem', 'webapp/resources/newrequest_form.html')
+        return self._template_env.get_template('newrequest.html').render({'form_html': form_html.read()})
