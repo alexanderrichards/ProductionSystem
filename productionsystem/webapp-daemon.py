@@ -74,14 +74,6 @@ if __name__ == '__main__':
     root_logger.addHandler(fhandler)
     root_logger.setLevel(args.logginglevel)
 
-    # NOTE: all current loggers can be found with:
-    #     logging.Logger.manager.loggerDict.keys()
-    # Force cherrypy to log to our handler
-    for logger_handle in ['cherrypy', 'cherrypy.access', 'cherrypy.error']:
-        cherrypy_logger = logging.getLogger(logger_handle)
-        cherrypy_logger.setLevel(logging.NOTSET)
-        cherrypy_logger.handlers = []
-
     # setup the main app logger
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
@@ -90,6 +82,16 @@ if __name__ == '__main__':
     ###########################################################################
     # Add the python src path to the sys.path for future imports
     WebApp = pkg_resources.load_entry_point(config.getConfig('Core').get('plugin', 'productionsystem'), 'daemons', 'webapp')
+
+    # Fix cherrypy loggers
+    #############################################
+    # NOTE: all current loggers can be found with:
+    #     logging.Logger.manager.loggerDict.keys()
+    # Force cherrypy to log to our handler
+    for logger_handle in ['cherrypy', 'cherrypy.access', 'cherrypy.error']:
+        cherrypy_logger = logging.getLogger(logger_handle)
+        cherrypy_logger.setLevel(logging.NOTSET)
+        cherrypy_logger.handlers = []
 
     # Daemon setup
     ###########################################################################
