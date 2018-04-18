@@ -6,6 +6,7 @@ import hashlib
 import pkg_resources
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from productionsystem.config import getConfig
 from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
 from productionsystem.webapp.jinja2_utils import jinja2_filter
@@ -72,7 +73,8 @@ class HTMLPageServer(object):
     @dummy_credentials
     def newrequest(self):
         """Return new request page."""
-        script, style, form = pkg_resources.load_entry_point('productionsystem', 'webapp.streams', 'newrequest')()
+        plugin = getConfig('Plugins').get('newrequest', 'productionsystem')
+        script, style, form = pkg_resources.load_entry_point(plugin, 'webapp.streams', 'newrequest')()
         return self._template_env.get_template('newrequest.html').render({'newrequest_script': script.read(),
                                                                           'newrequest_style': style.read(),
                                                                           'newrequest_form': form.read()})

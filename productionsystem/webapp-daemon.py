@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # Dynamic imports to module level
     ###########################################################################
     # Add the python src path to the sys.path for future imports
-    WebApp = pkg_resources.load_entry_point(config.getConfig('Core').get('plugin', 'productionsystem'), 'daemons', 'webapp')
+    WebApp = pkg_resources.load_entry_point(config.getConfig('Plugins').get('webapp', 'productionsystem'), 'daemons', 'webapp')
 
     # Fix cherrypy loggers
     #############################################

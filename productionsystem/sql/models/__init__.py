@@ -5,5 +5,5 @@ from Users import Users
 from Services import Services
 from DiracJobs import DiracJobs
 
-ParametricJobs = pkg_resources.load_entry_point(getConfig('Core').get('plugin', 'productionsystem'), 'dbmodels', 'parametricjobs')
-Requests = pkg_resources.load_entry_point(getConfig('Core').get('plugin', 'productionsystem'), 'dbmodels', 'requests')
+ParametricJobs = pkg_resources.load_entry_point(getConfig('Plugins').get('parametricjobs', 'productionsystem'), 'dbmodels', 'parametricjobs')
+Requests = pkg_resources.load_entry_point(getConfig('Plugins').get('requests', 'productionsystem'), 'dbmodels', 'requests')

@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, dummy_credentials
+from productionsystem.config import getConfig
 from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus, DiracStatus
@@ -62,7 +63,8 @@ class ParametricJobs(SQLTableBase):
     def submit(self):
         """Submit parametric job."""
         diracjobs = []
-        jobfactory = pkg_resources.load_entry_point('productionsystem', 'monitoring.dirac', 'jobfactory')
+        plugin = getConfig('Plugins').get('jobfactory', 'productionsystem')
+        jobfactory = pkg_resources.load_entry_point(plugin, 'monitoring.dirac', 'jobfactory')
         with dirac_api_job_client() as (dirac, dirac_job):
             for job in jobfactory(self, dirac_job):
                 result = dirac.submit(job)
