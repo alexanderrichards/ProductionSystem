@@ -2,7 +2,7 @@
 import pkg_resources
 import cherrypy
 from daemonize import Daemonize
-from productionsystem.sql.registry import SessionRegistry
+from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services, Users
 from .services import HTMLPageServer
 
@@ -23,9 +23,7 @@ class WebApp(Daemonize):
         self._socket_port = socket_port
         self._thread_pool = thread_pool
 
-    def main(self):
-        """Daemon main."""
-        SessionRegistry.setup(self._dburl)
+    def _global_config(self):
         static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/resources/static')
         config = {
             'global': {
@@ -41,8 +39,9 @@ class WebApp(Daemonize):
 #                'checker.check_static_paths': None
             }
         }
+        return config
 
-        cherrypy.config.update(config)  # global vars need updating global config
+    def _mount_points(self):
         cherrypy.tree.mount(HTMLPageServer(),
                             '/',
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
@@ -57,9 +56,28 @@ class WebApp(Daemonize):
         cherrypy.tree.mount(Users(),
                             '/users',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-#        cherrypy.tree.mount(Admins(template_env),
-#                            '/admins',
-#                            {'/': {'request.dispatch': CredentialDispatcher(cherrypy.dispatch.MethodDispatcher(),
-#                                                                                          admin_only=True)}})
+    def main(self):
+        """Daemon main."""
+        ## Temporary testing
+        #########################
+        import os
+        if os.path.exists(self._dburl[10:]):
+            os.remove(self._dburl[10:])
+        from productionsystem.config import ConfigSystem
+        print ConfigSystem.get_instance().config
+        ##########################
+
+        SessionRegistry.setup(self._dburl)
+        #temporary testing entry
+        #######################
+        from productionsystem.sql.models import ParametricJobs
+        with managed_session() as session:
+            session.add(Users(id=17, dn='/blah/CN=mydn/blah', ca='ca', email='test@email.com', suspended=False, admin=True))
+            session.add(Requests(id=1, requester_id=17, description="alex test job"))
+            session.add(ParametricJobs(id=3, request_id=1, status='FAILED', num_jobs=5))
+        #######################
+
+        cherrypy.config.update(self._global_config())  # global vars need updating global config
+        self._mount_points()
         cherrypy.engine.start()
         cherrypy.engine.block()

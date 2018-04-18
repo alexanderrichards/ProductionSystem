@@ -27,9 +27,9 @@ class DiracJobs(SQLTableBase):
     __tablename__ = 'diracjobs'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     parametricjob_id = Column(Integer, ForeignKey('parametricjobs.id'), nullable=False)
-    parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
     status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
     reschedules = Column(Integer, nullable=False, default=0)
+    parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
     logger = logging.getLogger(__name__)
 
     @classmethod

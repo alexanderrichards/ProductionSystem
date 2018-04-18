@@ -68,6 +68,11 @@ class ParametricJobs(SQLTableBase):
                 result = dirac.submit(job)
                 if not result['OK']:
                     self.logger.error("Error submitting dirac job: %s", result['Message'])
+                    if diracjobs:
+                        jobs = [diracjob.id for diracjob in diracjobs]
+                        self.logger.info("Killing/deleting existing dirac jobs.")
+                        dirac.kill(jobs)
+                        dirac.delete(jobs)
                     raise Exception(result['Message'])
                 diracjobs.append(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
         self.dirac_jobs = diracjobs
