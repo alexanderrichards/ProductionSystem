@@ -29,8 +29,7 @@ $(document).ready(function () {
         }
       });
 
-
-  $(".checkbox input").change(function(){
+  $("#users").on("change", "div label input:checkbox", function(){
     var chkbox = $(this);
     $.ajax({url: "/users/" + chkbox.attr("id"),
             type: "PUT",
