@@ -135,7 +135,7 @@ $(document).ready(function() {
     /////////////////////////////////////////////////////
     $("#Admins").fancybox({
     	type: "ajax",
-    	href: "/admins",
+    	href: "/admins.html",
     	title: "Admin Management",
     	afterClose: function(){refresh_table();}
     });

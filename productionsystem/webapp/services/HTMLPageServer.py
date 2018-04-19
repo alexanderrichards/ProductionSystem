@@ -65,12 +65,6 @@ class HTMLPageServer(object):
 
     @cherrypy.expose
     @dummy_credentials
-    def admins(self):
-        """Return admins page."""
-        return self._template_env.get_template('admins.html').render({'users': Users.GET()})
-
-    @cherrypy.expose
-    @dummy_credentials
     def newrequest(self):
         """Return new request page."""
         plugin = getConfig('Plugins').get('newrequest', 'productionsystem')

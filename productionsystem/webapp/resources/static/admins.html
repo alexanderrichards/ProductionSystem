@@ -16,12 +16,13 @@ $(document).ready(function () {
           bootstrap_alert("Attention!", `Error getting users! status: ${status} error: ${error}`, "alert-danger");
         },
         success: function(response, status, request){
+          console.log("Successfully got users.");
           $.each(response, function(index, value){
             var checked = value.admin? "checked": "";
-            $("body").append(`
+            $("#users").append(`
             <div class="checkbox checkbox-slider-info checkbox-slider--b"> <!-- could have checkbox-slider--b-flat -->
               <label>
-    	        <input type="checkbox" id=${value.id} ${checked}checked><span><span class="glyphicon glyphicon-user text-primary"/> ${value.name}</span>
+    	        <input type="checkbox" id=${value.id} ${checked}><span><span class="glyphicon glyphicon-user text-primary"/> ${value.name}</span>
               </label>
             </div>`);
           });
@@ -41,5 +42,7 @@ $(document).ready(function () {
 <title>LZ Production Admins</title>
 </head>
 <body>
+<div id="users">
+</div>
 </body>
 </html>

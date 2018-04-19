@@ -49,6 +49,12 @@ class Users(SQLTableBase):
         """equality check."""
         return (self.dn, self.ca) == (other.dn, other.ca)
 
+    def jsonable(self):
+        """Return an easily JSON encodable object."""
+        user = super(Users, self).jsonable()
+        user['name'] = self.name
+        return user
+
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
