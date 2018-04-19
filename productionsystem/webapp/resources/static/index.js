@@ -127,7 +127,8 @@ $(document).ready(function() {
     $("#NewRequest").fancybox({
     	type: "iframe",
     	href: "/newrequest",
-    	title: "Submit New Request"
+    	title: "Submit New Request",
+    	afterClose: refresh_table
     });
     /////////////////////////////////////////////////////
 
@@ -137,7 +138,7 @@ $(document).ready(function() {
     	type: "ajax",
     	href: "/admins.html",
     	title: "Admin Management",
-    	afterClose: function(){refresh_table();}
+    	afterClose: refresh_table
     });
     /////////////////////////////////////////////////////
 
