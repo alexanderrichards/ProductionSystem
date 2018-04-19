@@ -19,14 +19,7 @@ from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
-from ..JSONTableEncoder import JSONTableEncoder
 from .DiracJobs import DiracJobs
-
-
-def json_handler(*args, **kwargs):
-    """Handle JSON encoding of response."""
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=JSONTableEncoder)
 
 
 def dummy_jobfactory(parametricjob, diracjob):
@@ -173,7 +166,7 @@ class ParametricJobs(SQLTableBase):
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out(handler=json_handler)
+    @cherrypy.tools.json_out()
 #    @check_credentials
     @dummy_credentials
     def GET(cls, request_id, parametricjob_id=None):  # pylint: disable=invalid-name

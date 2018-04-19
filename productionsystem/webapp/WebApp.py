@@ -2,6 +2,7 @@
 import pkg_resources
 import cherrypy
 from daemonize import Daemonize
+from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
 from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services, Users
 from .services import HTMLPageServer
@@ -28,6 +29,7 @@ class WebApp(Daemonize):
         config = {
             'global': {
                 'tools.gzip.on': True,
+                'tools.json_out.handler': json_cherrypy_handler,
                 'tools.staticdir.root': static_resources,
                 'tools.staticdir.on': True,
                 'tools.staticdir.dir': '',

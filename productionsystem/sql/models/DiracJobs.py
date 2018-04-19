@@ -11,12 +11,6 @@ from productionsystem.sql.registry import managed_session
 from productionsystem.apache_utils import check_credentials, dummy_credentials
 from ..enums import DiracStatus
 from ..SQLTableBase import SQLTableBase
-from ..JSONTableEncoder import JSONTableEncoder
-
-def json_handler(*args, **kwargs):
-    """Handle JSON encoding of response."""
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=JSONTableEncoder)
 
 
 @cherrypy.expose
@@ -34,7 +28,7 @@ class DiracJobs(SQLTableBase):
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out(handler=json_handler)
+    @cherrypy.tools.json_out()
 #    @check_credentials
     @dummy_credentials
     def GET(cls, request_id, parametricjob_id, diracjob_id=None):  # pylint: disable=invalid-name

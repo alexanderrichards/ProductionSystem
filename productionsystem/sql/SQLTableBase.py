@@ -1,4 +1,7 @@
 """SQLAlchemy Base Table Module."""
+import json
+from enum import Enum
+from datetime import datetime
 from abc import ABCMeta
 from collections import Mapping
 from sqlalchemy.ext.declarative import declarative_base
@@ -57,6 +60,22 @@ class IterableBase(Mapping):
 
     def __len__(self):
         return len(list(self.columns))
+
+    def jsonable(self):
+        """Return an easily JSON encodable object."""
+        output_obj = {}
+        for column, value in dict(self).iteritems():
+            val = value
+            if isinstance(value, Enum):
+                val = value.name.capitalize()
+            elif isinstance(value, datetime):
+                val = value.isoformat(' ')
+            output_obj[column] = val
+        return output_obj
+
+    def to_json(self):
+        """Return a JSON representation of the object."""
+        return json.dumps(self.jsonable())
 
 
 SQLTableBase = declarative_base(cls=IterableBase,  # pylint: disable=invalid-name

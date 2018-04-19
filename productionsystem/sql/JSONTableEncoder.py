@@ -1,8 +1,7 @@
 """JSON Utilities Module."""
 
 import json
-from enum import Enum
-from datetime import datetime
+import cherrypy
 from .SQLTableBase import SQLTableBase
 
 
@@ -11,10 +10,12 @@ class JSONTableEncoder(json.JSONEncoder):
 
     def default(self, obj):
         """Override base default method."""
-        if isinstance(obj, Enum):
-            return obj.name.capitalize()
         if isinstance(obj, SQLTableBase):
-            return dict(obj, status=obj.status.name.capitalize())
-        if isinstance(obj, datetime):
-            return obj.isoformat(' ')
-        return super(json.JSONEncoder, self).default(obj)
+            return obj.jsonable()
+        return json.JSONEncoder.default(self, obj)
+
+
+def json_cherrypy_handler(*args, **kwargs):
+    """Handle JSON encoding of response."""
+    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
+    return json.dumps(value, cls=JSONTableEncoder)

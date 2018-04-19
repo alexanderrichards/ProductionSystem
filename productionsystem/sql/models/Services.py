@@ -9,13 +9,7 @@ from productionsystem.apache_utils import dummy_credentials
 from ..registry import managed_session
 from ..enums import ServiceStatus
 from ..SQLTableBase import SQLTableBase
-from ..JSONTableEncoder import JSONTableEncoder
 
-
-def json_handler(*args, **kwargs):
-    """Handle JSON encoding of response."""
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=JSONTableEncoder)
 
 
 @cherrypy.expose
@@ -32,7 +26,7 @@ class Services(SQLTableBase):
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out(handler=json_handler)
+    @cherrypy.tools.json_out()
     @dummy_credentials
 #    @check_credentials
 #    @admin_only

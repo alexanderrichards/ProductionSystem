@@ -11,17 +11,10 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from ..enums import LocalStatus
 from ..registry import managed_session
-from ..JSONTableEncoder import JSONTableEncoder
 from ..SQLTableBase import SQLTableBase
 from ..models import ParametricJobs
 from .Users import Users
 #from .ParametricJobs import ParametricJobs
-
-
-def json_handler(*args, **kwargs):
-    """Handle JSON encoding of response."""
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=JSONTableEncoder)
 
 
 def subdict(dct, keys):
@@ -89,7 +82,7 @@ class Requests(SQLTableBase):
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out(handler=json_handler)
+    @cherrypy.tools.json_out()
     @dummy_credentials
 #    @check_credentials
     def GET(cls, request_id=None):  # pylint: disable=invalid-name
@@ -125,9 +118,8 @@ class Requests(SQLTableBase):
             query = session.query(cls, Users)
             if request_id is None:
                 cls._datatable_format_headers()
-                return [dict(request,
-                             requester=user.name,
-                             status=request.status.name.capitalize())
+                return [dict(request.jsonable(),
+                             requester=user.name)
                         for request, user in query.join(Users, cls.requester_id == Users.id).all()]
             try:
                 request, user = query.filter_by(id=request_id)\
@@ -141,9 +133,8 @@ class Requests(SQLTableBase):
                 message = "Multiple Requests found with id: %s!" % request_id
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
-            return dict(request,
-                        requester=user.name,
-                        status=request.status.name.capitalize())
+            return dict(request.jsonable(),
+                        requester=user.name)
 
     @classmethod
     @check_credentials
