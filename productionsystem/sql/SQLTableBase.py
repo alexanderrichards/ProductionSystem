@@ -53,7 +53,7 @@ class IterableBase(Mapping):
         """Access instrumented attributes as a dict."""
         if item not in self.columns:
             raise KeyError("Invalid attribute name: %s" % item)
-        return getattr(self, item)
+        return getattr(self, item, None)
 
     def __len__(self):
         return len(list(self.columns))
