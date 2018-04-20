@@ -30,6 +30,9 @@ class Requests(SQLTableBase):
     """Requests SQL Table."""
 
     __tablename__ = 'requests'
+    classtype = Column(TEXT)
+    __mapper_args__ = {'polymorphic_on': classtype,
+                       'polymorphic_identity': 'requests'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     description = Column(TEXT, nullable=True)
     requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
@@ -194,7 +197,8 @@ class Requests(SQLTableBase):
 
     @classmethod
     @cherrypy.tools.json_in()
-    @check_credentials
+#    @check_credentials
+    @dummy_credentials
     def POST(cls):  # pylint: disable=invalid-name
         """REST Post method."""
         data = cherrypy.request.json
@@ -203,10 +207,12 @@ class Requests(SQLTableBase):
         request = cls(requester_id=cherrypy.request.verified_user.id)
         request.parametric_jobs = []
         for job in data:
-            request.parametric_jobs.append(ParametricJobs(**subdict(job,
-                                                                    ('allowed'))))
+            request.parametric_jobs.append(ParametricJobs(**subdict(data,
+                                                                    ('solidsim_version', 'num_jobs'))))
         with managed_session() as session:
             session.add(request)
+            session.flush()
+            session.refresh(request)
             cls.logger.info("New Request %d added", request.id)
 
 

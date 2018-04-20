@@ -32,7 +32,9 @@ class ParametricJobs(SQLTableBase):
     """Jobs SQL Table."""
 
     __tablename__ = 'parametricjobs'
-    logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+    classtype = Column(TEXT)
+    __mapper_args__ = {'polymorphic_on': classtype,
+                       'polymorphic_identity': 'parametricjobs'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     priority = Column(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3)
     site = Column(TEXT, nullable=False, default='ANY')
@@ -47,6 +49,7 @@ class ParametricJobs(SQLTableBase):
     request_id = Column(Integer, ForeignKey('requests.id'), nullable=False)
     request = relationship("Requests", back_populates="parametric_jobs")
     dirac_jobs = relationship("DiracJobs", back_populates="parametricjob", cascade="all, delete-orphan")
+    logger = logging.getLogger(__name__)
 
     @hybrid_property
     def num_other(self):
