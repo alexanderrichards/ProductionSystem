@@ -17,9 +17,11 @@ from .Users import Users
 #from .ParametricJobs import ParametricJobs
 
 
-def subdict(dct, keys):
+def subdict(dct, keys, **kwargs):
     """Create a sub dictionary."""
-    return {k: dct[k] for k in keys if k in dct}
+    out = {k: dct[k] for k in keys if k in dct}
+    out.update(kwargs)
+    return out
 
 
 @cherrypy.expose
