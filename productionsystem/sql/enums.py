@@ -47,12 +47,12 @@ class DiracStatus(IntEnum):
 class LocalStatus(IntEnum):
     """Local Status Enum."""
 
-    UNKNOWN = 0
-    DELETED = 1
-    KILLED = 2
-    COMPLETED = 3
-    FAILED = 4
-    REQUESTED = 5
+    REQUESTED = 0
+    UNKNOWN = 1
+    DELETED = 2
+    KILLED = 3
+    COMPLETED = 4
+    FAILED = 5
     APPROVED = 6
     SUBMITTED = 7
     SUBMITTING = 8

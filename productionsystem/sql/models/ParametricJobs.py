@@ -50,7 +50,7 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    request_id = Column(Integer, ForeignKey('requests.id'), nullable=False)
+    request_id = SmartColumn(Integer, ForeignKey('requests.id'), nullable=False, required=True)
     request = relationship("Requests", back_populates="parametric_jobs")
     dirac_jobs = relationship("DiracJobs", back_populates="parametricjob", cascade="all, delete-orphan")
     logger = logging.getLogger(__name__)
@@ -84,6 +84,7 @@ class ParametricJobs(SQLTableBase):
                         dirac.delete(jobs)
                     raise Exception(result['Message'])
                 self.dirac_jobs.extend(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
+            self.logger.info("Successfully submitted Dirac jobs for %s.%s", self.request_id, self.id)
 
     def update_status(self):
         """

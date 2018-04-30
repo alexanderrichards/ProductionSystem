@@ -232,7 +232,8 @@ class Requests(SQLTableBase):
         request.parametric_jobs = []
         for job in parametricjobs:
             try:
-                request.parametric_jobs.append(ParametricJobs(**job))
+                job.pop('request_id', None)
+                request.parametric_jobs.append(ParametricJobs(request_id=request.id, **job))
             except ValueError:
                 message = "Error creating parametricjob, bad input."
                 cls.logger.exception(message)
@@ -245,4 +246,4 @@ class Requests(SQLTableBase):
 
 
 # Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
-Requests.parametricjobs = ParametricJobs()
+Requests.parametricjobs = ParametricJobs.unsafe_construct()

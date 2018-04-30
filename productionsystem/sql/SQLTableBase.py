@@ -24,8 +24,10 @@ class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
 
 
 class SmartColumn(Column):
-    def __init__(self, required=False, allowed=False, *args, **kwargs):
-        super(Column, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        required = kwargs.pop('required', False)
+        allowed = kwargs.pop('allowed', False)
+        Column.__init__(self, *args, **kwargs)
         self._required = required
         self._allowed = required or allowed
     @property
@@ -98,6 +100,12 @@ class IterableBase(Mapping):
     def to_json(self):
         """Return a JSON representation of the object."""
         return json.dumps(self.jsonable())
+
+    @classmethod
+    def unsafe_construct(cls, *args, **kwargs):
+        new = cls.__new__(cls, *args, **kwargs)
+        super(IterableBase, new).__init__(*args, **kwargs)
+        return new
 
 
 SQLTableBase = declarative_base(cls=IterableBase,  # pylint: disable=invalid-name

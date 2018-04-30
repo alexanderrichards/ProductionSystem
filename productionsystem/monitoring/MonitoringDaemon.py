@@ -37,7 +37,7 @@ class MonitoringDaemon(Daemonize):
 
         try:
             while True:
-                self.check_services()
+                #self.check_services()
                 self.monitor_requests()
                 time.sleep(self._delay * MINS)
         except Exception:
@@ -97,5 +97,6 @@ class MonitoringDaemon(Daemonize):
                     request.status = LocalStatus.SUBMITTING
                     session.commit()
                     request.submit()
+                    session.commit()
                 request.update_status()
                 session.commit()
