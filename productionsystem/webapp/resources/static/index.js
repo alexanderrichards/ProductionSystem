@@ -58,6 +58,9 @@ $(document).ready(function() {
                                      columns: columns.concat(JSON.parse(request.getResponseHeader('Datatable-Columns'))),
                                      columnDefs: [{targets: "_all", className: "dt-body-left dt-head-left",
                                                    render: function(data, type, row, meta){
+                                                     if (data === null){
+                                                       data = "";
+                                                     }
                                                      return type === 'display' && data.length > 40 ? data.substr( 0, 40 ) +'…' : data;
                                                    }}]
                                      })
@@ -292,7 +295,7 @@ $(document).ready(function() {
                                     data: {"status": "Approved"}}));
 	}
 	$.when.apply(this, ajax_calls).done(function() {
-            $("#tableBody").DataTable().ajax.reload();
+	        refresh_table();
             bootstrap_alert("Info!", "Approved " + ids.length + " request(s)", "alert-info");
 	});
     });
@@ -306,7 +309,7 @@ $(document).ready(function() {
                                     type: "DELETE"}));
 	}
 	$.when.apply(this, ajax_calls).done(function() {
-            $("#tableBody").DataTable().ajax.reload();
+            refresh_table();
             bootstrap_alert("Attention!", "Deleted "+ ids.length +" request(s)", "alert-danger");
 	});
     });
@@ -328,7 +331,7 @@ $(document).ready(function() {
 					    type: "DELETE"}));
 		});
 		$.when.apply(this, ajax_calls).done(function() {
-		    table.ajax.reload();
+		    refresh_table();
 		    bootstrap_alert("Attention!", "Deleted " + ajax_calls.length + " requests" , "alert-danger");
 		});
             });

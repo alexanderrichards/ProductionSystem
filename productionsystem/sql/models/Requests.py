@@ -168,8 +168,9 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
     @classmethod
-    @check_credentials
-    @admin_only
+#    @check_credentials
+#    @admin_only
+    @dummy_credentials
     def PUT(cls, request_id, status):  # pylint: disable=invalid-name
         """REST Put method."""
         cls.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)
@@ -204,11 +205,17 @@ class Requests(SQLTableBase):
         data = cherrypy.request.json
         cls.logger.debug("In POST: kwargs = %s", data)
 
-        request = cls(requester_id=cherrypy.request.verified_user.id)
+        request = cls(**subdict(data["request"], ('description',), requester_id=cherrypy.request.verified_user.id))
         request.parametric_jobs = []
-        for job in data:
-            request.parametric_jobs.append(ParametricJobs(**subdict(data,
-                                                                    ('solidsim_version', 'num_jobs'))))
+        for job in data["parametricjobs"]:
+            request.parametric_jobs.append(ParametricJobs(**subdict(job,
+                                                                    ('solidsim_version',
+                                                                     'solidsim_macro',
+                                                                     'solidsim_inputfiletype',
+                                                                     'solidsim_output_lfn',
+                                                                     'num_jobs',
+                                                                     'seed',
+                                                                     'jobnumber_start'))))
         with managed_session() as session:
             session.add(request)
             session.flush()

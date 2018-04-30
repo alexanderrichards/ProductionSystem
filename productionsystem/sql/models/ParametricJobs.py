@@ -7,7 +7,7 @@ from collections import defaultdict, Counter
 from copy import deepcopy
 
 import cherrypy
-from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint
+from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint, event
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -58,7 +58,7 @@ class ParametricJobs(SQLTableBase):
 
     def submit(self):
         """Submit parametric job."""
-        diracjobs = []
+        self.dirac_jobs = []
         plugin = getConfig('Plugins').get('jobfactory', 'productionsystem')
         jobfactory = pkg_resources.load_entry_point(plugin, 'monitoring.dirac', 'jobfactory')
         with dirac_api_job_client() as (dirac, dirac_job):
@@ -66,14 +66,13 @@ class ParametricJobs(SQLTableBase):
                 result = dirac.submit(job)
                 if not result['OK']:
                     self.logger.error("Error submitting dirac job: %s", result['Message'])
-                    if diracjobs:
-                        jobs = [diracjob.id for diracjob in diracjobs]
+                    if self.dirac_jobs:
+                        jobs = [diracjob.id for diracjob in self.dirac_jobs]
                         self.logger.info("Killing/deleting existing dirac jobs.")
                         dirac.kill(jobs)
                         dirac.delete(jobs)
                     raise Exception(result['Message'])
-                diracjobs.append(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
-        self.dirac_jobs = diracjobs
+                self.dirac_jobs.extend(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
 
     def update_status(self):
         """
@@ -147,7 +146,7 @@ class ParametricJobs(SQLTableBase):
                 job.reschedules += 1
             if job.id in dirac_statuses:
                 job.status = DiracStatus[dirac_statuses[job.id]['Status'].upper()]
-            statuses.update(job.status.local_status)
+            statuses.update((job.status.local_status,))
 
         status = max(statuses)
         if status != self.status:
@@ -240,3 +239,7 @@ class ParametricJobs(SQLTableBase):
 
 
 #ParametricJobs.diracjobs = DiracJobs()
+@event.listens_for(ParametricJobs, 'before_delete')
+def receive_before_delete(mapper, connection, target):
+    "listen for the 'before_delete' event"
+    pass
