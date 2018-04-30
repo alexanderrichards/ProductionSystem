@@ -4,6 +4,7 @@ from enum import Enum
 from datetime import datetime
 from abc import ABCMeta
 from collections import Mapping
+from sqlalchemy import Column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative.api import DeclarativeMeta
 
@@ -22,12 +23,31 @@ class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
     pass
 
 
+class SmartColumn(Column):
+    def __init__(self, required=False, allowed=False, *args, **kwargs):
+        super(Column, self).__init__(*args, **kwargs)
+        self._required = required
+        self._allowed = required or allowed
+    @property
+    def required(self):
+        return self._required
+    @property
+    def allowed(self):
+        return self._allowed
+
+
 class ColumnsDescriptor(object):
     """Yield the column names."""
-
+    def __init__(self, required=False, allowed=False):
+        self._required = required
+        self._allowed = allowed
     def __get__(self, obj, cls):
         """Descriptor get."""
         for column in cls.__table__.columns:
+            if self._required and not getattr(column, 'required', False):  # use getattr so works on normal column as well as smart column
+                continue
+            if self._allowed and not getattr(column, 'allowed', False):
+                continue
             yield column.name
 
     def __set__(self, obj, value):
@@ -47,6 +67,8 @@ class IterableBase(Mapping):
     # This we can get from the class as well as instance
     # unlike property
     columns = ColumnsDescriptor()
+    required_columns = ColumnsDescriptor(required=True)
+    allowed_columns = ColumnsDescriptor(allowed=True)
 
     def __iter__(self):
         """Get an iterator over instrumented attributes."""

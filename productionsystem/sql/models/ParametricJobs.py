@@ -18,13 +18,17 @@ from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session
-from ..SQLTableBase import SQLTableBase
+from ..SQLTableBase import SQLTableBase, SmartColumn
 from .DiracJobs import DiracJobs
 
 
 def dummy_jobfactory(parametricjob, diracjob):
     return []
-
+def subdict(dct, keys, **kwargs):
+    """Create a sub dictionary."""
+    out = {k: dct[k] for k in keys if k in dct}
+    out.update(kwargs)
+    return out
 
 @cherrypy.expose
 @cherrypy.popargs('parametricjob_id')
@@ -36,12 +40,12 @@ class ParametricJobs(SQLTableBase):
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'parametricjobs'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    priority = Column(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3)
-    site = Column(TEXT, nullable=False, default='ANY')
+    priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3, allowed=True)
+    site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     reschedule = Column(Boolean, nullable=False, default=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    num_jobs = Column(Integer, nullable=False)
+    num_jobs = SmartColumn(Integer, nullable=False, required=True)
     num_completed = Column(Integer, nullable=False, default=0)
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
@@ -55,6 +59,13 @@ class ParametricJobs(SQLTableBase):
     def num_other(self):
         """Return the number of jobs in states other than the known ones."""
         return self.njobs - (self.num_submitted + self.num_running + self.num_failed + self.num_completed)
+
+
+    def __init__(self, **kwargs):
+        required_args = set(self.required_columns).difference(kwargs)
+        if required_args:
+            raise ValueError("Missing required keyword args: %s" % list(required_args))
+        super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
     def submit(self):
         """Submit parametric job."""

@@ -11,7 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from ..enums import LocalStatus
 from ..registry import managed_session
-from ..SQLTableBase import SQLTableBase
+from ..SQLTableBase import SQLTableBase, SmartColumn
 from ..models import ParametricJobs
 from .Users import Users
 #from .ParametricJobs import ParametricJobs
@@ -34,14 +34,20 @@ class Requests(SQLTableBase):
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'requests'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    description = Column(TEXT, nullable=True)
-    requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    description = SmartColumn(TEXT, nullable=True, allowed=True)
+    requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     parametric_jobs = relationship("ParametricJobs", back_populates="request", cascade="all, delete-orphan")
     logger = logging.getLogger(__name__)
 
+    def __init__(self, **kwargs):
+        required_args = set(self.required_columns).difference(kwargs)
+        if required_args:
+            raise ValueError("Missing required keyword args: %s" % list(required_args))
+        super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
+        
     def submit(self):
         """Submit Request."""
         self.logger.info("Submitting request %s", self.id)
@@ -204,18 +210,33 @@ class Requests(SQLTableBase):
         """REST Post method."""
         data = cherrypy.request.json
         cls.logger.debug("In POST: kwargs = %s", data)
+        if not isinstance(data, dict):
+            message = "Request data is expected to be JSON object."
+            cls.logger.error(message)
+            raise cherrypy.HTTPError(400, message)
+        if 'request' not in data:
+            message = "Request data should contain 'request' as a subobject."
+            cls.logger.error(message)
+            raise cherrypy.HTTPError(400, message)
+        data['request'].pop('requester_id', None)
+        try:
+            request = cls(requester_id=cherrypy.request.verified_user.id, **data["request"])
+        except ValueError:
+            message = "Error creating request, bad input."
+            cls.logger.exception(message)
+            raise cherrypy.HTTPError(400, message)
 
-        request = cls(**subdict(data["request"], ('description',), requester_id=cherrypy.request.verified_user.id))
+        parametricjobs = data.get("parametricjobs", [])
+        if not parametricjobs:
+            cls.logger.warning("No parametric jobs requested.")
         request.parametric_jobs = []
-        for job in data["parametricjobs"]:
-            request.parametric_jobs.append(ParametricJobs(**subdict(job,
-                                                                    ('solidsim_version',
-                                                                     'solidsim_macro',
-                                                                     'solidsim_inputfiletype',
-                                                                     'solidsim_output_lfn',
-                                                                     'num_jobs',
-                                                                     'seed',
-                                                                     'jobnumber_start'))))
+        for job in parametricjobs:
+            try:
+                request.parametric_jobs.append(ParametricJobs(**job))
+            except ValueError:
+                message = "Error creating parametricjob, bad input."
+                cls.logger.exception(message)
+                raise cherrypy.HTTPError(400, message)
         with managed_session() as session:
             session.add(request)
             session.flush()
