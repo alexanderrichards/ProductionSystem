@@ -246,4 +246,4 @@ class Requests(SQLTableBase):
 
 
 # Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
-Requests.parametricjobs = ParametricJobs.unsafe_construct()
+#Requests.parametricjobs = ParametricJobs.unsafe_construct()

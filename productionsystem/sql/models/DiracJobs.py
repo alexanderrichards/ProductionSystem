@@ -63,11 +63,11 @@ class DiracJobs(SQLTableBase):
                 # Does this need to be before the join? will id be requestid or parametricjob id?
                 diracjob = query.filter_by(id=diracjob_id).one()
             except NoResultFound:
-                message = "No ParametricJobs found with id: %s" % parametricjob_id
+                message = "No DiracJobs found with id: %s" % parametricjob_id
                 cls.logger.error(message)
                 raise cherrypy.NotFound(message)
             except MultipleResultsFound:
-                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
+                message = "Multiple DiracJobs found with id: %s" % parametricjob_id
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
             session.expunge(diracjob)
