@@ -8,7 +8,7 @@ from DIRAC.Interfaces.API.Job import Job
 from DIRAC.Interfaces.API.Dirac import Dirac
 
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+#logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 #def autoexpose(cls):
@@ -90,6 +90,6 @@ class DiracDaemon(Daemonize):
         ThreadedServer(DiracService,
                        hostname=hostname,
                        port=port,
-                       logger=logger,
+                       logger=self.logger,
                        protocol_config={"allow_public_attrs": True,
                                         "allow_pickle": True}).start()

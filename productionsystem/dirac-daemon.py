@@ -64,9 +64,7 @@ if __name__ == '__main__':
     # setup the root logger
     root_logger = logging.getLogger()
     root_logger.handlers = [fhandler]
-    root_logger.setLevel({None: logging.INFO,
-                          1: logging.INFO,
-                          2: logging.DEBUG}.get(args.verbose, logging.DEBUG))
+    root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
