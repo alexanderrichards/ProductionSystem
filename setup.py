@@ -23,7 +23,9 @@ setup(
         'monitoring.dirac': ['jobfactory = productionsystem.sql.models.ParametricJobs:dummy_jobfactory'],
         'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp']
     },
-    scripts=['productionsystem/webapp-daemon.py'],
+    scripts=['productionsystem/webapp-daemon.py',
+             'productionsystem/monitoring-daemon.py',
+             'productionsystem/dirac-daemon.py'],
     # metadata for upload to PyPI
     author="Alexander Richards",
     author_email="a.richards@imperial.ac.uk",
