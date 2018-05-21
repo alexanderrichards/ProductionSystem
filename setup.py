@@ -11,7 +11,8 @@ setup(
                       'requests',
                       'SQLAlchemy',
                       'Sphinx',
-                      'rpyc'
+                      'rpyc',
+                      'suds'
                       ],
     tests_require=["mock", 'pylint', 'coverage'],
     test_suit="test.*",
