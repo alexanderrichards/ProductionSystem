@@ -29,10 +29,7 @@ class SingletonMeta(type):
 
     def get_instance(cls, *args, **kwargs):
         """Get instance."""
-        instance = vars(cls).get('__instance__')
-        if instance is None:
-            cls.setup(*args, **kwargs)
-        return instance
+        return vars(cls).get('__instance__', cls.setup(*args, **kwargs))
 
     def setup(cls, *args, **kwargs):
         """Setup the instance."""
@@ -44,7 +41,7 @@ class SingletonMeta(type):
         instance = cls.__new__(cls, *args, **kwargs)
         instance.__init__(*args, **kwargs)
         setattr(cls, '__instance__', instance)
-
+        return instance
 
 def singleton(cls):
     """

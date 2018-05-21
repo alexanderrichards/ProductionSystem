@@ -36,6 +36,8 @@ if __name__ == '__main__':
                              "if you have a problem with MySQLdb.py [default: %(default)s]")
     parser.add_argument('-y', '--verify', default=False, action="store_true",
                         help="Verify the VOMS server.")
+    parser.add_argument('-n', '--config', default='~/.config/productionsystem/productionsystem.conf',
+                        help="The config file [default: %(default)s]")
     parser.add_argument('-t', '--trusted-cas', default='',
                         help="Path to the trusted CA_BUNDLE file or directory containing the "
                              "certificates of trusted CAs. Note if set to a directory, the "
@@ -54,6 +56,14 @@ if __name__ == '__main__':
 
     # Add the python src path to the sys.path for future imports
     sys.path.append(lzprod_root)
+
+    real_config = expandpath(args.config)
+    if not os.path.exists(real_config):
+        logging.warning("Config file '%s' does not exist")
+        real_config = None
+    config = importlib.import_module('productionsystem.config')
+    config.ConfigSystem.setup(real_config)
+
 
     registry = importlib.import_module('productionsystem.sql.registry')
     Users = importlib.import_module('productionsystem.sql.models.Users').Users
