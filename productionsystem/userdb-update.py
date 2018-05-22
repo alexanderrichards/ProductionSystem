@@ -7,6 +7,8 @@ import logging
 import argparse
 import importlib
 
+from sqlalchemy.exc import SQLAlchemyError
+
 
 def expandpath(path):
     """Expand filesystem path."""
@@ -101,14 +103,20 @@ if __name__ == '__main__':
         # Add new users in VOMS
         for new_user in new_users:
             logger.info("Adding user: DN='%s', CA='%s'", new_user.dn, new_user.ca)
-            session.add(new_user)
+            try:
+                session.add(new_user)
+            except SQLAlchemyError as err:
+                logger.error("Error Adding user: %s", err.message)
 
         # Remove users removed from VOMS
         for removed_user in removed_users:
             logger.info("Removing user: DN='%s', CA='%s'", removed_user.dn, removed_user.ca)
-            session.query(Users)\
-                   .filter_by(dn=removed_user.dn, ca=removed_user.ca)\
-                   .delete(synchronize_session=False)
+            try:
+                session.query(Users)\
+                       .filter_by(dn=removed_user.dn, ca=removed_user.ca)\
+                       .delete(synchronize_session=False)
+            except SQLAlchemyError as err:
+                logger.error("Error deleting user: %s", err.message)
 
         # Users with modified suspended status, update from VOMS
         for common_user in common_users:
@@ -121,15 +129,21 @@ if __name__ == '__main__':
             if voms_email != db_email:
                 logger.info("Updating user: DN='%s', CA='%s', Email=%s->%s",
                             voms_dn, voms_ca, db_email, voms_email)
-                session.query(Users)\
-                       .filter_by(dn=voms_dn, ca=voms_ca)\
-                       .update({'email': voms_email})
+                try:
+                    session.query(Users)\
+                           .filter_by(dn=voms_dn, ca=voms_ca)\
+                           .update({'email': voms_email})
+                except SQLAlchemyError as err:
+                    logger.error("Error updateing user email: %s", err.message)
 
             if voms_suspended != db_suspended:
                 logger.info("Updating user: DN='%s', CA='%s', Suspended=%s->%s",
                             voms_dn, voms_ca, db_suspended, voms_suspended)
-                session.query(Users)\
-                       .filter_by(dn=voms_dn, ca=voms_ca)\
-                       .update({'suspended': voms_suspended})
+                try:
+                    session.query(Users)\
+                           .filter_by(dn=voms_dn, ca=voms_ca)\
+                           .update({'suspended': voms_suspended})
+                except SQLAlchemyError as err:
+                    logger.error("Error updating user suspended status: %s", err.message)
 
     logging.shutdown()
