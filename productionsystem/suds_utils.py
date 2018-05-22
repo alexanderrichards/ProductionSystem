@@ -85,6 +85,9 @@ class CertClient(Client):
         """
         kwargs.setdefault('transport', HttpCertAuthenticated(cert, verify))
         Client.__init__(self, url, **kwargs)
+        # Shouldn't be necessary but Client is ignoring the headers kwarg
+        headers = kwargs.get('headers', None)
+        self.set_options(headers=headers)
 
 
 __all__ = ('HttpCertAuthenticated', 'CertClient')
