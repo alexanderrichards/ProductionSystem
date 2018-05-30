@@ -64,7 +64,7 @@ if __name__ == '__main__':
                         % real_logdir)
 
     # setup the handler
-    fhandler = TimedRotatingFileHandler(os.path.join(real_logdir, 'LZWebServer.log'),
+    fhandler = TimedRotatingFileHandler(os.path.join(real_logdir, 'webapp-daemon.log'),
                                         when='midnight', backupCount=5)
     if args.debug_mode:
         fhandler = logging.StreamHandler()
