@@ -28,6 +28,9 @@ class WebApp(Daemonize):
         static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/resources/static')
         config = {
             'global': {
+                'log.screen': False,
+                'log.access_file': '',
+                'log.error_file': '',
                 'tools.gzip.on': True,
                 'tools.json_out.handler': json_cherrypy_handler,
                 'tools.staticdir.root': static_resources,
@@ -41,6 +44,10 @@ class WebApp(Daemonize):
 #                'checker.check_static_paths': None
             }
         }
+        # Prevent CherryPy from trying to open its log files when the autoreloader kicks in.
+        # This is not strictly required since we do not even let CherryPy open them in the
+        # first place. But, this avoids wasting time on something useless.
+        cherrypy.engine.unsubscribe('graceful', cherrypy.log.reopen_files)
         return config
 
     def _mount_points(self):

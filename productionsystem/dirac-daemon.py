@@ -7,16 +7,15 @@ import importlib
 import argparse
 import logging
 from logging.handlers import TimedRotatingFileHandler
+
 from DIRAC.Core.Base import Script
+
+from productionsystem.utils import expand_path
 
 if __name__ == '__main__':
     app_name = os.path.splitext(os.path.basename(__file__))[0]
-    lzprod_root = os.path.dirname(
-        os.path.dirname(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.path.realpath(
-                        os.path.abspath(__file__))))))
+    lzprod_root = os.path.dirname(os.path.dirname(expand_path(__file__)))
+
     parser = argparse.ArgumentParser(description='Run the DIRAC environment daemon.')
     parser.add_argument('-s', '--host', default='localhost',
                         help="The dirac environment API host [default: %(default)s]")
@@ -38,24 +37,18 @@ if __name__ == '__main__':
     sys.argv = sys.argv[:1]
     Script.parseCommandLine(ignoreErrors=True)
 
-    # Dynamic imports to module level
-    ###########################################################################
-    # Add the python src path to the sys.path for future imports
-    sys.path.append(lzprod_root)
-    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrpc.DiracRPCServer').DiracDaemon
-
-
     # Logging setup
     ###########################################################################
     # check and create logging dir
-    if not os.path.isdir(args.log_dir):
-        if os.path.exists(args.log_dir):
-            raise Exception("%s path already exists and is not a directory so cant make log dir"
-                            % args.log_dir)
-        os.mkdir(args.log_dir)
+    log_dir = expand_path(args.log_dir)
+    if not os.path.isdir(log_dir):
+        if os.path.exists(log_dir):
+            raise ValueError("%s path already exists and is not a directory so cant make log dir"
+                             % log_dir)
+        os.makedirs(log_dir)
 
     # setup the handler
-    fhandler = TimedRotatingFileHandler(os.path.join(args.log_dir, 'dirac-daemon.log'),
+    fhandler = TimedRotatingFileHandler(os.path.join(log_dir, 'dirac-daemon.log'),
                                         when='midnight', backupCount=5)
     if args.debug_mode:
         fhandler = logging.StreamHandler()
@@ -63,12 +56,18 @@ if __name__ == '__main__':
 
     # setup the root logger
     root_logger = logging.getLogger()
-    root_logger.handlers = [fhandler]
+    root_logger.addHandler(fhandler)
     root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
+
+    # Dynamic imports to module level
+    ###########################################################################
+    # Add the python src path to the sys.path for future imports
+    sys.path.append(lzprod_root)
+    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrpc.DiracRPCServer').DiracDaemon
 
     # Daemon setup
     ###########################################################################

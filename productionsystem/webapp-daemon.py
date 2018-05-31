@@ -2,22 +2,17 @@
 # pylint: disable=invalid-name
 """Script to start the LZ Production web server."""
 import os
-import sys
 import argparse
 import pkg_resources
 import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-
-def expandpath(path):
-    """Expand filesystem path."""
-    return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
-
+from productionsystem.utils import expand_path
 
 if __name__ == '__main__':
     app_name = os.path.splitext(os.path.basename(__file__))[0]
-    lzprod_root = os.path.dirname(os.path.dirname(expandpath(__file__)))
+    lzprod_root = os.path.dirname(os.path.dirname(expand_path(__file__)))
 
     parser = argparse.ArgumentParser(description='Run the LZ production web server.')
     parser.add_argument('-v', '--verbose', default=logging.INFO, action="store_const",
@@ -46,7 +41,7 @@ if __name__ == '__main__':
                              "(debugging only)")
     args = parser.parse_args()
 
-    real_config = expandpath(args.config)
+    real_config = expand_path(args.config)
     if not os.path.exists(real_config):
         logging.warning("Config file '%s' does not exist")
         real_config = None
@@ -56,19 +51,20 @@ if __name__ == '__main__':
     # Logging setup
     ###########################################################################
     # check and create logging dir
-    real_logdir = expandpath(args.log_dir)
-    if not os.path.exists(real_logdir):
-        os.makedirs(real_logdir)
-    elif not os.path.isdir(real_logdir):
-        raise Exception("%s path already exists and is not a directory so cant make log dir"
-                        % real_logdir)
+    log_dir = expand_path(args.log_dir)
+    if not os.path.isdir(log_dir):
+        if os.path.exists(log_dir):
+            raise ValueError("%s path already exists and is not a directory so cant make log dir"
+                             % log_dir)
+        os.makedirs(log_dir)
 
     # setup the handler
-    fhandler = TimedRotatingFileHandler(os.path.join(real_logdir, 'webapp-daemon.log'),
+    fhandler = TimedRotatingFileHandler(os.path.join(log_dir, 'webapp-daemon.log'),
                                         when='midnight', backupCount=5)
     if args.debug_mode:
         fhandler = logging.StreamHandler()
     fhandler.setFormatter(logging.Formatter("[%(asctime)s] %(name)15s : %(levelname)8s : %(message)s"))
+
     # setup the root logger
     root_logger = logging.getLogger()
     root_logger.addHandler(fhandler)
@@ -78,20 +74,9 @@ if __name__ == '__main__':
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
 
-    # Dynamic imports to module level
+    # Load WebApp class.
     ###########################################################################
-    # Add the python src path to the sys.path for future imports
     WebApp = pkg_resources.load_entry_point(config.getConfig('Plugins').get('webapp', 'productionsystem'), 'daemons', 'webapp')
-
-    # Fix cherrypy loggers
-    #############################################
-    # NOTE: all current loggers can be found with:
-    #     logging.Logger.manager.loggerDict.keys()
-    # Force cherrypy to log to our handler
-    for logger_handle in ['cherrypy', 'cherrypy.access', 'cherrypy.error']:
-        cherrypy_logger = logging.getLogger(logger_handle)
-        cherrypy_logger.setLevel(logging.NOTSET)
-        cherrypy_logger.handlers = []
 
     # Daemon setup
     ###########################################################################

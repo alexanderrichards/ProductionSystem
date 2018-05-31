@@ -13,20 +13,11 @@ import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-
-def expandpath(path):
-    """Expand filesystem path."""
-    return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
-
+from productionsystem.utils import expand_path
 
 if __name__ == '__main__':
     app_name = os.path.splitext(os.path.basename(__file__))[0]
-    lzprod_root = os.path.dirname(
-        os.path.dirname(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.path.realpath(
-                        os.path.abspath(__file__))))))
+    lzprod_root = os.path.dirname(os.path.dirname(expand_path(__file__)))
 
     parser = argparse.ArgumentParser(description='Run the job monitoring daemon.')
     parser.add_argument('-f', '--frequency', default=5, type=int,
@@ -65,7 +56,7 @@ if __name__ == '__main__':
                              "(debugging only)")
     args = parser.parse_args()
 
-    real_config = expandpath(args.config)
+    real_config = expand_path(args.config)
     if not os.path.exists(real_config):
         logging.warning("Config file '%s' does not exist")
         real_config = None
@@ -76,24 +67,18 @@ if __name__ == '__main__':
     if args.trusted_cas:
         args.verify = args.trusted_cas
 
-    # Dynamic imports to module level
-    ###########################################################################
-    # Add the python src path to the sys.path for future imports
-    sys.path.append(lzprod_root)
-    MonitoringDaemon = importlib.import_module('productionsystem.monitoring.MonitoringDaemon')\
-                                .MonitoringDaemon
-
     # Logging setup
     ###########################################################################
     # check and create logging dir
-    if not os.path.isdir(args.log_dir):
-        if os.path.exists(args.log_dir):
-            raise Exception("%s path already exists and is not a directory so cant make log dir"
-                            % args.log_dir)
-        os.mkdir(args.log_dir)
+    log_dir = expand_path(args.log_dir)
+    if not os.path.isdir(log_dir):
+        if os.path.exists(log_dir):
+            raise ValueError("%s path already exists and is not a directory so cant make log dir"
+                             % log_dir)
+        os.makedirs(log_dir)
 
     # setup the handler
-    fhandler = TimedRotatingFileHandler(os.path.join(args.log_dir, 'monitoring-daemon.log'),
+    fhandler = TimedRotatingFileHandler(os.path.join(log_dir, 'monitoring-daemon.log'),
                                         when='midnight', backupCount=5)
     if args.debug_mode:
         fhandler = logging.StreamHandler()
@@ -101,13 +86,19 @@ if __name__ == '__main__':
 
     # setup the root logger
     root_logger = logging.getLogger()
-    root_logger.handlers = [fhandler]
+    root_logger.addHandler(fhandler)
     root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
 
+    # Dynamic imports to module level
+    ###########################################################################
+    # Add the python src path to the sys.path for future imports
+    sys.path.append(lzprod_root)
+    MonitoringDaemon = importlib.import_module('productionsystem.monitoring.MonitoringDaemon')\
+                                .MonitoringDaemon
 
     # Daemon setup
     ###########################################################################
