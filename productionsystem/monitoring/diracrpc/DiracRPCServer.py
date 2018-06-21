@@ -6,6 +6,7 @@ from rpyc.utils.server import ThreadedServer
 from daemonize import Daemonize
 from DIRAC.Interfaces.API.Job import Job
 from DIRAC.Interfaces.API.Dirac import Dirac
+from DIRAC.Core.DISET.RPCClient import RPCClient
 
 
 #logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -72,6 +73,7 @@ class DiracService(rpyc.Service):
 
     exposed_Job = FixedJob
     exposed_dirac_api = FixedDirac()
+    exposed_RPCClient = RPCClient
 
 
 class DiracDaemon(Daemonize):
