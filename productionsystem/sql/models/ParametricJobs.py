@@ -5,6 +5,7 @@ import pkg_resources
 from datetime import datetime
 from collections import defaultdict, Counter
 from copy import deepcopy
+from tempfile import NamedTemporaryFile
 
 import cherrypy
 from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint, event
@@ -22,7 +23,7 @@ from ..SQLTableBase import SQLTableBase, SmartColumn
 from .DiracJobs import DiracJobs
 
 
-def dummy_jobfactory(parametricjob, diracjob):
+def dummy_jobfactory(parametricjob, diracjob, runscript):
     return []
 def subdict(dct, keys, **kwargs):
     """Create a sub dictionary."""
@@ -72,8 +73,9 @@ class ParametricJobs(SQLTableBase):
         self.dirac_jobs = []
         plugin = getConfig('Plugins').get('jobfactory', 'productionsystem')
         jobfactory = pkg_resources.load_entry_point(plugin, 'monitoring.dirac', 'jobfactory')
-        with dirac_api_job_client() as (dirac, dirac_job):
-            for job in jobfactory(self, dirac_job):
+        with dirac_api_job_client() as (dirac, dirac_job),\
+             NamedTemporaryFile() as runscript:
+            for job in jobfactory(self, dirac_job, runscript):
                 result = dirac.submit(job)
                 if not result['OK']:
                     self.logger.error("Error submitting dirac job: %s", result['Message'])

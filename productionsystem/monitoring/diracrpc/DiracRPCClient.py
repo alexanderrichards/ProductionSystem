@@ -7,11 +7,11 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 @contextmanager
-def dirac_rpc_client(host="localhost", port=18861):
+def dirac_rpc_client(rpc_endpoint, host="localhost", port=18861):
     """DIRAC RPC client context."""
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
-        yield conn.root.RPCClient
+        yield conn.root.RPCClient(rpc_endpoint)
     finally:
         conn.close()
 

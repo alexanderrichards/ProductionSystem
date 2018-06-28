@@ -105,6 +105,7 @@ class IterableBase(Mapping):
     def unsafe_construct(cls, *args, **kwargs):
         new = cls.__new__(cls, *args, **kwargs)
         super(IterableBase, new).__init__(*args, **kwargs)
+#           super(cls, new).__init__(*args, **kwargs)
         return new
 
 

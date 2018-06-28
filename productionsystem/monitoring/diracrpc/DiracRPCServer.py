@@ -8,7 +8,6 @@ from DIRAC.Interfaces.API.Job import Job
 from DIRAC.Interfaces.API.Dirac import Dirac
 from DIRAC.Core.DISET.RPCClient import RPCClient
 
-
 #logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
@@ -68,13 +67,19 @@ class FixedDirac(Dirac):
         return super(FixedDirac, self).reschedule(jobid)
 
 
+class FixedRPCClient(RPCClient):
+
+    def exposed_listDirectory(self, *args):
+        return self.listDirectory(*args)
+#        return RPCClient("DataManagement/FileCatalog").listDirectory('/', False)
+#        return self.listDirectory(self, *args, **kwargs)
+
 class DiracService(rpyc.Service):
     """DIRAC RPyC Service."""
 
     exposed_Job = FixedJob
     exposed_dirac_api = FixedDirac()
-    exposed_RPCClient = RPCClient
-
+    exposed_RPCClient = FixedRPCClient
 
 class DiracDaemon(Daemonize):
     """DIRAC daemon to host the server."""
