@@ -26,11 +26,12 @@ class DiracStatus(IntEnum):
     FAILED = 5
     STALLED = 6
     RUNNING = 7
-    RECEIVED = 8
-    QUEUED = 9
-    WAITING = 10
-    CHECKING = 11
-    MATCHED = 12
+    SUBMITTING = 8
+    RECEIVED = 9
+    QUEUED = 10
+    WAITING = 11
+    CHECKING = 12
+    MATCHED = 13
 
     @classmethod
     def members_names(cls):
@@ -71,6 +72,7 @@ STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.FAILED: LocalStatus.FAILED,
               DiracStatus.STALLED: LocalStatus.FAILED,
               DiracStatus.RUNNING: LocalStatus.RUNNING,
+              DiracStatus.SUBMITTING: LocalStatus.SUBMITTING,
               DiracStatus.RECEIVED: LocalStatus.SUBMITTED,
               DiracStatus.QUEUED: LocalStatus.SUBMITTED,
               DiracStatus.WAITING: LocalStatus.SUBMITTED,
