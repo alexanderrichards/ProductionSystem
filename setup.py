@@ -21,7 +21,6 @@ setup(
                      'requests = productionsystem.sql.models.Requests:Requests'],
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
         'webapp.streams': ['newrequest = productionsystem.webapp.resource_utils:newrequest_streams'],
-        'monitoring.dirac': ['jobfactory = productionsystem.sql.models.ParametricJobs:dummy_jobfactory'],
         'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp']
     },
     scripts=['productionsystem/webapp-daemon.py',

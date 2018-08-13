@@ -1,7 +1,8 @@
 """ParametricJobs Table."""
+import os
 import json
 import logging
-import pkg_resources
+from abc import abstractmethod
 from datetime import datetime
 from collections import defaultdict, Counter
 from copy import deepcopy
@@ -23,13 +24,12 @@ from ..SQLTableBase import SQLTableBase, SmartColumn
 from .DiracJobs import DiracJobs
 
 
-def dummy_jobfactory(parametricjob, diracjob, runscript):
-    return []
 def subdict(dct, keys, **kwargs):
     """Create a sub dictionary."""
     out = {k: dct[k] for k in keys if k in dct}
     out.update(kwargs)
     return out
+
 
 @cherrypy.expose
 @cherrypy.popargs('parametricjob_id')
@@ -61,32 +61,37 @@ class ParametricJobs(SQLTableBase):
         """Return the number of jobs in states other than the known ones."""
         return self.njobs - (self.num_submitted + self.num_running + self.num_failed + self.num_completed)
 
-
     def __init__(self, **kwargs):
         required_args = set(self.required_columns).difference(kwargs)
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
+    @abstractmethod
+    def _setup_dirac_job(self, job, tmp_runscript):
+        """Setup the DIRAC parametric job."""
+        tmp_runscript.write("echo HelloWorld\n")
+        tmp_runscript.flush()
+        job.setName("Test DIRAC Job")
+        job.setExecutable(os.path.basename(tmp_runscript.name))
+        return job
+
     def submit(self):
         """Submit parametric job."""
-        self.dirac_jobs = []
-        plugin = getConfig('Plugins').get('jobfactory', 'productionsystem')
-        jobfactory = pkg_resources.load_entry_point(plugin, 'monitoring.dirac', 'jobfactory')
-        with dirac_api_job_client() as (dirac, dirac_job),\
-             NamedTemporaryFile() as runscript:
-            for job in jobfactory(self, dirac_job, runscript):
-                result = dirac.submit(job)
-                if not result['OK']:
-                    self.logger.error("Error submitting dirac job: %s", result['Message'])
-                    if self.dirac_jobs:
-                        jobs = [diracjob.id for diracjob in self.dirac_jobs]
-                        self.logger.info("Killing/deleting existing dirac jobs.")
-                        dirac.kill(jobs)
-                        dirac.delete(jobs)
-                    raise Exception(result['Message'])
-                self.dirac_jobs.extend(DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value'])
-            self.logger.info("Successfully submitted Dirac jobs for %s.%s", self.request_id, self.id)
+        with dirac_api_job_client() as (dirac, dirac_job_class), NamedTemporaryFile() as runscript:
+            dirac_job = self._setup_dirac_job(dirac_job_class(), runscript)
+            result = dirac.submit(dirac_job)
+            if not result['OK']:
+                self.logger.error("Error submitting dirac job: %s", result['Message'])
+                if self.dirac_jobs:
+                    jobs = [diracjob.id for diracjob in self.dirac_jobs]
+                    self.logger.info("Killing/deleting %d existing dirac jobs.", len(jobs))
+                    dirac.kill(jobs)
+                    dirac.delete(jobs)
+                raise Exception(result['Message'])
+            self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value']]
+            self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
+                             len(self.dirac_jobs), self.request_id, self.id)
 
     def update_status(self):
         """
