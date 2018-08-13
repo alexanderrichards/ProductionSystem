@@ -67,8 +67,12 @@ class HTMLPageServer(object):
     @dummy_credentials
     def newrequest(self):
         """Return new request page."""
-        plugin = getConfig('Plugins').get('newrequest', 'productionsystem')
-        script, style, form = pkg_resources.load_entry_point(plugin, 'webapp.streams', 'newrequest')()
-        return self._template_env.get_template('newrequest.html').render({'newrequest_script': script.read(),
-                                                                          'newrequest_style': style.read(),
-                                                                          'newrequest_form': form.read()})
+        script = pkg_resources.resource_string('productionsystem',
+                                               'webapp/resources/static/newrequest.js')
+        style = pkg_resources.resource_string('productionsystem',
+                                              'webapp/resources/static/newrequest.css')
+        form = pkg_resources.resource_string('productionsystem',
+                                             'webapp/resources/static/newrequest_form.html')
+        return self._template_env.get_template('newrequest.html').render({'newrequest_script': script,
+                                                                          'newrequest_style': style,
+                                                                          'newrequest_form': form})
