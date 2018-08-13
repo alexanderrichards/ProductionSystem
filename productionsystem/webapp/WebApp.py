@@ -5,7 +5,7 @@ from daemonize import Daemonize
 from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
 from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services, Users
-from .services import HTMLPageServer
+from .services import HTMLPageServer, CVMFSDirectoryListing
 
 
 class WebApp(Daemonize):
@@ -54,6 +54,11 @@ class WebApp(Daemonize):
         cherrypy.tree.mount(HTMLPageServer(),
                             '/',
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
+
+        cherrypy.tree.mount(CVMFSDirectoryListing(),
+                            '/cvmfs',
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+
         cherrypy.tree.mount(Requests.unsafe_construct(),
                             '/requests',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
