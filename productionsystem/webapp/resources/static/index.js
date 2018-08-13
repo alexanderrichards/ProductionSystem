@@ -1,3 +1,19 @@
+function bootstrap_alert(level, status, message){
+    var notification = $("#notification");
+    var alert = $("<div>", {class: `alert alert-dismissible alert-${level} fade show`,
+                            role: "alert"});
+    var strong = $("<strong>");
+    strong.text(status);
+    var button = $("<button>", {type: "button", class: "close", "data-dismiss": "alert", "aria-label": "Close"});
+    button.append($("<span>", {class:"glyphicon glyphicon-remove-sign", "aria-hidden": "true"}));
+    alert.append(strong);
+    alert.append("\t");
+    alert.append(message);
+    alert.append(button);
+    notification.append(alert);
+    alert.fadeIn("slow").delay(2000).fadeOut("slow", function(){alert.remove();});
+};
+
 $(document).ready(function() {
 
     function formatprogress(parametricjob){
@@ -338,23 +354,5 @@ $(document).ready(function() {
 	}
     });
     /////////////////////////////////////////////////////
-
-
-    // floating alertbox
-    /////////////////////////////////////////////////////
-    bootstrap_alert = function(status, message, level){
-        // the below pops the notification into existence immediately
-        // hence we add the hide to allow fadeIn once filled with html
-        $("#notification").hide().html(`
-            <div class='alert alert-dismissible ###LEVEL###' role='alert'>
-                <button type='button' class='close' data-dismiss='alert'>
-                    <span class='glyphicon glyphicon-remove-sign'></span>
-                </button>
-                <strong>###STATUS###</strong> ###MESSAGE###\
-            </div>`.replace("###LEVEL###", level)
-                   .replace("###MESSAGE###", message)
-                   .replace("###STATUS###", status));
-        $("#notification").fadeIn("slow").delay(2000).fadeOut("slow");
-    };
 });
 
