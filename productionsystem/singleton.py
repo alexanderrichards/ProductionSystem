@@ -16,7 +16,7 @@ class SingletonMeta(type):
     This can be used either with the static variable __metaclass__
     or indirectly through the singleton class decorator see help(singleton).
 
-    Example:
+    Examples:
     >>> class test(object):
     >>>     __metaclass__ = SingletonMeta
     """
@@ -52,7 +52,7 @@ def singleton(cls):
 
     A class decorator rendering the decorated class a singleton.
 
-    Example:
+    Examples:
     >>> @singleton
     >>> class test(object):
     >>>     pass
