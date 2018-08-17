@@ -14,10 +14,11 @@ setup(
                       'suds'
                       ],
     extras_require={
-        'tests': ['mock', 'pytest', 'coverage', 'pytest-cov'],
-        'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage", "pytest-cov"],
+        'tests': ['mock', 'pytest', 'coverage', 'pytest-cov', 'pytest-pylint', 'pytest-pep8'],
+        'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage", "pytest-cov", "pytest-pylint", "pytest-pep8"],
     },
-    tests_require=["mock", "pytest", 'coverage'],
+    setup_requires=["pytest-runner"],
+    tests_require=["mock", "pytest", 'coverage', 'pytest-cov', 'pytest-pylint', 'pytest-pep8'],
     test_suit="tests",
     entry_points={
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
