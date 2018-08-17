@@ -14,8 +14,8 @@ setup(
                       'suds'
                       ],
     extras_require={
-        'tests': ['mock', 'pytest', 'coverage'],
-        'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage"],
+        'tests': ['mock', 'pytest', 'coverage', 'pytest-cov'],
+        'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage", "pytest-cov"],
     },
     tests_require=["mock", "pytest", 'coverage'],
     test_suit="tests",
