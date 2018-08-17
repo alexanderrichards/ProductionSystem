@@ -10,12 +10,15 @@ setup(
                       'enum34',
                       'requests',
                       'SQLAlchemy',
-                      'Sphinx',
                       'rpyc',
                       'suds'
                       ],
-    tests_require=["mock", 'pylint', 'coverage'],
-    test_suit="test.*",
+    extras_require={
+        'tests': ['mock', 'pytest', 'coverage'],
+        'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage"],
+    },
+    tests_require=["mock", "pytest", 'coverage'],
+    test_suit="tests",
     entry_points={
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
                      'requests = productionsystem.sql.models.Requests:Requests'],
