@@ -17,8 +17,8 @@ class SingletonMeta(type):
     or indirectly through the singleton class decorator see help(singleton).
 
     Examples:
-    >>> class test(object):
-    >>>     __metaclass__ = SingletonMeta
+        >>> class test(object):
+        >>>     __metaclass__ = SingletonMeta
     """
 
     def __call__(cls, *args, **kwargs):
@@ -53,9 +53,9 @@ def singleton(cls):
     A class decorator rendering the decorated class a singleton.
 
     Examples:
-    >>> @singleton
-    >>> class test(object):
-    >>>     pass
+        >>> @singleton
+        >>> class test(object):
+        >>>     pass
     """
     # It's hard to dynamically change meta so rebind new class
     # based on old one.
