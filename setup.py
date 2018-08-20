@@ -14,6 +14,7 @@ setup(
                       'suds'
                       ],
     extras_require={
+        'doc': ['Sphinx', 'sphinxcontrib-httpdomain'],
         'dev': ["pep257", "pep8", "pylint", "Sphinx", "sphinxcontrib-httpdomain", "mock", "pytest", "coverage", "pytest-cov", "pytest-pylint", "pytest-pep8", "pytest-pep257"],
     },
     setup_requires=["pytest-runner"],
