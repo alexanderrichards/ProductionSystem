@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     real_config = expandpath(args.config)
     if not os.path.exists(real_config):
-        logging.warning("Config file '%s' does not exist")
+        logging.warning("Config file '%s' does not exist", real_config)
         real_config = None
     config = importlib.import_module('productionsystem.config')
     config.ConfigSystem.setup(real_config)

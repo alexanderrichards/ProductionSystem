@@ -67,7 +67,7 @@ class ParametricJobs(SQLTableBase):
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
-    @abstractmethod
+#    @abstractmethod
     def _setup_dirac_job(self, job, tmp_runscript):
         """Setup the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
