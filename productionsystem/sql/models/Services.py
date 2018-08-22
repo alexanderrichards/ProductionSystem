@@ -25,6 +25,43 @@ class Services(SQLTableBase):
     logger = logging.getLogger(__name__)
 
     @classmethod
+    def get_services(cls, service_name=None, service_id=None):
+        """
+        Get service from database.
+
+        Gets all services in database or explicitly those with a given service_name or service_id.
+
+        Args:
+            service_name (string): Service name to extract
+            service_id (int): Service id to extract
+
+        Returns:
+            list/Services: The services/service pulled from the database
+        """
+        with managed_session() as session:
+            query = session.query(cls)
+            if service_id is None:
+                if service_name is not None:
+                    query = query.filter_by(name=service_name)
+                services = query.all()
+                if service_name is not None and not services:
+                    cls.logger.warning("No results found for service name: %s", service_name)
+                    raise NoResultFound
+                session.expunge_all()
+                return services
+
+            try:
+                service = query.filter_by(id=service_id).one()
+            except NoResultFound:
+                cls.logger.warning("No result found for service id: %d", service_id)
+                raise
+            except MultipleResultsFound:
+                cls.logger.error("Multiple results found for service id: %d", service_id)
+                raise
+            session.expunge(service)
+            return service
+
+    @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
     @dummy_credentials

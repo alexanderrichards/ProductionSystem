@@ -13,8 +13,6 @@ from productionsystem.webapp.jinja2_utils import jinja2_filter
 from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services, Users
 
-MINS = 60
-
 
 @jinja2_filter
 def gravitar_hash(email_add):
@@ -29,50 +27,67 @@ def gravitar_hash(email_add):
     return hashlib.md5(email_add.strip().lower()).hexdigest()
 
 
+@jinja2_filter
+def service_badge_url(service, service_name):
+    """Return ShieldIO url for service badge."""
+    name = service_name
+    status = ServiceStatus.UNKNOWN
+    if service is not None:
+        name = service.name
+        status = service.status
+    return "https://img.shields.io/badge/{name}-{status.name}-{status.value}.svg"\
+        .format(name=name, status=status)
+
+
 class HTMLPageServer(object):
     """The Web server."""
 
-    def __init__(self):
+    def __init__(self, templates_dir, report_url,
+                 title='Production System', heading='Production System'):
         """Initialisation."""
-        templates_dir = pkg_resources.resource_filename('productionsystem', 'webapp/resources')
-        self._template_env = jinja2.Environment(loader=jinja2.FileSystemLoader(searchpath=templates_dir))
+        loader = jinja2.FileSystemLoader(searchpath=templates_dir)
+        self._template_env = jinja2.Environment(loader=loader)
+        self._report_url = report_url
+        self._title = title
+        self._heading = heading
         self._logger = logging.getLogger(__name__)
+
+    def _render(self, template_name, **kwargs):
+        """Wrap the Jinja2 template getting and rendering boilerplate."""
+        return self._template_env.get_template(template_name).render(**kwargs)
 
     @cherrypy.expose
     @dummy_credentials
     def index(self):
         """Return the index page."""
-        data = {'title': 'ProductionSystem',
-                'heading': 'Production System',
-                'user': cherrypy.request.verified_user,
-                'statuses': defaultdict(lambda: ServiceStatus.UNKNOWN)}
-        with managed_session() as session:
-            query = session.query(Services)
-            try:
-                monitoring_service = query.filter_by(name='monitoringd').one()
-            except NoResultFound:
-                self._logger.warning("Monitoring daemon 'monitoringd' service status not in DB.")
-            except MultipleResultsFound:
-                self._logger.warning("Multiple monitoring daemon 'monitoringd' services found in DB.")
-            else:
-                out_of_date = (datetime.utcnow() - monitoring_service.timestamp).total_seconds() > 30. * MINS
-                monitoring_status = monitoring_service.status
-                data['statuses']['monitoringd'] = monitoring_status
-                if not out_of_date and monitoring_status == ServiceStatus.UP:
-                    for service in query.filter(Services.name != 'monitoringd').all():
-                        data['statuses'][service.name] = service.status
-            return self._template_env.get_template('index.html').render(data)
+        services = {service.name: service for service in Services.get_services()}
+        monitoring_service = services.get("monitoringd")
+        if monitoring_service is None:
+            services = {}
+        elif monitoring_service.status != ServiceStatus.UP:
+            services = {"monitoringd": monitoring_service}
+        elif (datetime.utcnow() - monitoring_service.timestamp).total_seconds() > 1800.:  # 30 mins
+            services = {}
+
+        return self._render('dashboard_template.html',
+                            title=self._title,
+                            heading=self._heading,
+                            user=cherrypy.request.verified_user,
+                            monitoringd_service=services.get("monitoringd"),
+                            dirac_service=services.get('DIRAC'))
+
+    @cherrypy.expose
+    def report(self):
+        raise cherrypy.HTTPRedirect(self._report_url)
+
+    @cherrypy.expose
+    @dummy_credentials
+    def admins(self):
+        users = Users.get_users()
+        return self._render('admins_template.html', users=users)
 
     @cherrypy.expose
     @dummy_credentials
     def newrequest(self):
         """Return new request page."""
-        script = pkg_resources.resource_string('productionsystem',
-                                               'webapp/resources/static/newrequest.js')
-        style = pkg_resources.resource_string('productionsystem',
-                                              'webapp/resources/static/newrequest.css')
-        form = pkg_resources.resource_string('productionsystem',
-                                             'webapp/resources/static/newrequest_form.html')
-        return self._template_env.get_template('newrequest.html').render({'newrequest_script': script,
-                                                                          'newrequest_style': style,
-                                                                          'newrequest_form': form})
+        return self._render("newrequest_template.html")

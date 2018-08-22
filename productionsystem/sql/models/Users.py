@@ -56,6 +56,37 @@ class Users(SQLTableBase):
         return user
 
     @classmethod
+    def get_users(cls, user_id=None):
+        """
+        Get users from database.
+
+        Gets all users in database or explicitly those with a given user_id.
+
+        Args:
+            user_id (int): User id to extract
+
+        Returns:
+            list/Users: The users/user pulled from the database
+        """
+        with managed_session() as session:
+            query = session.query(cls)
+            if user_id is None:
+                users = query.all()
+                session.expunge_all()
+                return users
+
+            try:
+                user = query.filter_by(id=user_id).one()
+            except NoResultFound:
+                cls.logger.warning("No result found for user id: %d", user_id)
+                raise
+            except MultipleResultsFound:
+                cls.logger.error("Multiple results found for user id: %d", user_id)
+                raise
+            session.expunge(user)
+            return user
+
+    @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
     @dummy_credentials

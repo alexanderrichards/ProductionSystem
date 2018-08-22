@@ -25,7 +25,7 @@ class WebApp(Daemonize):
         self._thread_pool = thread_pool
 
     def _global_config(self):
-        static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/resources/static')
+        static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/static_resources')
         config = {
             'global': {
                 'log.screen': False,
@@ -51,7 +51,8 @@ class WebApp(Daemonize):
         return config
 
     def _mount_points(self):
-        cherrypy.tree.mount(HTMLPageServer(),
+        cherrypy.tree.mount(HTMLPageServer(pkg_resources.resource_filename('productionsystem', 'webapp/templates'),
+                                           report_url='https://github.com/alexanderrichards/ProductionSystem/issues'),
                             '/',
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
 
