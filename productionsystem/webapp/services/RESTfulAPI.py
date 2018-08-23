@@ -61,9 +61,9 @@ class UsersAPI(object):
             return Users.get_users(user_id=user_id)
 
     @classmethod
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
+#    @dummy_credentials
+    @check_credentials
+    @admin_only
     def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
         """REST Put method."""
         cls.logger.warning("In PUT: user_id = %s, admin = %s", user_id, admin)
@@ -120,35 +120,6 @@ class ParametricJobsAPI(object):
         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
             request_id = int(request_id)
 
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls)\
-                           .filter_by(request_id=request_id)
-            if not requester.admin:
-                query = query.join(cls.request)\
-                             .filter_by(requester_id=requester.id)
-            if parametricjob_id is None:
-                cls._datatable_format_headers()
-                parametricjobs = query.all()
-                session.expunge_all()
-                return parametricjobs
-
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
-                parametricjob_id = int(parametricjob_id)
-
-            try:
-                # Does this need to be before the join? will id be requestid or parametricjob id?
-                parametricjob = query.filter_by(id=parametricjob_id).one()
-            except NoResultFound:
-                message = "No ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            session.expunge(parametricjob)
-            return parametricjob
 
 @cherrypy.expose
 @cherrypy.popargs('request_id')
@@ -179,10 +150,26 @@ class RequestsAPI(object):
         with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %s" % request_id),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                           "Multiple requests with id %s" % request_id):
-            response = Requests.get_requests(request_id=request_id, user_id=user_id)
+            response = Requests.get(request_id=request_id, user_id=user_id, load_user=True)
 
-        return response
+        if not isinstance(response, list):
+            return dict(response.jsonable(), requester=response.requester.name)
+        return [dict(request.jsonable(), requester=request.requester.name) for request in response]
 
+    @classmethod
+    @check_credentials
+    @admin_only
+    def DELETE(cls, request_id):  # pylint: disable=invalid-name
+        """REST Delete method."""
+        cls.logger.info("Deleting Request id: %s", request_id)
+
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %s" % request_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple requests with id %s" % request_id):
+            Requests.delete(request_id)
 
 def mount(root):
     for api in [ServicesAPI, UsersAPI, RequestsAPI]:

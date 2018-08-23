@@ -5,7 +5,7 @@ from datetime import datetime
 
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
@@ -93,7 +93,28 @@ class Requests(SQLTableBase):
         cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
 
     @classmethod
-    def get_requests(cls, request_id=None, user_id=None):
+    def delete(cls, request_id):
+        try:
+            request_id = int(request_id)
+        except ValueError:
+            cls.logger.error("Request id: %r should be of type int "
+                             "(or convertable to int)", request_id)
+            raise
+
+        with managed_session() as session:
+            try:
+                request = session.query(cls).filter_by(id=request_id).one()
+            except NoResultFound:
+                cls.logger.warning("No result found for request id: %d", request_id)
+                raise
+            except MultipleResultsFound:
+                cls.logger.error("Multiple results found for request id: %d", request_id)
+                raise
+            session.delete(request)
+            cls.logger.info("Request %d deleted.", request_id)
+
+    @classmethod
+    def get(cls, request_id=None, user_id=None, load_user=False):
         """Get requests."""
         if request_id is not None:
             try:
@@ -113,6 +134,8 @@ class Requests(SQLTableBase):
 
         with managed_session() as session:
             query = session.query(cls)
+            if load_user:
+                query = query.options(joinedload(cls.requester, innerjoin=True))
             if user_id is not None:
                 query = query.filter_by(requester_id=user_id)
 
