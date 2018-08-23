@@ -56,13 +56,6 @@ if __name__ == '__main__':
                              "(debugging only)")
     args = parser.parse_args()
 
-    real_config = expand_path(args.config)
-    if not os.path.exists(real_config):
-        logging.warning("Config file '%s' does not exist", real_config)
-        real_config = None
-    config = importlib.import_module('productionsystem.config')
-    config.ConfigSystem.setup(real_config)
-
     # Modify the verify arg based on trusted_cas path
     if args.trusted_cas:
         args.verify = args.trusted_cas
@@ -92,6 +85,15 @@ if __name__ == '__main__':
     # setup the main app logger
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
+
+    # Config Setup
+    ###########################################################################
+    real_config = expand_path(args.config)
+    if not os.path.exists(real_config):
+        logger.warning("Config file '%s' does not exist", real_config)
+        real_config = None
+    config = importlib.import_module('productionsystem.config')
+    config.ConfigSystem.setup(real_config)
 
     # Dynamic imports to module level
     ###########################################################################

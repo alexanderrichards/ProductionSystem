@@ -39,4 +39,3 @@ def managed_session():
         raise
     finally:
         session_registry.remove()
-

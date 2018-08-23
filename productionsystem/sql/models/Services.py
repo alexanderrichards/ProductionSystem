@@ -25,28 +25,38 @@ class Services(SQLTableBase):
     logger = logging.getLogger(__name__)
 
     @classmethod
-    def get_services(cls, service_name=None, service_id=None):
+    def get_services(cls, service_id=None, service_name=None):
         """
         Get service from database.
 
         Gets all services in database or explicitly those with a given service_name or service_id.
 
         Args:
-            service_name (string): Service name to extract
             service_id (int): Service id to extract
+            service_name (string): Service name to extract
 
         Returns:
             list/Services: The services/service pulled from the database
         """
+        if service_name is not None:
+            if not isinstance(service_name, basestring):
+                cls.logger.error("Service name: %r should be of type str", service_name)
+                raise TypeError
+
+        if service_id is not None:
+            try:
+                service_id = int(service_id)
+            except ValueError:
+                cls.logger.error("Service id: %r should be of type int "
+                                 "(or convertable to int)", service_id)
+                raise
+
         with managed_session() as session:
             query = session.query(cls)
             if service_id is None:
                 if service_name is not None:
                     query = query.filter_by(name=service_name)
                 services = query.all()
-                if service_name is not None and not services:
-                    cls.logger.warning("No results found for service name: %s", service_name)
-                    raise NoResultFound
                 session.expunge_all()
                 return services
 

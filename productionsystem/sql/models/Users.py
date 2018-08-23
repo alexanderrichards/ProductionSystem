@@ -55,6 +55,11 @@ class Users(SQLTableBase):
         user['name'] = self.name
         return user
 
+    def update(self):
+        """Update the DB record from this Users object."""
+        with managed_session() as session:
+            session.merge(self)
+
     @classmethod
     def get_users(cls, user_id=None):
         """
@@ -68,6 +73,14 @@ class Users(SQLTableBase):
         Returns:
             list/Users: The users/user pulled from the database
         """
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                cls.logger.error("User id: %r should be of type int "
+                                 "(or convertable to int)", user_id)
+                raise
+
         with managed_session() as session:
             query = session.query(cls)
             if user_id is None:

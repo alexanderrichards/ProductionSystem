@@ -51,6 +51,7 @@ class WebApp(Daemonize):
         return config
 
     def _mount_points(self):
+        import services.RESTfulAPI
         cherrypy.tree.mount(HTMLPageServer(pkg_resources.resource_filename('productionsystem', 'webapp/templates'),
                                            report_url='https://github.com/alexanderrichards/ProductionSystem/issues'),
                             '/',
@@ -71,6 +72,9 @@ class WebApp(Daemonize):
         cherrypy.tree.mount(Users(),
                             '/users',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+        services.RESTfulAPI.mount('/api')
+
+
     def main(self):
         """Daemon main."""
         ## Temporary testing

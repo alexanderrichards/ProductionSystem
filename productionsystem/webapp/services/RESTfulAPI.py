@@ -1,136 +1,201 @@
-"""Requests Table."""
-import json
 import logging
-from datetime import datetime
-
+import os
+from distutils.util import strtobool
 import cherrypy
-from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum
-from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
-from ..enums import LocalStatus
-from ..registry import managed_session
-from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import ParametricJobs
-from .Users import Users
-#from .ParametricJobs import ParametricJobs
-
-
-def subdict(dct, keys, **kwargs):
-    """Create a sub dictionary."""
-    out = {k: dct[k] for k in keys if k in dct}
-    out.update(kwargs)
-    return out
+from productionsystem.sql.models import Services, Users, Requests, ParametricJobs, DiracJobs
 
 
 @cherrypy.expose
-@cherrypy.popargs('request_id')
-class Requests(SQLTableBase):
-    """Requests SQL Table."""
-
-    __tablename__ = 'requests'
-    classtype = Column(TEXT)
-    __mapper_args__ = {'polymorphic_on': classtype,
-                       'polymorphic_identity': 'requests'}
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    description = SmartColumn(TEXT, nullable=True, allowed=True)
-    requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
-    request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
-    status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    parametric_jobs = relationship("ParametricJobs", back_populates="request", cascade="all, delete-orphan")
-    requester = relationship("Users")
-    logger = logging.getLogger(__name__)
-
-    def __init__(self, **kwargs):
-        required_args = set(self.required_columns).difference(kwargs)
-        if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
-        super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
-        
-    def submit(self):
-        """Submit Request."""
-        self.logger.info("Submitting request %s", self.id)
-        try:
-            for job in self.parametric_jobs:
-                job.submit()
-        except:
-            self.logger.exception("Exception while submitting request %s", self.id)
-            raise
-
-    def update_status(self):
-        """Update request status."""
-        if not self.parametric_jobs:
-            self.logger.warning("No parametric jobs associated with request: %d. returning status unknown", self.id)
-            self.status = LocalStatus.UNKNOWN
-            return
-
-        statuses = []
-        for job in self.parametric_jobs:
-            try:
-                job.update_status()
-            except:
-                self.logger.exception("Exception updating ParametricJob %s", job.id)
-            statuses.append(job.status)
-
-        status = max(statuses)
-        if status != self.status:
-            self.status = status
-            self.logger.info("Request %d moved to state %s", self.id, status.name)
-
-    @staticmethod
-    def _datatable_format_headers():
-        columns = [{"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
-                   {"data": "description", "title": "Description", "width": "80%"},
-                   {"data": "status", "title": "Status", "width": "7.5%"},
-                   {"data": "request_date", "title": "Request Date", "width": "7.5%"}]
-        if cherrypy.request.verified_user.admin:
-            columns[2]['width'] = "70%"
-            columns.append({"data": "requester", "title": "Requester", "width": "10%"})
-
-        cherrypy.response.headers['Datatable-Order'] = json.dumps([[1, "desc"]])
-        cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
+@cherrypy.popargs('service_id')
+class ServicesAPI(object):
+    mount_point = 'services'
+    logger = logging.getLogger(__name__).getChild("ServicesAPI")
 
     @classmethod
-    def get_requests(cls, request_id=None, user_id=None):
-        """Get requests."""
-        if request_id is not None:
-            try:
-                request_id = int(request_id)
-            except ValueError:
-                cls.logger.error("Request id: %r should be of type int "
-                                 "(or convertable to int)", request_id)
-                raise
+    @cherrypy.tools.accept(media='application/json')
+    @cherrypy.tools.json_out()
+    @dummy_credentials
+#    @check_credentials
+#    @admin_only
+    def GET(cls, service_id=None):  # pylint: disable=invalid-name
+        """REST Get method."""
+        cls.logger.debug("In blah/GET: service_id = %s", service_id)
+
+        if service_id is not None:
+            with cherrypy.HTTPError.handle(ValueError, 400,
+                                           "Expected service id %r to be an integer" % service_id):
+                service_id = int(service_id)
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No Service with id %s" % service_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple services with id %s" % service_id):
+            return Services.get_services(service_id=service_id)
+
+
+@cherrypy.expose
+@cherrypy.popargs('user_id')
+class UsersAPI(object):
+    mount_point = 'users'
+    logger = logging.getLogger(__name__).getChild("UsersAPI")
+
+    @classmethod
+    @cherrypy.tools.accept(media='application/json')
+    @cherrypy.tools.json_out()
+    @dummy_credentials
+#    @check_credentials
+#    @admin_only
+    def GET(cls, user_id=None):
+        """REST GET method."""
+        cls.logger.debug("In GET: user_id = %r", user_id)
 
         if user_id is not None:
-            try:
+            with cherrypy.HTTPError.handle(ValueError, 400,
+                                           "Expected user id %r to be an integer" % user_id):
                 user_id = int(user_id)
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
 
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No user with id %s" % user_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple users with id %s" % user_id):
+            return Users.get_users(user_id=user_id)
+
+    @classmethod
+    @dummy_credentials
+#    @check_credentials
+#    @admin_only
+    def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
+        """REST Put method."""
+        cls.logger.warning("In PUT: user_id = %s, admin = %s", user_id, admin)
+
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
+            admin = bool(strtobool(admin))
+
+        # GET Code
+        with cherrypy.HTTPError.handle(ValueError, 400,
+                                       "Expected user id %r to be an integer" % user_id):
+            user_id = int(user_id)
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No user with id %s" % user_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple users with id %s" % user_id):
+            user = Users.get_users(user_id=user_id)
+
+        user.admin = admin
+        user.update()
+
+
+@cherrypy.expose
+@cherrypy.popargs('diracjob_id')
+class DiracJobsAPI(object):
+    mount_point = 'diracjobs'
+    logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
+
+    @classmethod
+    @dummy_credentials
+    def GET(cls, request_id, parametricjob_id, diracjob_id=None):
+        print "request_id:", request_id, "parametricjob_id:", parametricjob_id, "diracjob_id:", diracjob_id
+        return "WOOT"
+
+
+@cherrypy.expose
+@cherrypy.popargs('parametricjob_id')
+class ParametricJobsAPI(object):
+    mount_point = 'parametricjobs'
+    logger = logging.getLogger(__name__).getChild("ParametricJobsAPI")
+    diracjobs = DiracJobsAPI()
+
+    @classmethod
+    @cherrypy.tools.accept(media='application/json')
+    @cherrypy.tools.json_out()
+    #    @check_credentials
+    @dummy_credentials
+    def GET(cls, request_id, parametricjob_id=None):  # pylint: disable=invalid-name
+        """
+        REST Get method.
+
+        Returns all ParametricJobs for a given request id.
+        """
+        cls.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id, parametricjob_id)
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+
+        requester = cherrypy.request.verified_user
         with managed_session() as session:
-            query = session.query(cls)
-            if user_id is not None:
-                query = query.filter_by(requester_id=user_id)
-
-            if request_id is None:
-                requests = query.all()
+            query = session.query(cls)\
+                           .filter_by(request_id=request_id)
+            if not requester.admin:
+                query = query.join(cls.request)\
+                             .filter_by(requester_id=requester.id)
+            if parametricjob_id is None:
+                cls._datatable_format_headers()
+                parametricjobs = query.all()
                 session.expunge_all()
-                return requests
+                return parametricjobs
+
+            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
+                parametricjob_id = int(parametricjob_id)
 
             try:
-                request = query.filter_by(id=request_id).one()
+                # Does this need to be before the join? will id be requestid or parametricjob id?
+                parametricjob = query.filter_by(id=parametricjob_id).one()
             except NoResultFound:
-                cls.logger.warning("No result found for request id: %d", request_id)
-                raise
+                message = "No ParametricJobs found with id: %s" % parametricjob_id
+                cls.logger.error(message)
+                raise cherrypy.NotFound(message)
             except MultipleResultsFound:
-                cls.logger.error("Multiple results found for request id: %d", request_id)
-                raise
-            session.expunge(request)
-            return request
+                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
+                cls.logger.error(message)
+                raise cherrypy.HTTPError(500, message)
+            session.expunge(parametricjob)
+            return parametricjob
+
+@cherrypy.expose
+@cherrypy.popargs('request_id')
+class RequestsAPI(object):
+    mount_point = 'requests'
+    logger = logging.getLogger(__name__).getChild("RequestsAPI")
+    parametricjobs = ParametricJobsAPI()
+
+
+    @classmethod
+    @cherrypy.tools.accept(media='application/json')
+    @cherrypy.tools.json_out()
+    @dummy_credentials
+#    @check_credentials
+    def GET(cls, request_id=None):  # pylint: disable=invalid-name
+        """REST Get method."""
+        cls.logger.debug("In GET: reqid = %r", request_id)
+
+        if request_id is not None:
+            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+                request_id = int(request_id)
+
+        requester = cherrypy.request.verified_user
+        user_id = requester.id
+        if requester.admin:
+            user_id = None
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %s" % request_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple requests with id %s" % request_id):
+            response = Requests.get_requests(request_id=request_id, user_id=user_id)
+
+        return response
+
+
+def mount(root):
+    for api in [ServicesAPI, UsersAPI, RequestsAPI]:
+        cherrypy.tree.mount(api(), os.path.join(root, api.mount_point),
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+
+
+
+
+
+'''@cherrypy.expose
+@cherrypy.popargs('request_id')
+class Requests(objects):
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
@@ -284,7 +349,4 @@ class Requests(SQLTableBase):
             session.flush()
             session.refresh(request)
             cls.logger.info("New Request %d added", request.id)
-
-
-# Have to add this after class is defined as ParametricJobs SQL setup requires it to be defined.
-#Requests.parametricjobs = ParametricJobs.unsafe_construct()
+'''
