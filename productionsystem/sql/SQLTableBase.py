@@ -7,6 +7,8 @@ from collections import Mapping
 from sqlalchemy import Column
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative.api import DeclarativeMeta
+from sqlalchemy.orm.attributes import InstrumentedAttribute
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 __all__ = ('SQLTableBase', )
 
@@ -74,11 +76,13 @@ class IterableBase(Mapping):
 
     def __iter__(self):
         """Get an iterator over instrumented attributes."""
-        return self.columns
+        for name, type_ in vars(self.__class__).iteritems():
+            if isinstance(type_, InstrumentedAttribute):
+                yield name
 
     def __getitem__(self, item):
         """Access instrumented attributes as a dict."""
-        if item not in self.columns:
+        if item not in self:
             raise KeyError("Invalid attribute name: %s" % item)
         return getattr(self, item, None)
 
@@ -88,12 +92,15 @@ class IterableBase(Mapping):
     def jsonable(self):
         """Return an easily JSON encodable object."""
         output_obj = {}
-        for column, value in dict(self).iteritems():
-            val = value
-            if isinstance(value, Enum):
-                val = value.name.capitalize()
-            elif isinstance(value, datetime):
-                val = value.isoformat(' ')
+        for column in self:
+            try:
+                val = getattr(self, column)
+            except DetachedInstanceError:
+                continue
+            if isinstance(val, Enum):
+                val = val.name.capitalize()
+            elif isinstance(val, datetime):
+                val = val.isoformat(' ')
             output_obj[column] = val
         return output_obj
 

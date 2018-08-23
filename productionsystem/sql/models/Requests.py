@@ -152,7 +152,9 @@ class Requests(SQLTableBase):
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for request id: %d", request_id)
                 raise
-            session.expunge(request)
+            # Need the all if loading the user db object as well.
+            # If not then doesn't hurt as only one object this session
+            session.expunge_all()
             return request
 
     @classmethod

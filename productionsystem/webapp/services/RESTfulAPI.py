@@ -150,11 +150,7 @@ class RequestsAPI(object):
         with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %s" % request_id),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                           "Multiple requests with id %s" % request_id):
-            response = Requests.get(request_id=request_id, user_id=user_id, load_user=True)
-
-        if not isinstance(response, list):
-            return dict(response.jsonable(), requester=response.requester.name)
-        return [dict(request.jsonable(), requester=request.requester.name) for request in response]
+            return Requests.get(request_id=request_id, user_id=user_id, load_user=True)
 
     @classmethod
     @check_credentials
@@ -170,6 +166,7 @@ class RequestsAPI(object):
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                           "Multiple requests with id %s" % request_id):
             Requests.delete(request_id)
+
 
 def mount(root):
     for api in [ServicesAPI, UsersAPI, RequestsAPI]:
