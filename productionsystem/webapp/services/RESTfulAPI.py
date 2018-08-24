@@ -2,6 +2,7 @@ import logging
 import os
 from distutils.util import strtobool
 import cherrypy
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from productionsystem.sql.models import Services, Users, Requests, ParametricJobs, DiracJobs
@@ -177,38 +178,17 @@ class RequestsAPI(object):
         data = cherrypy.request.json
         cls.logger.debug("In POST: kwargs = %s", data)
         if not isinstance(data, dict):
-            message = "Request data is expected to be JSON object."
-            cls.logger.error(message)
-            raise cherrypy.HTTPError(400, message)
+            raise cherrypy.HTTPError(400, "Request data is expected to be JSON object.")
         if 'request' not in data:
-            message = "Request data should contain 'request' as a subobject."
-            cls.logger.error(message)
-            raise cherrypy.HTTPError(400, message)
-        data['request'].pop('requester_id', None)
-        try:
-            request = cls(requester_id=cherrypy.request.verified_user.id, **data["request"])
-        except ValueError:
-            message = "Error creating request, bad input."
-            cls.logger.exception(message)
-            raise cherrypy.HTTPError(400, message)
+            raise cherrypy.HTTPError(400, "Request data should contain 'request' as a subobject.")
 
-        parametricjobs = data.get("parametricjobs", [])
-        if not parametricjobs:
-            cls.logger.warning("No parametric jobs requested.")
-        request.parametric_jobs = []
-        for job in parametricjobs:
-            try:
-                job.pop('request_id', None)
-                request.parametric_jobs.append(ParametricJobs(request_id=request.id, **job))
-            except ValueError:
-                message = "Error creating parametricjob, bad input."
-                cls.logger.exception(message)
-                raise cherrypy.HTTPError(400, message)
-        with managed_session() as session:
-            session.add(request)
-            session.flush()
-            session.refresh(request)
-            cls.logger.info("New Request %d added", request.id)
+        data['request'].pop('requester_id', None)
+        with cherrypy.HTTPError.handle(ValueError, 400, "Error creating request, bad input."):
+            request = Requests(requester_id=cherrypy.request.verified_user.id, **data["request"])
+
+        with cherrypy.HTTPError.handle(SQLAlchemyError, 500, "Error adding request to DB."):
+            request.add()
+        cls.logger.info("New request %d created", request.id)
 
 def mount(root):
     for api in [ServicesAPI, UsersAPI, RequestsAPI]:

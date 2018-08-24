@@ -48,7 +48,23 @@ class Requests(SQLTableBase):
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
-        
+        parametricjobs = kwargs.get('parametricjobs', [])
+        if not parametricjobs:
+            self.logger.warning("No parametricjobs associated with new request.")
+        for parametricjob in parametricjobs:
+            parametricjob.pop('request_id', None)
+            try:
+                self.parametric_jobs.append(ParametricJobs(request_id=self.id, **parametricjob))
+            except ValueError:
+                self.logger.exception("Error creating parametricjob, bad input: %s", parametricjob)
+                raise
+
+    def add(self):
+        with managed_session() as session:
+            session.add(self)
+            session.flush()
+            session.refresh(self)
+
     def submit(self):
         """Submit Request."""
         self.logger.info("Submitting request %s", self.id)
