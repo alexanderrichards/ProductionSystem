@@ -236,6 +236,7 @@ class RequestsAPI(object):
     @classmethod
     @check_credentials
     @admin_only
+#    @dummy_credentials
     def DELETE(cls, request_id):  # pylint: disable=invalid-name
         """REST Delete method."""
         cls.logger.info("Deleting Request id: %s", request_id)

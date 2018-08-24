@@ -19,7 +19,7 @@ from productionsystem.config import getConfig
 from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus, DiracStatus
-from ..registry import managed_session
+from ..registry import managed_session, SessionRegistry
 from ..SQLTableBase import SQLTableBase, SmartColumn
 from .DiracJobs import DiracJobs
 
@@ -243,10 +243,23 @@ class ParametricJobs(SQLTableBase):
             return parametricjob
 
 
+@event.listens_for(SessionRegistry, "persistent_to_deleted")
+def intercept_persistent_to_deleted(session, object_):
+    if isinstance(object_, DiracJobs):
+        DiracJobs.logger.debug("Parametric job %d marked for removal, cascade deleting local DB "
+                               "Dirac job %d", object_.parametricjob_id, object_.id)
 
-
-#ParametricJobs.diracjobs = DiracJobs()
-@event.listens_for(ParametricJobs, 'before_delete')
-def receive_before_delete(mapper, connection, target):
-    "listen for the 'before_delete' event"
-    pass
+    if isinstance(object_, ParametricJobs):
+        ParametricJobs.logger.info("Request %d marked for removal, cascade deleting Parametric "
+                                   "job %d triggering bulk tidy up of DIRAC job(s).",
+                                   object_.request_id, object_.id)
+        dirac_ids = [job.id for job in object_.dirac_jobs]
+        try:
+            with dirac_api_job_client() as dirac:
+                ParametricJobs.logger.info("Killing/deleting %d DIRAC job(s).", len(dirac_ids))
+                dirac.kill(dirac_ids)
+                dirac.delete(dirac_ids)
+        except BaseException:
+            ParametricJobs.logger.exception("Error doing DIRAC tidy up. Cleaning up local system "
+                                            "and forgetting about the (possibly) orphaned jobs "
+                                            "on DIRAC system")
