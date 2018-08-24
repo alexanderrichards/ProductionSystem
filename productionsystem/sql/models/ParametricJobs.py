@@ -191,7 +191,7 @@ class ParametricJobs(SQLTableBase):
 
     @classmethod
     def get(cls, parametricjob_id=None, request_id=None, user_id=None):
-        """Get requests."""
+        """Get parametric jobs."""
         if parametricjob_id is not None:
             try:
                 parametricjob_id = int(parametricjob_id)

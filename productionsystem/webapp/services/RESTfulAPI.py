@@ -94,10 +94,38 @@ class DiracJobsAPI(object):
     logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
 
     @classmethod
+    @cherrypy.tools.accept(media='application/json')
+    @cherrypy.tools.json_out()
+#    @check_credentials
     @dummy_credentials
-    def GET(cls, request_id, parametricjob_id, diracjob_id=None):
-        print "request_id:", request_id, "parametricjob_id:", parametricjob_id, "diracjob_id:", diracjob_id
-        return "WOOT"
+    def GET(cls, request_id, parametricjob_id, diracjob_id=None):  # pylint: disable=invalid-name
+        """
+        REST Get method.
+
+        Returns all DiracJobs for a given request and parametricjob id.
+        """
+        cls.logger.debug("In GET: reqid = %s, parametricjob_id = %s, diracjob_id = %s",
+                         request_id, parametricjob_id, diracjob_id)
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
+            parametricjob_id = int(parametricjob_id)
+
+        if diracjob_id is not None:
+            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad diracjob_id: %r' % diracjob_id):
+                diracjob_id = int(diracjob_id)
+
+        requester = cherrypy.request.verified_user
+        user_id = requester.id
+        if requester.admin:
+            user_id = None
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404,
+                                       "No dirac job with id %s" % parametricjob_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple dirac jobs with id %s" % parametricjob_id):
+            return DiracJobs.get(diracjob_id=diracjob_id, parametricjob_id=parametricjob_id,
+                                 request_id=request_id, user_id=user_id)
 
 
 @cherrypy.expose

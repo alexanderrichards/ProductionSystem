@@ -27,48 +27,66 @@ class DiracJobs(SQLTableBase):
     logger = logging.getLogger(__name__)
 
     @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-#    @check_credentials
-    @dummy_credentials
-    def GET(cls, request_id, parametricjob_id, diracjob_id=None):  # pylint: disable=invalid-name
-        """
-        REST Get method.
-
-        Returns all DiracJobs for a given request and parametricjob id.
-        """
-        cls.logger.debug("In GET: reqid = %s, parametricjob_id = %s, diracjob_id", request_id, parametricjob_id, diracjob_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-            request_id = int(request_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
-            parametricjob_id = int(parametricjob_id)
-
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls)\
-                           .filter_by(parametricjob_id=parametricjob_id)
-            if not requester.admin:
-                query = not query.join(cls.parametricjob)\
-                                 .join(cls.parametricjob.request)\
-                                 .filter_by(requester_id=requester.id)
-            if diracjob_id is None:
-                diracjobs = query.all()
-                session.expunge_all()
-                return diracjobs
-
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad diracjob_id: %r' % diracjob_id):
+    def get(cls, diracjob_id=None, request_id=None, parametricjob_id=None, user_id=None):
+        """Get dirac jobs."""
+        if diracjob_id is not None:
+            try:
                 diracjob_id = int(diracjob_id)
+            except ValueError:
+                cls.logger.error("Dirac job id: %r should be of type int "
+                                 "(or convertable to int)", diracjob_id)
+                raise
+
+        if parametricjob_id is not None:
+            try:
+                parametricjob_id = int(parametricjob_id)
+            except ValueError:
+                cls.logger.error("Parametric job id: %r should be of type int "
+                                 "(or convertable to int)", parametricjob_id)
+                raise
+
+        if request_id is not None:
+            try:
+                request_id = int(request_id)
+            except ValueError:
+                cls.logger.error("Request id: %r should be of type int "
+                                 "(or convertable to int)", request_id)
+                raise
+
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                cls.logger.error("User id: %r should be of type int "
+                                 "(or convertable to int)", user_id)
+                raise
+
+        with managed_session() as session:
+            query = session.query(cls)
+            if diracjob_id is not None:
+                query = query.filter_by(id=diracjob_id)
+            if parametricjob_id is not None or request_id is not None or user_id is not None:
+                query = query.join(cls.parametricjob)
+                if parametricjob_id is not None:
+                    query = query.filter_by(id=parametricjob_id)
+                if request_id is not None:
+                    query = query.filter_by(request_id=request_id)
+                if user_id is not None:
+                    query = query.join(cls.parametricjob.request).filter_by(requester_id=user_id)
+
+            if diracjob_id is None:
+                requests = query.all()
+                session.expunge_all()
+                return requests
 
             try:
-                # Does this need to be before the join? will id be requestid or parametricjob id?
-                diracjob = query.filter_by(id=diracjob_id).one()
+                diracjob = query.one()
             except NoResultFound:
-                message = "No DiracJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.NotFound(message)
+                cls.logger.warning("No result found for dirac job id: %d", diracjob_id)
+                raise
             except MultipleResultsFound:
-                message = "Multiple DiracJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
+                cls.logger.error("Multiple results found for dirac job id: %d",
+                                 parametricjob_id)
+                raise
             session.expunge(diracjob)
             return diracjob
