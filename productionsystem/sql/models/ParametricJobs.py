@@ -67,6 +67,10 @@ class ParametricJobs(SQLTableBase):
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
+    def update(self):
+        with managed_session() as session:
+            session.merge(self)
+
 #    @abstractmethod
     def _setup_dirac_job(self, job, tmp_runscript):
         """Setup the DIRAC parametric job."""
@@ -186,75 +190,59 @@ class ParametricJobs(SQLTableBase):
         cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
 
     @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-#    @check_credentials
-    @dummy_credentials
-    def GET(cls, request_id, parametricjob_id=None):  # pylint: disable=invalid-name
-        """
-        REST Get method.
-
-        Returns all ParametricJobs for a given request id.
-        """
-        cls.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id, parametricjob_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-            request_id = int(request_id)
-
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls)\
-                           .filter_by(request_id=request_id)
-            if not requester.admin:
-                query = query.join(cls.request)\
-                             .filter_by(requester_id=requester.id)
-            if parametricjob_id is None:
-                cls._datatable_format_headers()
-                parametricjobs = query.all()
-                session.expunge_all()
-                return parametricjobs
-
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
+    def get(cls, parametricjob_id=None, request_id=None, user_id=None):
+        """Get requests."""
+        if parametricjob_id is not None:
+            try:
                 parametricjob_id = int(parametricjob_id)
+            except ValueError:
+                cls.logger.error("Parametric job id: %r should be of type int "
+                                 "(or convertable to int)", parametricjob_id)
+                raise
+
+        if request_id is not None:
+            try:
+                request_id = int(request_id)
+            except ValueError:
+                cls.logger.error("Request id: %r should be of type int "
+                                 "(or convertable to int)", request_id)
+                raise
+
+        if user_id is not None:
+            try:
+                user_id = int(user_id)
+            except ValueError:
+                cls.logger.error("User id: %r should be of type int "
+                                 "(or convertable to int)", user_id)
+                raise
+
+        with managed_session() as session:
+            query = session.query(cls)
+            if parametricjob_id is not None:
+                query = query.filter_by(id=parametricjob_id)
+            if request_id is not None:
+                query = query.filter_by(request_id=request_id)
+            if user_id is not None:
+                query = query.join(cls.request).filter_by(requester_id=user_id)
+
+            if parametricjob_id is None:
+                requests = query.all()
+                session.expunge_all()
+                return requests
 
             try:
-                # Does this need to be before the join? will id be requestid or parametricjob id?
-                parametricjob = query.filter_by(id=parametricjob_id).one()
+                parametricjob = query.one()
             except NoResultFound:
-                message = "No ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.NotFound(message)
+                cls.logger.warning("No result found for parametric job id: %d", parametricjob_id)
+                raise
             except MultipleResultsFound:
-                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
+                cls.logger.error("Multiple results found for parametric job id: %d",
+                                 parametricjob_id)
+                raise
             session.expunge(parametricjob)
             return parametricjob
 
-    @classmethod
-    @check_credentials
-    def PUT(cls, request_id, parametricjob_id, reschedule=False):  # pylint: disable=invalid-name
-        """REST Put method."""
-        cls.logger.debug("In PUT: request_id = %s, jobid = %s, reschedule = %s",
-                         request_id, parametricjob_id, reschedule)
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls).filter_by(id=parametricjob_id)
-            if not requester.admin:
-                query = query.join(cls.request)\
-                             .filter_by(requester_id=requester.id)
-            try:
-                job = query.one()
-            except NoResultFound:
-                message = "No ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple ParametricJobs found with id: %s" % parametricjob_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            if reschedule and not job.reschedule:
-                job.reschedule = True
-                job.status = LocalStatus.SUBMITTING
+
 
 
 #ParametricJobs.diracjobs = DiracJobs()

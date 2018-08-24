@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from productionsystem.sql.models import Services, Users, Requests, ParametricJobs, DiracJobs
+from productionsystem.sql.enums import LocalStatus
 
 
 @cherrypy.expose
@@ -121,6 +122,57 @@ class ParametricJobsAPI(object):
         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
             request_id = int(request_id)
 
+        if parametricjob_id is not None:
+            with cherrypy.HTTPError.handle(ValueError, 400,
+                                           'Bad parametricjob_id: %r' % parametricjob_id):
+                parametricjob_id = int(parametricjob_id)
+
+        requester = cherrypy.request.verified_user
+        user_id = requester.id
+        if requester.admin:
+            user_id = None
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404,
+                                       "No parametric job with id %s" % parametricjob_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple parametric jobs with id %s" % parametricjob_id):
+            return ParametricJobs.get(parametricjob_id=parametricjob_id,
+                                      request_id=request_id, user_id=user_id)
+
+    @classmethod
+    @check_credentials
+    def PUT(cls, request_id, parametricjob_id, reschedule):  # pylint: disable=invalid-name
+        """REST Put method."""
+        cls.logger.debug("In PUT: request_id = %s, jobid = %s, reschedule = %s",
+                         request_id, parametricjob_id, reschedule)
+
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad reschedule value'):
+            reschedule = bool(strtobool(reschedule))
+
+        # GET Code
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+
+        with cherrypy.HTTPError.handle(ValueError, 400,
+                                       'Bad parametricjob_id: %r' % parametricjob_id):
+            parametricjob_id = int(parametricjob_id)
+
+        requester = cherrypy.request.verified_user
+        user_id = requester.id
+        if requester.admin:
+            user_id = None
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404,
+                                       "No parametric job with id %s" % parametricjob_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple parametric jobs with id %s" % parametricjob_id):
+            parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
+                                               request_id=request_id, user_id=user_id)
+
+        if reschedule and not parametricjob.reschedule:
+            parametricjob.reschedule = reschedule
+            parametricjob.status = LocalStatus.SUBMITTING
+            parametricjob.update()
 
 @cherrypy.expose
 @cherrypy.popargs('request_id')
