@@ -168,130 +168,6 @@ class RequestsAPI(object):
             Requests.delete(request_id)
 
 
-def mount(root):
-    for api in [ServicesAPI, UsersAPI, RequestsAPI]:
-        cherrypy.tree.mount(api(), os.path.join(root, api.mount_point),
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-
-
-
-
-
-'''@cherrypy.expose
-@cherrypy.popargs('request_id')
-class Requests(objects):
-
-    @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-    def GET(cls, request_id=None):  # pylint: disable=invalid-name
-        """REST Get method."""
-        cls.logger.debug("In GET: reqid = %r", request_id)
-        requester = cherrypy.request.verified_user
-
-        if request_id is not None:
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-                request_id = int(request_id)
-
-        with managed_session() as session:
-            if not requester.admin:
-                query = session.query(cls).filter_by(requester_id=requester.id)
-                if request_id is None:
-                    cls._datatable_format_headers()
-                    requests = query.all()
-                    session.expunge_all()
-                    return requests
-                try:
-                    request = query.filter_by(id=request_id).one()
-                except NoResultFound:
-                    message = "No Request found with id: %s" % request_id
-                    cls.logger.warning(message)
-                    raise cherrypy.NotFound(message)
-                except MultipleResultsFound:
-                    message = "Multiple Requests found with id: %s!" % request_id
-                    cls.logger.error(message)
-                    raise cherrypy.HTTPError(500, message)
-                session.expunge(request)
-                return request
-
-            query = session.query(cls, Users)
-            if request_id is None:
-                cls._datatable_format_headers()
-                return [dict(request.jsonable(),
-                             requester=user.name)
-                        for request, user in query.join(Users, cls.requester_id == Users.id).all()]
-            try:
-                request, user = query.filter_by(id=request_id)\
-                                     .join(Users, cls.requester_id == Users.id)\
-                                     .one()
-            except NoResultFound:
-                message = "No Request found with id: %s" % request_id
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple Requests found with id: %s!" % request_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            return dict(request.jsonable(),
-                        requester=user.name)
-
-    @classmethod
-    @check_credentials
-    @admin_only
-    def DELETE(cls, request_id):  # pylint: disable=invalid-name
-        """REST Delete method."""
-        cls.logger.info("Deleting Request id: %s", request_id)
-#        if not cherrypy.request.verified_user.admin:
-#            raise cherrypy.HTTPError(401, "Unauthorised")
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-            request_id = int(request_id)
-        with managed_session() as session:
-            try:
-                #  request = session.query(Requests).filter_by(id=request_id).delete()
-                request = session.query(cls).filter_by(id=request_id).one()
-            except NoResultFound:
-                message = "No Request found with id: %s" % request_id
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple Requests found with id: %s!" % request_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-
-            session.delete(request)
-            cls.logger.info("Request %d deleted.", request_id)
-
-    @classmethod
-#    @check_credentials
-#    @admin_only
-    @dummy_credentials
-    def PUT(cls, request_id, status):  # pylint: disable=invalid-name
-        """REST Put method."""
-        cls.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)
-#        if not cherrypy.request.verified_user.admin:
-#            raise cherrypy.HTTPError(401, "Unauthorised")
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-            request_id = int(request_id)
-        if status.upper() not in LocalStatus.members_names():
-            raise cherrypy.HTTPError(400, "bad status")
-
-        with managed_session() as session:
-            try:
-                request = session.query(cls).filter_by(id=request_id).one()
-            except NoResultFound:
-                message = "No Request found with id: %s" % request_id
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple Requests found with id: %s!" % request_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-
-            request.status = LocalStatus[status.upper()]
-            cls.logger.info("Request %d changed to status %s", request_id, status.upper())
-
     @classmethod
     @cherrypy.tools.json_in()
 #    @check_credentials
@@ -333,4 +209,8 @@ class Requests(objects):
             session.flush()
             session.refresh(request)
             cls.logger.info("New Request %d added", request.id)
-'''
+
+def mount(root):
+    for api in [ServicesAPI, UsersAPI, RequestsAPI]:
+        cherrypy.tree.mount(api(), os.path.join(root, api.mount_point),
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})

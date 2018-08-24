@@ -60,18 +60,6 @@ class WebApp(Daemonize):
         cherrypy.tree.mount(CVMFSDirectoryListing(),
                             '/cvmfs',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-
-        cherrypy.tree.mount(Requests.unsafe_construct(),
-                            '/requests',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-
-        cherrypy.tree.mount(Services(),
-                            '/services',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-
-        cherrypy.tree.mount(Users(),
-                            '/users',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
         services.RESTfulAPI.mount('/api')
 
 

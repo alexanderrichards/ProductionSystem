@@ -49,12 +49,6 @@ class Users(SQLTableBase):
         """equality check."""
         return (self.dn, self.ca) == (other.dn, other.ca)
 
-    def jsonable(self):
-        """Return an easily JSON encodable object."""
-        user = super(Users, self).jsonable()
-        user['name'] = self.name
-        return user
-
     def update(self):
         """Update the DB record from this Users object."""
         with managed_session() as session:

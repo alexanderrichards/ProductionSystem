@@ -77,26 +77,26 @@ class IterableBase(Mapping):
     def __iter__(self):
         """Get an iterator over instrumented attributes."""
         for name, type_ in vars(self.__class__).iteritems():
-            if isinstance(type_, InstrumentedAttribute):
+            if isinstance(type_, (InstrumentedAttribute, property)):
+                try:
+                    getattr(self, name, None)
+                except DetachedInstanceError:  # This is lazy loaded and not available
+                    continue
                 yield name
 
     def __getitem__(self, item):
         """Access instrumented attributes as a dict."""
-        if item not in self:
+        if not hasattr(self, item):
             raise KeyError("Invalid attribute name: %s" % item)
-        return getattr(self, item, None)
+        return getattr(self, item, None)  # None should never be needed here try deleting
 
     def __len__(self):
-        return len(list(self.columns))
+        return len(list(iter(self)))
 
-    def jsonable(self):
+    def jsonable_dict(self):
         """Return an easily JSON encodable object."""
         output_obj = {}
-        for column in self:
-            try:
-                val = getattr(self, column)
-            except DetachedInstanceError:
-                continue
+        for column, val in self.iteritems():
             if isinstance(val, Enum):
                 val = val.name.capitalize()
             elif isinstance(val, datetime):
@@ -106,14 +106,7 @@ class IterableBase(Mapping):
 
     def to_json(self):
         """Return a JSON representation of the object."""
-        return json.dumps(self.jsonable())
-
-    @classmethod
-    def unsafe_construct(cls, *args, **kwargs):
-        new = cls.__new__(cls, *args, **kwargs)
-        super(IterableBase, new).__init__(*args, **kwargs)
-#           super(cls, new).__init__(*args, **kwargs)
-        return new
+        return json.dumps(self.jsonable_dict())
 
 
 SQLTableBase = declarative_base(cls=IterableBase,  # pylint: disable=invalid-name

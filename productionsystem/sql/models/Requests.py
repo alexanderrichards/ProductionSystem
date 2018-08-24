@@ -195,7 +195,7 @@ class Requests(SQLTableBase):
             query = session.query(cls, Users)
             if request_id is None:
                 cls._datatable_format_headers()
-                return [dict(request.jsonable(),
+                return [dict(request.jsonable_dict(),
                              requester=user.name)
                         for request, user in query.join(Users, cls.requester_id == Users.id).all()]
             try:
@@ -210,7 +210,7 @@ class Requests(SQLTableBase):
                 message = "Multiple Requests found with id: %s!" % request_id
                 cls.logger.error(message)
                 raise cherrypy.HTTPError(500, message)
-            return dict(request.jsonable(),
+            return dict(request.jsonable_dict(),
                         requester=user.name)
 
     @classmethod
