@@ -97,7 +97,7 @@ class ParametricJobs(SQLTableBase):
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              len(self.dirac_jobs), self.request_id, self.id)
 
-    def update_status(self):
+    def monitor(self):
         """
         Bulk update status.
         This method updates all DIRAC jobs which belong to the given
@@ -136,39 +136,54 @@ class ParametricJobs(SQLTableBase):
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
 
         # Reschedule jobs
+        rescheduled_jobs = []
         if reschedule_jobs:
             self.logger.info("Rescheduling jobs: %s", list(reschedule_jobs))
-            with dirac_api_client() as dirac:
-                result = deepcopy(dirac.reschedule(reschedule_jobs))
-            if result['OK']:
-                self.logger.info("Rescheduled jobs: %s", result['Value'])
-                skipped_jobs = reschedule_jobs.difference(result["Value"])
-                if skipped_jobs:
-                    self.logger.warning("Failed to reschedule jobs: %s", list(skipped_jobs))
-                monitor_jobs.update(result['Value'])
-                reschedule_jobs = set(result['Value'])
+            try:
+                with dirac_api_client() as dirac:
+                    result = deepcopy(dirac.reschedule(reschedule_jobs))
+            except Exception as err:
+                self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err.message)
             else:
-                self.logger.error("Problem rescheduling jobs: %s", result['Message'])
+                if not result['OK']:
+                    self.logger.error("DIRAC failed to reschedule jobs: %s", result['Message'])
+                else:
+                    rescheduled_jobs.extend(result['Value'])
+                    self.logger.info("Rescheduled jobs: %s", rescheduled_jobs)
+                    skipped_jobs = reschedule_jobs.difference(rescheduled_jobs)
+                    if skipped_jobs:
+                        self.logger.warning("Failed to reschedule jobs: %s", list(skipped_jobs))
+                    monitor_jobs.update(rescheduled_jobs)
 
         # Update status
-        with dirac_api_client() as dirac:
-            dirac_answer = deepcopy(dirac.status(monitor_jobs))
-        if not dirac_answer['OK']:
-            self.logger.error("Problem getting monitored job statuses from DIRAC for parametricjob is %d.", self.id)
-            self.reschedule = False
-            return
-        dirac_statuses = dirac_answer['Value']
-
-        skipped_jobs = monitor_jobs.difference(dirac_statuses)
-        if skipped_jobs:
-            self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
+        monitored_jobs = {}
+        self.logger.debug("Monitoring jobs: %s", list(monitor_jobs))
+        try:
+            with dirac_api_client() as dirac:
+                dirac_answer = deepcopy(dirac.status(monitor_jobs))
+        except Exception as err:
+            self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
+        else:
+            if not dirac_answer['OK']:
+                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.", self.id)
+                self.reschedule = False
+            else:
+                monitored_jobs = dirac_answer['Value']
+                skipped_jobs = monitor_jobs.difference(monitored_jobs)
+                if skipped_jobs:
+                    self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
 
         statuses = Counter()
         for job in self.dirac_jobs:
-            if job.id in reschedule_jobs:
+            if job.id in rescheduled_jobs:
                 job.reschedules += 1
-            if job.id in dirac_statuses:
-                job.status = DiracStatus[dirac_statuses[job.id]['Status'].upper()]
+            if job.id in monitored_jobs:
+                try:
+                    job.status = DiracStatus[monitored_jobs[job.id]['Status'].upper()]
+                except KeyError:
+                    self.logger.warning("Unknown DiracStatus: %s. Setting to UNKNOWN",
+                                        monitored_jobs[job.id]['Status'].upper())
+                    job.status = DiracStatus.UNKNOWN
             statuses.update((job.status.local_status,))
 
         status = max(statuses)

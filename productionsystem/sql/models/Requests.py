@@ -75,22 +75,22 @@ class Requests(SQLTableBase):
             self.logger.exception("Exception while submitting request %s", self.id)
             raise
 
-    def update_status(self):
+    def monitor(self):
         """Update request status."""
         if not self.parametric_jobs:
             self.logger.warning("No parametric jobs associated with request: %d. returning status unknown", self.id)
             self.status = LocalStatus.UNKNOWN
             return
 
-        statuses = []
+        status = self.status
         for job in self.parametric_jobs:
             try:
-                job.update_status()
-            except:
-                self.logger.exception("Exception updating ParametricJob %s", job.id)
-            statuses.append(job.status)
+                job.monitor()
+            except:  # get rid of this if parametricjob catches everything. On;y when sure as it's complex
+                self.logger.exception("Exception monitoring ParametricJob %s", job.id)
+                job.status = LocalStatus.UNKNOWN
+            status = max(status, job.status)
 
-        status = max(statuses)
         if status != self.status:
             self.status = status
             self.logger.info("Request %d moved to state %s", self.id, status.name)
@@ -130,7 +130,7 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
     @classmethod
-    def get(cls, request_id=None, user_id=None, load_user=False):
+    def get(cls, request_id=None, user_id=None, load_user=False, status=None):
         """Get requests."""
         if request_id is not None:
             try:
@@ -148,12 +148,19 @@ class Requests(SQLTableBase):
                                  "(or convertable to int)", user_id)
                 raise
 
+        if status is not None:
+            if not isinstance(status, (list, tuple)):
+                cls.logger.error("Status: %r should be of type list/tuple", status)
+                raise TypeError
+
         with managed_session() as session:
             query = session.query(cls)
             if load_user:
                 query = query.options(joinedload(cls.requester, innerjoin=True))
             if user_id is not None:
                 query = query.filter_by(requester_id=user_id)
+            if status is not None:
+                query = query.filter(cls.status.in_(status))
 
             if request_id is None:
                 requests = query.all()
@@ -172,6 +179,17 @@ class Requests(SQLTableBase):
             # If not then doesn't hurt as only one object this session
             session.expunge_all()
             return request
+
+    @classmethod
+    def get_reschedules(cls):
+        with managed_session() as session:
+            requests = session.query(cls)\
+                              .filter_by(status=LocalStatus.FAILED)\
+                              .join(cls.parametric_jobs)\
+                              .filter_by(reschedule=True)\
+                              .all()
+            session.expunge_all()
+            return requests
 
     @classmethod
 #    @check_credentials

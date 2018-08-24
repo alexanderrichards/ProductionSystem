@@ -19,10 +19,20 @@ class Services(SQLTableBase):
 
     __tablename__ = 'services'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    name = Column(TEXT, nullable=False)
+    name = Column(TEXT, nullable=False, unique=True)
     status = Column(Enum(ServiceStatus), nullable=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     logger = logging.getLogger(__name__)
+
+    def add(self):
+        with managed_session() as session:
+            session.add(self)
+            session.flush()
+            session.refresh(self)
+
+    def update(self):
+        with managed_session() as session:
+            session.merge(self)
 
     @classmethod
     def get_services(cls, service_id=None, service_name=None):
@@ -53,20 +63,26 @@ class Services(SQLTableBase):
 
         with managed_session() as session:
             query = session.query(cls)
-            if service_id is None:
-                if service_name is not None:
-                    query = query.filter_by(name=service_name)
+            query_id = []
+            if service_id is not None:
+                query = query.filter_by(id=service_id)
+                query_id.append(str(service_id))
+            if service_name is not None:
+                query = query.filter_by(name=service_name)
+                query_id.append(service_name)
+
+            if service_id is None and service_name is None:
                 services = query.all()
                 session.expunge_all()
                 return services
 
             try:
-                service = query.filter_by(id=service_id).one()
+                service = query.one()
             except NoResultFound:
-                cls.logger.warning("No result found for service id: %d", service_id)
+                cls.logger.warning("No result found for service: (%s)", ', '.join(query_id))
                 raise
             except MultipleResultsFound:
-                cls.logger.error("Multiple results found for service id: %d", service_id)
+                cls.logger.error("Multiple results found for service: (%s)", ', '.join(query_id))
                 raise
             session.expunge(service)
             return service

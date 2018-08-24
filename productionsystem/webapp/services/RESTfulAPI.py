@@ -23,7 +23,7 @@ class ServicesAPI(object):
 #    @admin_only
     def GET(cls, service_id=None):  # pylint: disable=invalid-name
         """REST Get method."""
-        cls.logger.debug("In blah/GET: service_id = %s", service_id)
+        cls.logger.debug("In GET: service_id = %s", service_id)
 
         if service_id is not None:
             with cherrypy.HTTPError.handle(ValueError, 400,
@@ -197,7 +197,8 @@ class ParametricJobsAPI(object):
             parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
                                                request_id=request_id, user_id=user_id)
 
-        if reschedule and not parametricjob.reschedule:
+        if parametricjob.status == LocalStatus.FAILED and not\
+                parametricjob.reschedule and reschedule:
             parametricjob.reschedule = reschedule
             parametricjob.status = LocalStatus.SUBMITTING
             parametricjob.update()
