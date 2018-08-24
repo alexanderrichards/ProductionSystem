@@ -123,25 +123,3 @@ class MonitoringDaemon(Daemonize):
             except SQLAlchemyError as err:
                 self.logger.exception("Error updating status of request %d: %s",
                                       request.id, err.message)
-
-        with managed_session() as session:
-            monitored_requests = session.query(Requests)\
-                                        .filter(Requests.status.in_((LocalStatus.APPROVED,
-                                                                     LocalStatus.SUBMITTED,
-                                                                     LocalStatus.RUNNING)))\
-                                        .all()
-            reschedule_requests = session.query(Requests)\
-                                         .filter_by(status=LocalStatus.FAILED)\
-                                         .join(Requests.parametric_jobs)\
-                                         .filter_by(reschedule=True)\
-                                         .all()
-            monitored_requests.extend(reschedule_requests)
-
-            for request in monitored_requests:
-                if request.status == LocalStatus.APPROVED:
-                    request.status = LocalStatus.SUBMITTING
-                    session.commit()
-                    request.submit()
-                    session.commit()
-                request.update_status()
-                session.commit()
