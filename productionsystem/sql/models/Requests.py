@@ -4,7 +4,8 @@ import logging
 from datetime import datetime
 
 import cherrypy
-from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum
+from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
@@ -65,6 +66,10 @@ class Requests(SQLTableBase):
             session.flush()
             session.refresh(self)
 
+    def update(self):
+        with managed_session() as session:
+            session.merge(self)
+
     def submit(self):
         """Submit Request."""
         self.logger.info("Submitting request %s", self.id)
@@ -72,8 +77,8 @@ class Requests(SQLTableBase):
             for job in self.parametric_jobs:
                 job.submit()
         except:
-            self.logger.exception("Exception while submitting request %s", self.id)
-            raise
+            self.logger.exception("Unhandled exception while submitting request %s", self.id)
+            self.status = LocalStatus.FAILED
 
     def monitor(self):
         """Update request status."""
@@ -86,27 +91,14 @@ class Requests(SQLTableBase):
         for job in self.parametric_jobs:
             try:
                 job.monitor()
-            except:  # get rid of this if parametricjob catches everything. On;y when sure as it's complex
-                self.logger.exception("Exception monitoring ParametricJob %s", job.id)
+            except:  # get rid of this if parametricjob catches everything. Only when sure as it's complex
+                self.logger.exception("Unhandled exception monitoring ParametricJob %s", job.id)
                 job.status = LocalStatus.UNKNOWN
             status = max(status, job.status)
 
         if status != self.status:
             self.status = status
             self.logger.info("Request %d moved to state %s", self.id, status.name)
-
-    @staticmethod
-    def _datatable_format_headers():
-        columns = [{"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
-                   {"data": "description", "title": "Description", "width": "80%"},
-                   {"data": "status", "title": "Status", "width": "7.5%"},
-                   {"data": "request_date", "title": "Request Date", "width": "7.5%"}]
-        if cherrypy.request.verified_user.admin:
-            columns[2]['width'] = "70%"
-            columns.append({"data": "requester", "title": "Requester", "width": "10%"})
-
-        cherrypy.response.headers['Datatable-Order'] = json.dumps([[1, "desc"]])
-        cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
 
     @classmethod
     def delete(cls, request_id):
@@ -219,3 +211,12 @@ class Requests(SQLTableBase):
 
             request.status = LocalStatus[status.upper()]
             cls.logger.info("Request %d changed to status %s", request_id, status.upper())
+
+
+@event.listens_for(Requests.status, "set", propagate=True)
+def intercept_status_set(target, newvalue, oldvalue, _):
+    """Intercept status transitions."""
+    # will catch updates in detached state and again when we merge it into session
+    if not inspect(target).detached:
+        target.logger.info("Request %d transitioned from status %s to %s",
+                           target.id, oldvalue.name, newvalue.name)

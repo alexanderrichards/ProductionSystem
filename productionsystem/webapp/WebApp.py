@@ -77,13 +77,17 @@ class WebApp(Daemonize):
         SessionRegistry.setup(self._dburl)
         #temporary testing entry
         #######################
-        from productionsystem.sql.models import ParametricJobs, DiracJobs
+        from productionsystem.sql.models import DiracJobs
+        from productionsystem.sql.enums import LocalStatus
         with managed_session() as session:
             session.add(Users(id=17, dn='/blah/CN=mydn/blah', ca='ca', email='test@email.com', suspended=False, admin=True))
             session.add(Requests(id=1, requester_id=17, description="alex test job",
                                  parametricjobs=[{'id': 1, 'request_id': 177, 'status': 'FAILED', 'num_jobs': 5}]))
-#            session.add(ParametricJobs(id=1, request_id=1, status='FAILED', num_jobs=5 ))
             session.add(DiracJobs(id=1234, parametricjob_id=1))
+
+        r = Requests.get(request_id=1)
+        r.status = LocalStatus.RUNNING
+        r.update()
         #######################
 
         cherrypy.config.update(self._global_config())  # global vars need updating global config

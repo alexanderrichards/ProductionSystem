@@ -9,7 +9,7 @@ from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
 import cherrypy
-from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint, event
+from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint, event, inspect
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -83,16 +83,33 @@ class ParametricJobs(SQLTableBase):
     def submit(self):
         """Submit parametric job."""
         with dirac_api_job_client() as (dirac, dirac_job_class), NamedTemporaryFile() as runscript:
-            dirac_job = self._setup_dirac_job(dirac_job_class(), runscript)
-            result = dirac.submit(dirac_job)
+            try:
+                dirac_job = self._setup_dirac_job(dirac_job_class(), runscript)
+            except Exception as err:
+                self.logger.exception("Error setting up the parametric job %d.%d: %s",
+                                      self.request_id, self.id, err.message)
+                self.status = LocalStatus.FAILED
+                return
+
+            try:
+                result = dirac.submit(dirac_job)
+            except Exception as err:
+                self.logger.exception("Error submitting parametric job %d.%d: %s",
+                                      self.request_id, self.id, err.message)
+                self.status = LocalStatus.FAILED
+                return
+
             if not result['OK']:
-                self.logger.error("Error submitting dirac job: %s", result['Message'])
-                if self.dirac_jobs:
+                self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
+                                  result['Message'])
+                self.status = LocalStatus.FAILED
+                if self.dirac_jobs:  # Clean up local DiracJobs that may have been created
                     jobs = [diracjob.id for diracjob in self.dirac_jobs]
                     self.logger.info("Killing/deleting %d existing dirac jobs.", len(jobs))
                     dirac.kill(jobs)
                     dirac.delete(jobs)
-                raise Exception(result['Message'])
+                return
+
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value']]
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              len(self.dirac_jobs), self.request_id, self.id)
@@ -257,9 +274,18 @@ class ParametricJobs(SQLTableBase):
             session.expunge(parametricjob)
             return parametricjob
 
+@event.listens_for(ParametricJobs.status, "set", propagate=True)
+def intercept_status_set(target, newvalue, oldvalue, _):
+    """Intercept status transitions."""
+    # will catch updates in detached state and again when we merge it into session
+    if not inspect(target).detached:
+        target.logger.info("Parametric job %d.%d transitioned from status %s to %s",
+                           target.reques_id, target.id, oldvalue.name, newvalue.name)
+
 
 @event.listens_for(SessionRegistry, "persistent_to_deleted")
 def intercept_persistent_to_deleted(session, object_):
+    """Intercept deletion of object and remove DIRAC jobs."""
     if isinstance(object_, DiracJobs):
         DiracJobs.logger.debug("Parametric job %d marked for removal, cascade deleting local DB "
                                "Dirac job %d", object_.parametricjob_id, object_.id)

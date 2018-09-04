@@ -107,19 +107,19 @@ class MonitoringDaemon(Daemonize):
         Check the status of ongoing DB requests and either update them or
         create new Ganga tasks for new requests.
         """
-        monitored_requests = Requests.get_requests(status=(LocalStatus.APPROVED,
-                                                           LocalStatus.SUBMITTED,
-                                                           LocalStatus.RUNNING))
+        monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
+                                                  LocalStatus.SUBMITTED,
+                                                  LocalStatus.RUNNING))
         monitored_requests.append(Requests.get_reschedules())
         monitored_requests = []
 
         for request in monitored_requests:
-            if request.status == LocalStatus.APPROVED:
-                request.status = LocalStatus.SUBMITTING
-                request.submit()  # JUST THE SUBMIT TO GO.
-            request.monitor()
             try:
+                if request.status == LocalStatus.APPROVED:
+                    request.status = LocalStatus.SUBMITTING
+                    request.update()
+                    request.submit()
+                request.monitor()
                 request.update()
-            except SQLAlchemyError as err:
-                self.logger.exception("Error updating status of request %d: %s",
-                                      request.id, err.message)
+            except:
+                self.logger.exception("Unhandled exception while monitoring request %d", request.id)
