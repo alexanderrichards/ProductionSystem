@@ -103,13 +103,44 @@
 <script src="utils.js"></script>
 <script>
 $(document).ready(function(){
-  $("#requests_table").DataTable({columns: [{"data": "id", "title": "ID", "className": "rowid", "width": "5%"},
-             {"data": "description", "title": "Description", "width": "80%"},
-             {"data": "status", "title": "Status", "width": "7.5%"},
-             {"data": "request_date", "title": "Request Date", "width": "7.5%"}],
-  data: [{id:123, description: "lalala", status: "DONE", request_date: 1234}]});
 
-  $("#newrequest_btn").click(function(){
+  var requests_table = $("#requests_table");
+
+  requests_table.DataTable({
+    "ajax": {"url": "api/requests", "cache": true, "dataSrc": ''},
+    "order": [[1, "asc"]],
+    "columns": [
+        { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary parametricjobs_toggle"></span>'},
+        { "title": "ID", "data": "id", "width": "5%" },
+        { "title": "Description", "data": "description", "width": "60%" },
+        { "title": "Status", "data": "status", "width": "5%" },
+        { "title": "Date Requested", "data": "request_date", "width": "15%" },
+        { "title": "Requester", "data": "requester.name", "width": "10%" },
+    ]
+  })
+
+  requests_table.on("click", "tr", function(){
+    $(this).toggleClass("bg-primary text-light");
+    $(this).find("span.parametricjobs_toggle").toggleClass("text-light");
+  });
+
+  requests_table.on("click", "span.parametricjobs_toggle", function(){
+    var parametricjobs_toggle = $(this);
+    var tr = parametricjobs_toggle.closest('tr');
+    var row = requests_table.DataTable().row(tr);
+    parametricjobs_toggle.toggleClass("text-primary text-danger oi-chevron-bottom oi-chevron-top");
+
+    if ( row.child.isShown() ) {
+      // This row is already open - close it
+      row.child.hide();
+      tr.removeClass('shown');
+      return;
+    }
+
+    var subtable = $("<table/>", {"class": "table table-striped"});
+    subtable.DataTable();
+    row.child(subtable).show();
+    tr.addClass('shown');
 
   });
 });
