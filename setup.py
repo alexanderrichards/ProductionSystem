@@ -26,9 +26,9 @@ setup(
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
         'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp']
     },
-    scripts=['productionsystem/webapp-daemon.py',
-             'productionsystem/monitoring-daemon.py',
-             'productionsystem/dirac-daemon.py'],
+    scripts=['scripts/webapp-daemon.py',
+             'scripts/monitoring-daemon.py',
+             'scripts/dirac-daemon.py'],
     # metadata for upload to PyPI
     author="Alexander Richards",
     author_email="a.richards@imperial.ac.uk",
