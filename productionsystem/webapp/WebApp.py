@@ -6,6 +6,7 @@ from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
 from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services, Users
 from .services import HTMLPageServer, CVMFSDirectoryListing
+import services.RESTfulAPI
 
 
 class WebApp(Daemonize):
@@ -51,7 +52,6 @@ class WebApp(Daemonize):
         return config
 
     def _mount_points(self):
-        import services.RESTfulAPI
         cherrypy.tree.mount(HTMLPageServer(pkg_resources.resource_filename('productionsystem', 'webapp/templates'),
                                            report_url='https://github.com/alexanderrichards/ProductionSystem/issues'),
                             '/',
