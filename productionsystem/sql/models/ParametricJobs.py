@@ -214,13 +214,6 @@ class ParametricJobs(SQLTableBase):
         self.num_running = statuses[LocalStatus.RUNNING]
         self.reschedule = False
 
-    @staticmethod
-    def _datatable_format_headers():
-        columns = [{'data': 'id', 'title': 'ID', 'className': 'rowid'},
-                   {'data': 'status', 'title': 'Status'}]
-        cherrypy.response.headers['Datatable-Order'] = json.dumps([[0, 'desc']])
-        cherrypy.response.headers["Datatable-Columns"] = json.dumps(columns)
-
     @classmethod
     def get(cls, parametricjob_id=None, request_id=None, user_id=None):
         """Get parametric jobs."""
@@ -273,6 +266,7 @@ class ParametricJobs(SQLTableBase):
                 raise
             session.expunge(parametricjob)
             return parametricjob
+
 
 @event.listens_for(ParametricJobs.status, "set", propagate=True)
 def intercept_status_set(target, newvalue, oldvalue, _):
