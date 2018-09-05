@@ -15,6 +15,7 @@
   <!-- FancyBox -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.3.5/jquery.fancybox.min.css"/>
   <style>
+    #context_menu { display: none; }
     .fancybox-slide--iframe .fancybox-content {
 	  width  : 800px;
 	  height : 600px;
@@ -66,6 +67,26 @@
       </button>
     </div>
 -->
+
+<div id="context_menu" class="dropdown-menu">
+  <h6 class="dropdown-header"></h6>
+  <div class="dropdown-divider"></div>
+  <button id="context_info" class="dropdown-item btn btn-primary text-primary" type="button">
+      <span class="oi oi-info"></span>
+      Info
+  </button>
+  {% if user.admin %}
+  <button id="context_approve" class="dropdown-item btn btn-success text-success" type="button">
+      <span class="oi oi-thumb-up"></span>
+      Approve
+  </button>
+  <button id="context_remove" class="dropdown-item btn btn-danger text-danger" type="button">
+      <span class="oi oi-trash"></span>
+      Remove
+  </button>
+  {% endif %}
+</div>
+
 <table id="requests_table" class="table table-striped mx-auto w-100"></table>
 
 <div class="d-flex justify-content-start mt-4">
@@ -176,6 +197,40 @@ $(document).ready(function(){
     row.child(subtable).show();
     tr.addClass('shown');
 
+  });
+
+  var context_menu = $("#context_menu");
+  var context_menu_request_id = '0';
+  var context_menu_header = context_menu.children(".dropdown-header");
+  context_menu.contextmenu(function(){ return false; });
+
+  requests_table.on("contextmenu", "tbody tr", function(event){
+    var request_id = $(this).find("td.request_id").text();
+    if (context_menu.hasClass("shown") && context_menu_request_id === request_id){
+        $("html").trigger("click");
+        return false;
+    }
+
+    context_menu_request_id = request_id;
+    context_menu_header.text(`Actions for request ${request_id}`);
+    context_menu.css({
+        top: event.pageY,
+        left: event.pageX
+    });
+    context_menu.show();
+    context_menu.addClass("shown");
+    return false;  // Suppress browser contextmenu
+  });
+
+  $("html").click(function(){
+    context_menu.hide();
+    context_menu.removeClass("shown");
+  });
+
+  $("html").contextmenu(function(){
+    context_menu.hide();
+    context_menu.removeClass("shown");
+    return true;
   });
 });
 </script>
