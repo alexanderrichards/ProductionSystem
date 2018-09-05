@@ -65,6 +65,7 @@ class Requests(SQLTableBase):
             session.add(self)
             session.flush()
             session.refresh(self)
+            session.expunge(self)
 
     def update(self):
         with managed_session() as session:

@@ -33,3 +33,26 @@
         <textarea class="form-control" name="description" placeholder="Enter a description of the request here." required></textarea>
     </div>
 </fieldset>
+<script>
+$(document).ready(function(){
+    $("#submit_btn").click(function(event){
+        event.preventDefault();
+        parent.$.fancybox.close();
+        $.ajax({
+            url: "api/requests",
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            data: JSON.stringify({request:{parametricjobs:[{num_jobs:3},{num_jobs:5}]}}),
+            error: function(jqXHR, textStatus, errorThrown){
+                console.error(`Failed to create new requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+                parent.bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
+            },
+            success: function(response, status, request){
+                console.log("Request created");
+                parent.bootstrap_alert("success", "Success:", "Request added");
+                parent.$("#requests_table").DataTable().ajax.reload();
+            }
+        });
+    });
+});
+</script>

@@ -258,7 +258,7 @@ class RequestsAPI(object):
     def POST(cls):  # pylint: disable=invalid-name
         """REST Post method."""
         data = cherrypy.request.json
-        cls.logger.debug("In POST: kwargs = %s", data)
+        cls.logger.debug("In POST: data = %s", data)
         if not isinstance(data, dict):
             raise cherrypy.HTTPError(400, "Request data is expected to be JSON object.")
         if 'request' not in data:
