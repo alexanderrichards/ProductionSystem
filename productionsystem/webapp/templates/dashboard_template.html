@@ -108,19 +108,21 @@ $(document).ready(function(){
 
   console.debug("Getting requests.");
   requests_table.DataTable({
-    "ajax": {"url": "api/requests", "cache": true, "dataSrc": '',
+    "ajax": {"url": "/api/requests", "cache": true, "dataSrc": '',
              "error": function(jqXHR, textStatus, errorThrown){
                 console.error(`Failed to get requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 bootstrap_alert("danger", "ERROR:", "Failed to get requests!");
              }},
     "order": [[1, "asc"]],
     "columns": [
+        {% block requests_table_columns %}
         { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary parametricjobs_toggle"></span>'},
         { "title": "ID", "data": "id", "className": "request_id", "width": "5%" },
         { "title": "Description", "data": "description", "width": "60%" },
         { "title": "Status", "data": "status", "width": "5%" },
         { "title": "Date Requested", "data": "request_date", "width": "15%" },
         { "title": "Requester", "data": "requester.name", "width": "10%" },
+        {% endblock%}
     ]
   });
 
@@ -146,7 +148,7 @@ $(document).ready(function(){
     var request_id = tr.find("td.request_id").text();
     console.debug(`Getting parametric jobs for request ${request_id}`)
     subtable.DataTable({
-        "ajax": {"url": `api/requests/${request_id}/parametricjobs`, "cache": true,
+        "ajax": {"url": `/api/requests/${request_id}/parametricjobs`, "cache": true,
                  "dataSrc": function(data){
                     $.each(data, function(index, element){
                         element.id = `${request_id}.${element.id}`;
@@ -165,8 +167,10 @@ $(document).ready(function(){
                  }},
         "order": [[0, "asc"]],
         "columns": [
+            {% block parametricjobs_table_columns %}
             { "title": "ID", "data": "id", "width": "50%" },
             { "title": "Status", "data": "status", "width": "50%" },
+            {% endblock %}
         ]
     });
     row.child(subtable).show();
