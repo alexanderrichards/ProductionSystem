@@ -146,7 +146,13 @@ $(document).ready(function(){
     var request_id = tr.find("td.request_id").text();
     console.debug(`Getting parametric jobs for request ${request_id}`)
     subtable.DataTable({
-        "ajax": {"url": `api/requests/${request_id}/parametricjobs`, "cache": true, "dataSrc": '',
+        "ajax": {"url": `api/requests/${request_id}/parametricjobs`, "cache": true,
+                 "dataSrc": function(data){
+                    $.each(data, function(index, element){
+                        element.id = `${request_id}.${element.id}`;
+                    });
+                    return data;
+                 },
                  "error": function(jqXHR, textStatus, errorThrown){
                     console.error(`Failed to get parametric jobs for request ${request_id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                     bootstrap_alert("danger", "ERROR:", `Failed to get parametricjobs for request ${request_id}`);
