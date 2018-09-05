@@ -52,10 +52,12 @@ class Requests(SQLTableBase):
         parametricjobs = kwargs.get('parametricjobs', [])
         if not parametricjobs:
             self.logger.warning("No parametricjobs associated with new request.")
-        for parametricjob in parametricjobs:
+        for job_id, parametricjob in enumerate(parametricjobs):
             parametricjob.pop('request_id', None)
+            parametricjob.pop('id', None)
             try:
-                self.parametric_jobs.append(ParametricJobs(request_id=self.id, **parametricjob))
+                self.parametric_jobs.append(ParametricJobs(request_id=self.id, id=job_id + 1,
+                                                           **parametricjob))
             except ValueError:
                 self.logger.exception("Error creating parametricjob, bad input: %s", parametricjob)
                 raise

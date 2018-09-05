@@ -40,7 +40,8 @@ class ParametricJobs(SQLTableBase):
     classtype = Column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'parametricjobs'}
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
+    request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
     priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3, allowed=True)
     site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
@@ -51,7 +52,6 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    request_id = SmartColumn(Integer, ForeignKey('requests.id'), nullable=False, required=True)
     request = relationship("Requests", back_populates="parametric_jobs")
     dirac_jobs = relationship("DiracJobs", back_populates="parametricjob", cascade="all, delete-orphan")
     logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class ParametricJobs(SQLTableBase):
         # Group jobs by status
 
         if not self.dirac_jobs:
-            self.logger.warning("No dirac jobs associated with parametricjob: %d. returning status unknown", self.id)
+            self.logger.warning("No dirac jobs associated with parametricjob: %d.%d. returning status unknown", self.request_id, self.id)
             self.status = LocalStatus.UNKNOWN
             self.reschedule = False
             self.num_completed = 0
@@ -182,7 +182,7 @@ class ParametricJobs(SQLTableBase):
             self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
         else:
             if not dirac_answer['OK']:
-                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.", self.id)
+                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d", self.request_id, self.id, dirac_answer['Message'])
                 self.reschedule = False
             else:
                 monitored_jobs = dirac_answer['Value']
@@ -215,22 +215,22 @@ class ParametricJobs(SQLTableBase):
         self.reschedule = False
 
     @classmethod
-    def get(cls, parametricjob_id=None, request_id=None, user_id=None):
+    def get(cls, request_id=None, parametricjob_id=None, user_id=None):
         """Get parametric jobs."""
-        if parametricjob_id is not None:
-            try:
-                parametricjob_id = int(parametricjob_id)
-            except ValueError:
-                cls.logger.error("Parametric job id: %r should be of type int "
-                                 "(or convertable to int)", parametricjob_id)
-                raise
-
         if request_id is not None:
             try:
                 request_id = int(request_id)
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
+                raise
+
+        if parametricjob_id is not None:
+            try:
+                parametricjob_id = int(parametricjob_id)
+            except ValueError:
+                cls.logger.error("Parametric job id: %r should be of type int "
+                                 "(or convertable to int)", parametricjob_id)
                 raise
 
         if user_id is not None:
@@ -243,14 +243,14 @@ class ParametricJobs(SQLTableBase):
 
         with managed_session() as session:
             query = session.query(cls)
-            if parametricjob_id is not None:
-                query = query.filter_by(id=parametricjob_id)
             if request_id is not None:
                 query = query.filter_by(request_id=request_id)
+            if parametricjob_id is not None:
+                query = query.filter_by(id=parametricjob_id)
             if user_id is not None:
                 query = query.join(cls.request).filter_by(requester_id=user_id)
 
-            if parametricjob_id is None:
+            if request_id is None or parametricjob_id is None:
                 requests = query.all()
                 session.expunge_all()
                 return requests
