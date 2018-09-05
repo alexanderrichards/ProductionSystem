@@ -66,7 +66,7 @@
       </button>
     </div>
 -->
-<table id="requests_table" class="table table-striped"></table>
+<table id="requests_table" class="table table-striped mx-auto w-100"></table>
 
 <div class="d-flex justify-content-start mt-4">
   <a class="btn btn-primary mr-1" data-fancybox data-type="iframe" data-src="/newrequest" data-caption="New Request Form" href="javascript:;" role="button">
@@ -106,18 +106,23 @@ $(document).ready(function(){
 
   var requests_table = $("#requests_table");
 
+  console.debug("Getting requests.");
   requests_table.DataTable({
-    "ajax": {"url": "api/requests", "cache": true, "dataSrc": ''},
+    "ajax": {"url": "api/requests", "cache": true, "dataSrc": '',
+             "error": function(jqXHR, textStatus, errorThrown){
+                console.error(`Failed to get requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+                bootstrap_alert("danger", "ERROR:", "Failed to get requests!");
+             }},
     "order": [[1, "asc"]],
     "columns": [
         { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary parametricjobs_toggle"></span>'},
-        { "title": "ID", "data": "id", "width": "5%" },
+        { "title": "ID", "data": "id", "className": "request_id", "width": "5%" },
         { "title": "Description", "data": "description", "width": "60%" },
         { "title": "Status", "data": "status", "width": "5%" },
         { "title": "Date Requested", "data": "request_date", "width": "15%" },
         { "title": "Requester", "data": "requester.name", "width": "10%" },
     ]
-  })
+  });
 
   requests_table.on("click", "tr", function(){
     $(this).toggleClass("bg-primary text-light");
@@ -126,10 +131,10 @@ $(document).ready(function(){
 
   requests_table.on("click", "span.parametricjobs_toggle", function(){
     var parametricjobs_toggle = $(this);
-    var tr = parametricjobs_toggle.closest('tr');
-    var row = requests_table.DataTable().row(tr);
     parametricjobs_toggle.toggleClass("text-primary text-danger oi-chevron-bottom oi-chevron-top");
 
+    var tr = parametricjobs_toggle.closest('tr');
+    var row = requests_table.DataTable().row(tr);
     if ( row.child.isShown() ) {
       // This row is already open - close it
       row.child.hide();
@@ -137,8 +142,27 @@ $(document).ready(function(){
       return;
     }
 
-    var subtable = $("<table/>", {"class": "table table-striped"});
-    subtable.DataTable();
+    var subtable = $("<table/>", {"class": "table table-striped mx-auto w-100"});
+    var request_id = tr.find("td.request_id").text();
+    console.debug(`Getting parametric jobs for request ${request_id}`)
+    subtable.DataTable({
+        "ajax": {"url": `api/requests/${request_id}/parametricjobs`, "cache": true, "dataSrc": '',
+                 "error": function(jqXHR, textStatus, errorThrown){
+                    console.error(`Failed to get parametric jobs for request ${request_id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+                    bootstrap_alert("danger", "ERROR:", `Failed to get parametricjobs for request ${request_id}`);
+                 },
+                 "statusCode": {
+                    400: function(){
+                        console.warn(`Request id ${request_id} is not valid.`)
+                        bootstrap_alert("warning", "Attention:", `Request id ${request_id} is not valid.`)
+                    }
+                 }},
+        "order": [[0, "asc"]],
+        "columns": [
+            { "title": "ID", "data": "id", "width": "50%" },
+            { "title": "Status", "data": "status", "width": "50%" },
+        ]
+    });
     row.child(subtable).show();
     tr.addClass('shown');
 
