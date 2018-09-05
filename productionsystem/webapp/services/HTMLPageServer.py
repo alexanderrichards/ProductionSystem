@@ -71,7 +71,7 @@ class HTMLPageServer(object):
 
         return self._render('dashboard_template.html',
                             title=self._title,
-                            heading=self._heading,
+                            heading=self._heading,  # These two could be template inheritance blocks
                             user=cherrypy.request.verified_user,
                             monitoringd_service=services.get("monitoringd"),
                             dirac_service=services.get('DIRAC'))
