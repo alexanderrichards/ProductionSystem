@@ -147,7 +147,7 @@ $(document).ready(function(){
     ]
   });
 
-  requests_table.on("click", "tr", function(){
+  requests_table.on("click", "tbody tr", function(){
     $(this).toggleClass("bg-primary text-light");
     $(this).find("span.parametricjobs_toggle").toggleClass("text-light");
   });
@@ -206,13 +206,30 @@ $(document).ready(function(){
 
   requests_table.on("contextmenu", "tbody tr", function(event){
     var request_id = $(this).find("td.request_id").text();
-    if (context_menu.hasClass("shown") && context_menu_request_id === request_id){
-        $("html").trigger("click");
-        return false;
+    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
+    var selected_ids = [];
+    selected_rows.each(function(index, cell){
+      selected_ids.push($(this).text());
+    });
+
+    if ($.inArray(request_id, selected_ids) === -1){
+      selected_rows.trigger("click");
+      selected_rows = [];
+      selected_ids = [];
     }
 
-    context_menu_request_id = request_id;
-    context_menu_header.text(`Actions for request ${request_id}`);
+    if (context_menu.hasClass("shown")){
+      $("html").trigger("click");
+      return false;
+    }
+
+    context_menu_request_id = request_id
+    if (selected_rows.length > 1){
+      context_menu_header.text("Bulk actions for requests");
+    }
+    else{
+      context_menu_header.text(`Actions for request ${request_id}`);
+    }
     context_menu.css({
         top: event.pageY,
         left: event.pageX
@@ -247,25 +264,38 @@ $(document).ready(function(){
   });
 
   $("#context_remove").click(function(){
-    $.ajax({
-      url: `/api/requests/${context_menu_request_id}`,
-      type: "DELETE",
-      success: function(){
-        console.log(`Removed request ${context_menu_request_id}`);
-        bootstrap_alert("success", "Removed:", `Request ${context_menu_request_id} was removed`);
-        requests_table.DataTable().ajax.reload();
-      },
-      statusCode: {
-        401: function(){
-          console.warn("Unauthorised delete request.")
-          bootstrap_alert("warning", "Unauthorised:", "Incorrect authoisation.")
+
+    var ids = [];
+    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
+    selected_rows.each(function(index, cell){
+      ids.push($(this).text());
+    });
+
+    if (ids.length === 0){
+      ids = [context_menu_request_id];
+    }
+
+    $.each(ids, function(index, id){
+      $.ajax({
+        url: `/api/requests/${id}`,
+        type: "DELETE",
+        success: function(){
+          console.log(`Removed request ${context_menu_request_id}`);
+          bootstrap_alert("success", "Removed:", `Request ${context_menu_request_id} was removed`);
+          requests_table.DataTable().ajax.reload();
         },
-        403: function(){
-          console.err("Delete request is forbidden for current user.");
-          bootstrap_alert("danger", "Deleting requests is forbidden.")
+        statusCode: {
+          401: function(){
+            console.warn("Unauthorised delete request.")
+            bootstrap_alert("warning", "Unauthorised:", "Incorrect authoisation.")
+          },
+          403: function(){
+            console.err("Delete request is forbidden for current user.");
+            bootstrap_alert("danger", "Deleting requests is forbidden.")
+          }
         }
-      }
-    })
+      });
+    });
   });
 });
 </script>
