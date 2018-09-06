@@ -245,6 +245,28 @@ $(document).ready(function(){
       }
     })
   });
+
+  $("#context_remove").click(function(){
+    $.ajax({
+      url: `/api/requests/${context_menu_request_id}`,
+      type: "DELETE",
+      success: function(){
+        console.log(`Removed request ${context_menu_request_id}`);
+        bootstrap_alert("success", "Removed:", `Request ${context_menu_request_id} was removed`);
+        requests_table.DataTable().ajax.reload();
+      },
+      statusCode: {
+        401: function(){
+          console.warn("Unauthorised delete request.")
+          bootstrap_alert("warning", "Unauthorised:", "Incorrect authoisation.")
+        },
+        403: function(){
+          console.err("Delete request is forbidden for current user.");
+          bootstrap_alert("danger", "Deleting requests is forbidden.")
+        }
+      }
+    })
+  });
 });
 </script>
 </body>
