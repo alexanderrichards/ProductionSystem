@@ -232,6 +232,19 @@ $(document).ready(function(){
     context_menu.removeClass("shown");
     return true;
   });
+
+  $("#context_approve").click(function(){
+    $.ajax({
+      url: `/api/requests/${context_menu_request_id}`,
+      type: "PUT",
+      data: {status: "Approved"},
+      success: function(){
+        console.log(`Approved request ${context_menu_request_id}`);
+        bootstrap_alert("success", "Approved:", `Request ${context_menu_request_id} was approved`);
+        requests_table.DataTable().ajax.reload();
+      }
+    })
+  });
 });
 </script>
 </body>
