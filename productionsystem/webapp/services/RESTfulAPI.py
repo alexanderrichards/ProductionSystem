@@ -84,7 +84,9 @@ class UsersAPI(object):
             user = Users.get_users(user_id=user_id)
 
         user.admin = admin
-        user.update()
+        with cherrypy.HTTPError.handle(SQLAlchemyError, 500, "Error updating user %s(%d)"
+                                                             % (user.name, user_id)):
+            user.update()
 
 
 @cherrypy.expose
@@ -161,9 +163,11 @@ class ParametricJobsAPI(object):
             user_id = None
 
         with cherrypy.HTTPError.handle(NoResultFound, 404,
-                                       "No parametric job with id %s" % parametricjob_id),\
+                                       "No parametric job with id %d.%s"
+                                       % (request_id, parametricjob_id)),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
-                                          "Multiple parametric jobs with id %s" % parametricjob_id):
+                                          "Multiple parametric jobs with id %d.%s"
+                                          % (request_id, parametricjob_id)):
             return ParametricJobs.get(parametricjob_id=parametricjob_id,
                                       request_id=request_id, user_id=user_id)
 
@@ -191,9 +195,11 @@ class ParametricJobsAPI(object):
             user_id = None
 
         with cherrypy.HTTPError.handle(NoResultFound, 404,
-                                       "No parametric job with id %s" % parametricjob_id),\
+                                       "No parametric job with id %d.%d"
+                                       % (request_id, parametricjob_id)),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
-                                          "Multiple parametric jobs with id %s" % parametricjob_id):
+                                          "Multiple parametric jobs with id %d.%d"
+                                          % (request_id, parametricjob_id)):
             parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
                                                request_id=request_id, user_id=user_id)
 
@@ -201,7 +207,11 @@ class ParametricJobsAPI(object):
                 parametricjob.reschedule and reschedule:
             parametricjob.reschedule = reschedule
             parametricjob.status = LocalStatus.SUBMITTING
-            parametricjob.update()
+            with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
+                                           "Error updating parametric job %d.%d"
+                                           % (request_id, parametricjob_id)):
+                parametricjob.update()
+
 
 @cherrypy.expose
 @cherrypy.popargs('request_id')
@@ -209,7 +219,6 @@ class RequestsAPI(object):
     mount_point = 'requests'
     logger = logging.getLogger(__name__).getChild("RequestsAPI")
     parametricjobs = ParametricJobsAPI()
-
 
     @classmethod
     @cherrypy.tools.accept(media='application/json')
@@ -271,6 +280,32 @@ class RequestsAPI(object):
         with cherrypy.HTTPError.handle(SQLAlchemyError, 500, "Error adding request to DB."):
             request.add()
         cls.logger.info("New request %d created", request.id)
+
+    @classmethod
+#    @check_credentials
+#    @admin_only
+    @dummy_credentials
+    def PUT(cls, request_id, status):  # pylint: disable=invalid-name
+        """REST Put method."""
+        cls.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)
+
+        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
+            request_id = int(request_id)
+
+        with cherrypy.HTTPError.handle(KeyError, 400, 'Bad status: %r' % status):
+            status = LocalStatus[status.upper()]
+
+        with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %d" % request_id),\
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple requests with id %d" % request_id):
+            request = Requests.get(request_id=request_id)
+
+        request.status = status
+        with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
+                                       "Error updating request with id %d" % request_id):
+            request.update()
+            cls.logger.info("Request %d changed to status %s", request_id, status.name)
+
 
 def mount(root):
     for api in [ServicesAPI, UsersAPI, RequestsAPI]:

@@ -186,35 +186,6 @@ class Requests(SQLTableBase):
             session.expunge_all()
             return requests
 
-    @classmethod
-#    @check_credentials
-#    @admin_only
-    @dummy_credentials
-    def PUT(cls, request_id, status):  # pylint: disable=invalid-name
-        """REST Put method."""
-        cls.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)
-#        if not cherrypy.request.verified_user.admin:
-#            raise cherrypy.HTTPError(401, "Unauthorised")
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
-            request_id = int(request_id)
-        if status.upper() not in LocalStatus.members_names():
-            raise cherrypy.HTTPError(400, "bad status")
-
-        with managed_session() as session:
-            try:
-                request = session.query(cls).filter_by(id=request_id).one()
-            except NoResultFound:
-                message = "No Request found with id: %s" % request_id
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple Requests found with id: %s!" % request_id
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-
-            request.status = LocalStatus[status.upper()]
-            cls.logger.info("Request %d changed to status %s", request_id, status.upper())
-
 
 @event.listens_for(Requests.status, "set", propagate=True)
 def intercept_status_set(target, newvalue, oldvalue, _):
