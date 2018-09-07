@@ -251,16 +251,51 @@ $(document).ready(function(){
   });
 
   $("#context_approve").click(function(){
-    $.ajax({
-      url: `/api/requests/${context_menu_request_id}`,
-      type: "PUT",
-      data: {status: "Approved"},
-      success: function(){
-        console.log(`Approved request ${context_menu_request_id}`);
-        bootstrap_alert("success", "Approved:", `Request ${context_menu_request_id} was approved`);
+
+    var ids = [];
+    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
+    selected_rows.each(function(index, cell){
+      ids.push($(this).text());
+    });
+
+    if (ids.length === 0){
+      ids = [context_menu_request_id];
+    }
+
+    ajax_calls = [];
+    $.each(ids, function(index, id){
+      ajax_calls.push(
+        $.ajax({
+          url: `/api/requests/${id}`,
+          type: "PUT",
+          data: {status: "Approved"},
+          success: function(){
+            console.log(`Approved request ${id}`);
+          },
+          error: function(jqXHR, textStatus, errorThrown){
+            console.error(`Error approving request ${id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+          },
+          statusCode: {  // Since these menu items should only be available when jinja renders the admin page this should not happen.
+            401: function(){
+              console.warn("Unauthorised delete request.")
+            },
+            403: function(){
+              console.error("Delete request is forbidden for current user.");
+            }
+          }
+        })
+      );
+    });
+    $.when.apply(this, ajax_calls).then(
+      function(){
+        bootstrap_alert("success", "Approved:", `Successfully removed ${ids.length} requests.`);
+        requests_table.DataTable().ajax.reload();
+      },
+      function(){
+        bootstrap_alert("danger", "Failed:", "Request approval failed. Please check the console log.");
         requests_table.DataTable().ajax.reload();
       }
-    })
+    );
   });
 
   $("#context_remove").click(function(){
@@ -275,27 +310,39 @@ $(document).ready(function(){
       ids = [context_menu_request_id];
     }
 
+    ajax_calls = [];
     $.each(ids, function(index, id){
-      $.ajax({
-        url: `/api/requests/${id}`,
-        type: "DELETE",
-        success: function(){
-          console.log(`Removed request ${context_menu_request_id}`);
-          bootstrap_alert("success", "Removed:", `Request ${context_menu_request_id} was removed`);
-          requests_table.DataTable().ajax.reload();
-        },
-        statusCode: {
-          401: function(){
-            console.warn("Unauthorised delete request.")
-            bootstrap_alert("warning", "Unauthorised:", "Incorrect authoisation.")
+      ajax_calls.push(
+        $.ajax({
+          url: `/api/requests/${id}`,
+          type: "DELETE",
+          success: function(){
+            console.log(`Removed request ${id}`);
           },
-          403: function(){
-            console.err("Delete request is forbidden for current user.");
-            bootstrap_alert("danger", "Deleting requests is forbidden.")
+          error: function(jqXHR, textStatus, errorThrown){
+            console.error(`Error removing request ${id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+          },
+          statusCode: {  // Since these menu items should only be available when jinja renders the admin page this should not happen.
+            401: function(){
+              console.warn("Unauthorised delete request.")
+            },
+            403: function(){
+              console.error("Delete request is forbidden for current user.");
+            }
           }
-        }
-      });
+        })
+      );
     });
+    $.when.apply(this, ajax_calls).then(
+      function(){
+        bootstrap_alert("success", "Removed:", `Successfully removed ${ids.length} requests.`);
+        requests_table.DataTable().ajax.reload();
+      },
+      function(){
+        bootstrap_alert("danger", "Failed:", "Request removal failed. Please check the console log.");
+        requests_table.DataTable().ajax.reload();
+      }
+    );
   });
 });
 </script>
