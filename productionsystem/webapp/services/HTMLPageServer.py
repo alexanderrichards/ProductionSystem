@@ -42,14 +42,13 @@ def service_badge_url(service, service_name):
 class HTMLPageServer(object):
     """The Web server."""
 
-    def __init__(self,  report_url, extra_jinja2_loader=None):
+    def __init__(self, extra_jinja2_loader=None):
         """Initialisation."""
         loader = jinja2.PackageLoader("productionsystem.webapp")
         if extra_jinja2_loader is not None:
             loader = jinja2.ChoiceLoader([extra_jinja2_loader,
                                           loader])
         self._template_env = jinja2.Environment(loader=loader)
-        self._report_url = report_url
         self._logger = logging.getLogger(__name__)
 
     def _render(self, template_name, **kwargs):
@@ -73,10 +72,6 @@ class HTMLPageServer(object):
                             user=cherrypy.request.verified_user,
                             monitoringd_service=services.get("monitoringd"),
                             dirac_service=services.get('DIRAC'))
-
-    @cherrypy.expose
-    def report(self):
-        raise cherrypy.HTTPRedirect(self._report_url)
 
     @cherrypy.expose
     @dummy_credentials

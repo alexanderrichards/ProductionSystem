@@ -52,7 +52,7 @@ class WebApp(Daemonize):
         return config
 
     def _mount_points(self):
-        cherrypy.tree.mount(HTMLPageServer(report_url='https://github.com/alexanderrichards/ProductionSystem/issues'),
+        cherrypy.tree.mount(HTMLPageServer(),
                             '/',
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
 
