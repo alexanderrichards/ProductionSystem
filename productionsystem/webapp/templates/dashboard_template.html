@@ -276,9 +276,12 @@ $(document).ready(function(){
           error: function(jqXHR, textStatus, errorThrown){
             console.error(`Error approving request ${id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
           },
-          statusCode: {  // Since these menu items should only be available when jinja renders the admin page this should not happen.
+          statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
+            400: function(){
+              console.warn("Only jobs in Requested may transition to Approved.");
+            },
             401: function(){
-              console.warn("Unauthorised delete request.")
+              console.warn("Unauthorised delete request.");
             },
             403: function(){
               console.error("Delete request is forbidden for current user.");
@@ -325,7 +328,7 @@ $(document).ready(function(){
           },
           statusCode: {  // Since these menu items should only be available when jinja renders the admin page this should not happen.
             401: function(){
-              console.warn("Unauthorised delete request.")
+              console.warn("Unauthorised delete request.");
             },
             403: function(){
               console.error("Delete request is forbidden for current user.");

@@ -300,6 +300,10 @@ class RequestsAPI(object):
                                           "Multiple requests with id %d" % request_id):
             request = Requests.get(request_id=request_id)
 
+        if status == LocalStatus.APPROVED and request.status != LocalStatus.REQUESTED:
+            raise cherrypy.HTTPError(400,
+                                     "Only requests in state Requested can transition to Approved.")
+
         request.status = status
         with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
                                        "Error updating request with id %d" % request_id):
