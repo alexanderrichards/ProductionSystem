@@ -173,6 +173,37 @@ $(document).ready(function(){
                  "dataSrc": function(data){
                     $.each(data, function(index, element){
                         element.id = `${request_id}.${element.id}`;
+
+                        // progressbar
+                        var progress_wrapper = $("<div/>");
+                        var progressbar = $("<div>", {class: "progress"});
+                        var failed_bar = $("<div>", {class: `progress-bar bg-danger`,
+                                                     role: "progressbar",
+                                                     style: `width: ${100*element.num_failed/element.num_jobs}%`});
+                        failed_bar.text(element.num_failed);
+                        var completed_bar = $("<div>", {class: `progress-bar bg-success`,
+                                                        role: "progressbar",
+                                                        style: `width: ${100*element.num_completed/element.num_jobs}%`});
+                        completed_bar.text(element.num_completed);
+                        var submitted_bar = $("<div>", {class: `progress-bar progress-bar-striped progress-bar-animated bg-warning`,
+                                                        role: "progressbar",
+                                                        style: `width: ${100*element.num_submitted/element.num_jobs}%`});
+                        submitted_bar.text(element.num_submitted);
+                        var running_bar = $("<div>", {class: `progress-bar progress-bar-striped progress-bar-animated bg-success`,
+                                                      role: "progressbar",
+                                                      style: `width: ${100*element.num_running/element.num_jobs}%`});
+                        running_bar.text(element.num_running);
+                        var other_bar = $("<div>", {class: `progress-bar bg-secondary`,
+                                                    role: "progressbar",
+                                                    style: `width: ${100*(element.num_jobs-element.num_failed-element.num_completed-element.num_submitted-element.num_running)/element.num_jobs}%`});
+                        other_bar.append($("<span/>", {class: "oi oi-timer"}));
+                        progressbar.append(failed_bar);
+                        progressbar.append(completed_bar);
+                        progressbar.append(submitted_bar);
+                        progressbar.append(running_bar);
+                        progressbar.append(other_bar);
+                        progress_wrapper.append(progressbar);
+                        element.progress = progress_wrapper.html();
                     });
                     return data;
                  },
@@ -189,8 +220,9 @@ $(document).ready(function(){
         "order": [[0, "asc"]],
         "columns": [
             {% block parametricjobs_table_columns %}
-            { "title": "ID", "data": "id", "width": "50%" },
-            { "title": "Status", "data": "status", "width": "50%" },
+            { "title": "ID", "data": "id", "width": "10%" },
+            { "title": "Progress", "data": "progress", "width": "80%" },
+            { "title": "Status", "data": "status", "width": "10%" },
             {% endblock %}
         ]
     });
