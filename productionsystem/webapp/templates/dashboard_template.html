@@ -250,6 +250,7 @@ $(document).ready(function(){
     return true;
   });
 
+  {% if user.admin %}
   $("#context_approve").click(function(){
 
     var ids = [];
@@ -344,6 +345,7 @@ $(document).ready(function(){
       }
     );
   });
+  {% endif %}
 });
 </script>
 </body>
