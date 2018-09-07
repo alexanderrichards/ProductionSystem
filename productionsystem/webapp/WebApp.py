@@ -3,8 +3,7 @@ import pkg_resources
 import cherrypy
 from daemonize import Daemonize
 from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
-from productionsystem.sql.registry import SessionRegistry, managed_session
-from productionsystem.sql.models import Requests, Services, Users
+from productionsystem.sql.registry import SessionRegistry
 from .services import HTMLPageServer, CVMFSDirectoryListing
 import services.RESTfulAPI
 
@@ -76,8 +75,9 @@ class WebApp(Daemonize):
         SessionRegistry.setup(self._dburl)
         #temporary testing entry
         #######################
-        from productionsystem.sql.models import DiracJobs
+        from productionsystem.sql.models import Requests, DiracJobs, Users
         from productionsystem.sql.enums import LocalStatus
+        from productionsystem.sql.registry import managed_session
         with managed_session() as session:
             session.add(Users(id=17, dn='/blah/CN=mydn/blah', ca='ca', email='test@email.com', suspended=False, admin=True))
             session.add(Requests(id=1, requester_id=17, description="alex test job",
