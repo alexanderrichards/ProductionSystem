@@ -15,9 +15,8 @@ if __name__ == '__main__':
     lzprod_root = os.path.dirname(os.path.dirname(expand_path(__file__)))
 
     parser = argparse.ArgumentParser(description='Run the LZ production web server.')
-    parser.add_argument('-v', '--verbose', default=logging.INFO, action="store_const",
-                        const=logging.DEBUG, dest='logginglevel',
-                        help="Increase the verbosity of output")
+    parser.add_argument('-v', '--verbose', action='count',
+                        help="Increase the logged verbosite, can be used twice")
     parser.add_argument('-l', '--log-dir', default=os.path.join(lzprod_root, 'log'),
                         help="Path to the log directory. Will be created if doesn't exist "
                              "[default: %(default)s]")
@@ -61,7 +60,7 @@ if __name__ == '__main__':
     # setup the root logger
     root_logger = logging.getLogger()
     root_logger.addHandler(fhandler)
-    root_logger.setLevel(args.logginglevel)
+    root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
