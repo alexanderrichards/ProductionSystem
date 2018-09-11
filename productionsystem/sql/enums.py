@@ -33,11 +33,6 @@ class DiracStatus(IntEnum):
     CHECKING = 12
     MATCHED = 13
 
-    @classmethod
-    def members_names(cls):
-        """Return list of all enum members names."""
-        return cls.__members__.keys()
-
     @property
     def local_status(self):
         """Convert to LocalStatus."""
@@ -59,10 +54,6 @@ class LocalStatus(IntEnum):
     SUBMITTING = 8
     RUNNING = 9
 
-    @classmethod
-    def members_names(cls):
-        """Return list of all enum members names."""
-        return cls.__members__.keys()
 
 STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.DELETED: LocalStatus.DELETED,
