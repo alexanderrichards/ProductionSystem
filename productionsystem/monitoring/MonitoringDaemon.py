@@ -69,10 +69,16 @@ class MonitoringDaemon(Daemonize):
 
         # DIRAC
         status = ServiceStatus.DOWN
-        if requests.get("https://dirac.gridpp.ac.uk/DIRAC/",
-                        cert=self.cert, verify=self.verify) \
-                .status_code == 200:
-            status = ServiceStatus.UP
+        try:
+            if requests.get("https://dirac.gridpp.ac.uk/DIRAC/",
+                            cert=self.cert, verify=self.verify) \
+                    .status_code == 200:
+                status = ServiceStatus.UP
+        except IOError as err:
+            self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
+                              "for PEM password): %s", err.message)
+            status = ServiceStatus.UNKNOWN
+
         if 'DIRAC' in services:
             dirac_service = services['DIRAC']
             dirac_service.status = status
