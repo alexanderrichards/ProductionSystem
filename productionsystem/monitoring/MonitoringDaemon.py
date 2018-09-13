@@ -55,6 +55,8 @@ class MonitoringDaemon(Daemonize):
                 self.check_services()
                 self.monitor_requests()
                 time.sleep(self._delay * MINS)
+        except KeyboardInterrupt:
+            self.logger.warning("keyboard interrupt!")  # match the dirac-daemon rpyc SIGINT handler
         except Exception:
             self.logger.exception("Unhandled exception while running daemon.")
 
