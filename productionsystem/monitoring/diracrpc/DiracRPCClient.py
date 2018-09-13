@@ -22,7 +22,7 @@ def dirac_api_client(host="localhost", port=18861):
     """RPC DIRAC API client context."""
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
-        yield conn.root.dirac_api()
+        yield conn.root.Dirac()
     finally:
         conn.close()
 
@@ -31,6 +31,6 @@ def dirac_api_client(host="localhost", port=18861):
 def dirac_api_job_client(host="localhost", port=18861):
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
-        yield conn.root.dirac_api(), conn.root.Job
+        yield conn.root.Dirac(), conn.root.Job
     finally:
         conn.close()
