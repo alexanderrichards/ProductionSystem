@@ -2,45 +2,39 @@
 # pylint: disable=invalid-name
 """Script to read users info from VOMS and update locat SQL table."""
 import os
-import sys
 import logging
 import argparse
 import importlib
 
 from sqlalchemy.exc import SQLAlchemyError
 
-
-def expandpath(path):
-    """Expand filesystem path."""
-    return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
-
+from productionsystem.utils import expand_path
 
 if __name__ == '__main__':
-    lzprod_root = os.path.dirname(os.path.dirname(expandpath(__file__)))
+    current_dir = os.getcwd()
+    app_name = os.path.splitext(os.path.basename(__file__))[0]
+
     parser = argparse.ArgumentParser(description='Read list of users from VOMS and update '
                                                  'local table.')
-    parser.add_argument('-m', '--voms', default='https://voms.hep.wisc.edu:8443/voms/lz/services',
+    parser.add_argument('--voms', default='https://voms.hep.wisc.edu:8443/voms/lz/services',
                         help='Root path of VOMS server services. [default: %(default)s]')
-    parser.add_argument('-c', '--cert', default=os.path.expanduser('~/.globus/usercert.pem'),
+    parser.add_argument('--cert', default=os.path.expanduser('~/.globus/usercert.pem'),
                         help='Path to cert .pem file [default: %(default)s]')
-    parser.add_argument('-k', '--key', default=os.path.expanduser('~/.globus/userkey.pem'),
+    parser.add_argument('--key', default=os.path.expanduser('~/.globus/userkey.pem'),
                         help='Path to key .pem file. Note must be an unencrypted key. '
                              '[default: %(default)s]')
-    parser.add_argument('-v', '--verbose', default=logging.INFO, action="store_const",
-                        const=logging.DEBUG, dest='logginglevel',
-                        help="Increase the verbosity of output")
-    parser.add_argument('-l', '--log-dir', default=os.path.join(lzprod_root, 'log'),
-                        help="Path to the log directory. Will be created if doesn't exist "
-                             "[default: %(default)s]")
+    parser.add_argument('-v', '--verbose', action='count',
+                        help="Increase the logged verbosite, can be used twice")
     parser.add_argument('-d', '--dburl',
-                        default="sqlite:///" + os.path.join(lzprod_root, 'requests.db'),
+                        default="sqlite:///" + os.path.join(current_dir, 'requests.db'),
                         help="URL for the requests DB. Note can use the prefix 'mysql+pymysql://' "
                              "if you have a problem with MySQLdb.py [default: %(default)s]")
-    parser.add_argument('-y', '--verify', default=False, action="store_true",
+    parser.add_argument('--verify', default=False, action="store_true",
                         help="Verify the VOMS server.")
-    parser.add_argument('-n', '--config', default='~/.config/productionsystem/productionsystem.conf',
+    parser.add_argument('-c', '--config',
+                        default='~/.config/productionsystem/productionsystem.conf',
                         help="The config file [default: %(default)s]")
-    parser.add_argument('-t', '--trusted-cas', default='',
+    parser.add_argument('--trusted-cas', default='',
                         help="Path to the trusted CA_BUNDLE file or directory containing the "
                              "certificates of trusted CAs. Note if set to a directory, the "
                              "directory must have been processed using the c_rehash utility "
@@ -52,20 +46,20 @@ if __name__ == '__main__':
     if args.trusted_cas:
         args.verify = args.trusted_cas
 
-    logging.basicConfig(level=args.logginglevel, format="%(name)15s : %(levelname)8s : %(message)s")
-    logger = logging.getLogger("userdb-update")
+    logging.basicConfig(level=max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG),
+                        format="%(name)15s : %(levelname)8s : %(message)s")
+    logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", args)
 
-    # Add the python src path to the sys.path for future imports
-    sys.path.append(lzprod_root)
-
-    real_config = expandpath(args.config)
+    real_config = expand_path(args.config)
     if not os.path.exists(real_config):
         logging.warning("Config file '%s' does not exist", real_config)
         real_config = None
     config = importlib.import_module('productionsystem.config')
     config.ConfigSystem.setup(real_config)
 
+    # Add the python src path to the sys.path for future imports
+    # sys.path.append(lzprod_root)
 
     registry = importlib.import_module('productionsystem.sql.registry')
     Users = importlib.import_module('productionsystem.sql.models.Users').Users

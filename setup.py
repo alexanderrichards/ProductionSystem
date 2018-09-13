@@ -11,7 +11,8 @@ setup(
                       'requests',
                       'SQLAlchemy',
                       'rpyc',
-                      'suds'
+                      'suds',
+                      'psutil'
                       ],
     extras_require={
         'doc': ['Sphinx', 'sphinxcontrib-httpdomain'],
