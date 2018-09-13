@@ -86,7 +86,7 @@ if __name__ == '__main__':
     stop_parser = subparser.add_parser('stop', help='stop the monitoring daemon')
     parser.set_defaults(app_name=app_name)
     start_parser.set_defaults(func=start)
-    stop_parser.set_defaults(func=stop, debug_mode=True)
+    stop_parser.set_defaults(func=stop, debug_mode=True, trusted_cas=False)
 
     start_parser.add_argument('-f', '--frequency', default=5, type=int,
                               help="The frequency that the daemon does it's main functionality "
