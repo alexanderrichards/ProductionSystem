@@ -6,9 +6,10 @@ import rpyc
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
+# Used in Solid to list the DIRAC file catalogue
 @contextmanager
 def dirac_rpc_client(rpc_endpoint, host="localhost", port=18861):
-    """DIRAC RPC client context."""
+    """RPC DIRAC RPC client context."""
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
         yield conn.root.RPCClient(rpc_endpoint)
@@ -21,7 +22,7 @@ def dirac_api_client(host="localhost", port=18861):
     """RPC DIRAC API client context."""
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
-        yield conn.root.dirac_api
+        yield conn.root.dirac_api()
     finally:
         conn.close()
 
@@ -30,6 +31,6 @@ def dirac_api_client(host="localhost", port=18861):
 def dirac_api_job_client(host="localhost", port=18861):
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
     try:
-        yield conn.root.dirac_api, conn.root.Job
+        yield conn.root.dirac_api(), conn.root.Job
     finally:
         conn.close()

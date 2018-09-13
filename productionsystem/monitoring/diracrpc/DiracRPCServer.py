@@ -78,7 +78,7 @@ class DiracService(rpyc.Service):
     """DIRAC RPyC Service."""
 
     exposed_Job = FixedJob
-    exposed_dirac_api = FixedDirac()
+    exposed_dirac_api = FixedDirac
     exposed_RPCClient = FixedRPCClient
 
 class DiracDaemon(Daemonize):
