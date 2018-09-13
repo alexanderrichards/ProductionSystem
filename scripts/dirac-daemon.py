@@ -58,7 +58,7 @@ def start(args):
 
     # Daemon setup
     ###########################################################################
-    DiracDaemon(address=(args.host, args.port),
+    DiracDaemon(address=(args.socket_host, args.socket_port),
                 app=app_name,
                 pid=args.pid_file,
                 logger=logger,
