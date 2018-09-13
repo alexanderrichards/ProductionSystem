@@ -8,8 +8,8 @@ import argparse
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import psutil
+import mock
 
-from DIRAC.Core.Base import Script
 
 from productionsystem.utils import expand_path
 
@@ -53,6 +53,29 @@ def stop(args):
 
 def start(args):
     """Start the monitoring daemon."""
+
+    if args.mock_mode:
+        mock.patch.dict(sys.modules, {"DIRAC": mock.MagicMock(),
+                                      "DIRAC.Core": mock.MagicMock(),
+                                      "DIRAC.Core.Base": mock.MagicMock(),
+                                      "DIRAC.Core.Base.Script": mock.MagicMock(),
+                                      "DIRAC.Core.DISET": mock.MagicMock(),
+                                      "DIRAC.Core.DISET.RPCClient": mock.MagicMock(),
+                                      "DIRAC.Interfaces": mock.MagicMock(),
+                                      "DIRAC.Interfaces.API": mock.MagicMock(),
+                                      "DIRAC.Interfaces.API.Job": mock.MagicMock(),
+                                      "DIRAC.Interfaces.API.Dirac": mock.MagicMock()}).start()
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.kill.return_value = None
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.delete.return_value = None
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.submit.return_value = lambda jobs: {'OK': True, 'Value': range(1, len(jobs) + 1)} if isinstance(jobs, list) else {'OK': True, 'Value': [1]}
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.reschedule.side_effect = lambda ids: {'OK': True, 'Value': ids}
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.status.side_effect = lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}}
+
+    # DIRAC will parse our command line args unless we remove them
+    sys.argv = sys.argv[:1]
+    Script = importlib.import_module('DIRAC.Core.Base.Script')
+    Script.parseCommandLine(ignoreErrors=True)
+
     # Dynamic imports to module level
     ###########################################################################
     # Add the python src path to the sys.path for future imports
@@ -109,11 +132,10 @@ if __name__ == '__main__':
     start_parser.add_argument('--debug-mode', action='store_true', default=False,
                               help="Run the daemon in a debug interactive monitoring mode. "
                                    "(debugging only)")
+    start_parser.add_argument('--mock-mode', action='store_true', default=False,
+                              help="Run the daemon in a debug interactive monitoring mode. "
+                                   "(debugging only)")
     args = parser.parse_args()
-
-    # DIRAC will parse our command line args unless we remove them
-    sys.argv = sys.argv[:1]
-    Script.parseCommandLine(ignoreErrors=True)
 
     # Logging setup
     ###########################################################################

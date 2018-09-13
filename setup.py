@@ -12,7 +12,8 @@ setup(
                       'SQLAlchemy',
                       'rpyc',
                       'suds',
-                      'psutil'
+                      'psutil',
+                      'mock'
                       ],
     extras_require={
         'doc': ['Sphinx', 'sphinxcontrib-httpdomain'],
@@ -21,7 +22,6 @@ setup(
                 "pylint",
                 "Sphinx",
                 "sphinxcontrib-httpdomain",
-                "mock",
                 "pytest",
                 "coverage",
                 "pytest-cov",
@@ -30,7 +30,7 @@ setup(
                 "pytest-pep257"],
     },
     setup_requires=["pytest-runner"],
-    tests_require=["mock", "pytest", 'coverage', 'pytest-cov', 'pytest-pylint', 'pytest-pep8', 'pytest-pep257'],
+    tests_require=["pytest", 'coverage', 'pytest-cov', 'pytest-pylint', 'pytest-pep8', 'pytest-pep257'],
     test_suit="tests",
     entry_points={
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
