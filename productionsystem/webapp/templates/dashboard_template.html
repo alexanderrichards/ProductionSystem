@@ -134,7 +134,7 @@ $(document).ready(function(){
                 console.error(`Failed to get requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 bootstrap_alert("danger", "ERROR:", "Failed to get requests!");
              }},
-    "order": [[1, "asc"]],
+    "order": [[1, "desc"]],
     "columns": [
         {% block requests_table_columns %}
         { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary parametricjobs_toggle"></span>'},
