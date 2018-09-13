@@ -29,6 +29,10 @@ def stop(args):
         logger.error("Bad pid value in pidfile '%s': %s", pidfile, err.message)
         return
 
+    if not psutil.pid_exists(pid):
+        logger.warning("No process with pid: %d running", pid)
+        return
+
     logger.info("Sending daemon SIGTERM...")
     daemon = psutil.Process(pid)
     daemon.terminate()
