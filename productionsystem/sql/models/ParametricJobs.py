@@ -153,7 +153,7 @@ class ParametricJobs(SQLTableBase):
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
 
         # Reschedule jobs
-        rescheduled_jobs = []
+        rescheduled_jobs = set()
         if reschedule_jobs:
             self.logger.info("Rescheduling jobs: %s", list(reschedule_jobs))
             try:
@@ -165,8 +165,8 @@ class ParametricJobs(SQLTableBase):
                 if not result['OK']:
                     self.logger.error("DIRAC failed to reschedule jobs: %s", result['Message'])
                 else:
-                    rescheduled_jobs.extend(result['Value'])
-                    self.logger.info("Rescheduled jobs: %s", rescheduled_jobs)
+                    rescheduled_jobs.update(result['Value'])
+                    self.logger.info("Rescheduled jobs: %s", list(rescheduled_jobs))
                     skipped_jobs = reschedule_jobs.difference(rescheduled_jobs)
                     if skipped_jobs:
                         self.logger.warning("Failed to reschedule jobs: %s", list(skipped_jobs))
@@ -182,7 +182,7 @@ class ParametricJobs(SQLTableBase):
             self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
         else:
             if not dirac_answer['OK']:
-                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d", self.request_id, self.id, dirac_answer['Message'])
+                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
                 self.reschedule = False
             else:
                 monitored_jobs = dirac_answer['Value']
