@@ -55,6 +55,11 @@ def stop(args):
 
 def start(args):
     """Start the monitoring daemon."""
+
+    # Modify the verify arg based on trusted_cas path
+    if args.trusted_cas:
+        args.verify = args.trusted_cas
+
     # Dynamic imports to module level
     ###########################################################################
     # Add the python src path to the sys.path for future imports
@@ -86,7 +91,7 @@ if __name__ == '__main__':
     stop_parser = subparser.add_parser('stop', help='stop the monitoring daemon')
     parser.set_defaults(app_name=app_name)
     start_parser.set_defaults(func=start)
-    stop_parser.set_defaults(func=stop, debug_mode=True, trusted_cas=False)
+    stop_parser.set_defaults(func=stop, debug_mode=True)
 
     start_parser.add_argument('-f', '--frequency', default=5, type=int,
                               help="The frequency that the daemon does it's main functionality "
@@ -134,10 +139,6 @@ if __name__ == '__main__':
                               help="Run the daemon in a debug interactive monitoring mode. "
                                    "(debugging only)")
     args = parser.parse_args()
-
-    # Modify the verify arg based on trusted_cas path
-    if args.trusted_cas:
-        args.verify = args.trusted_cas
 
     # Logging setup
     ###########################################################################
