@@ -93,6 +93,12 @@ class IterableBase(Mapping):
     def __len__(self):
         return len(list(iter(self)))
 
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return id(self) == id(other)
+
     def jsonable_dict(self):
         """Return an easily JSON encodable object."""
         output_obj = {}

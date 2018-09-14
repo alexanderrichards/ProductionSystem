@@ -117,9 +117,9 @@ class MonitoringDaemon(Daemonize):
         """
         monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
                                                   LocalStatus.SUBMITTED,
-                                                  LocalStatus.RUNNING))
-        monitored_requests.append(Requests.get_reschedules())
-        monitored_requests = []
+                                                  LocalStatus.RUNNING),
+                                          load_parametricjobs=True)
+        monitored_requests.extend(Requests.get_reschedules())
 
         for request in monitored_requests:
             try:

@@ -274,7 +274,7 @@ def intercept_status_set(target, newvalue, oldvalue, _):
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached:
         target.logger.info("Parametric job %d.%d transitioned from status %s to %s",
-                           target.reques_id, target.id, oldvalue.name, newvalue.name)
+                           target.request_id, target.id, oldvalue.name, newvalue.name)
 
 
 @event.listens_for(SessionRegistry, "persistent_to_deleted")

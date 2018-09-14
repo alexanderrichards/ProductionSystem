@@ -125,7 +125,7 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
     @classmethod
-    def get(cls, request_id=None, user_id=None, load_user=False, status=None):
+    def get(cls, request_id=None, user_id=None, load_user=False, load_parametricjobs=False, status=None):
         """Get requests."""
         if request_id is not None:
             try:
@@ -152,6 +152,9 @@ class Requests(SQLTableBase):
             query = session.query(cls)
             if load_user:
                 query = query.options(joinedload(cls.requester, innerjoin=True))
+            if load_parametricjobs:
+                query = query.options(joinedload(cls.parametric_jobs, innerjoin=True))\
+                             .options(joinedload('parametric_jobs.dirac_jobs', innerjoin=True))
             if user_id is not None:
                 query = query.filter_by(requester_id=user_id)
             if status is not None:
