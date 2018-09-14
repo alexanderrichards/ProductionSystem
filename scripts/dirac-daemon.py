@@ -65,11 +65,15 @@ def start(args):
                                       "DIRAC.Interfaces.API": mock.MagicMock(),
                                       "DIRAC.Interfaces.API.Job": mock.MagicMock(),
                                       "DIRAC.Interfaces.API.Dirac": mock.MagicMock()}).start()
-        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.kill.return_value = None
-        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.delete.return_value = None
-        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.submit.return_value = lambda jobs: {'OK': True, 'Value': range(1, len(jobs) + 1)} if isinstance(jobs, list) else {'OK': True, 'Value': [1]}
-        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.reschedule.side_effect = lambda ids: {'OK': True, 'Value': ids}
-        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac.status.side_effect = lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}}
+        dirac_class_mock = mock.MagicMock
+        dirac_class_mock.kill = mock.MagicMock(return_value=None)
+        dirac_class_mock.delete = mock.MagicMock(return_value=None)
+        dirac_class_mock.status = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
+        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': range(1, len(jobs) + 1)} if isinstance(jobs, list) else {'OK': True, 'Value': [1]})
+        dirac_class_mock.reschedule = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
+        sys.modules['DIRAC.Interfaces.API.Job'].Job = mock.MagicMock
+        sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac = dirac_class_mock
+        sys.modules['DIRAC.Core.DISET.RPCClient'].RPCClient = mock.MagicMock
 
     # DIRAC will parse our command line args unless we remove them
     sys.argv = sys.argv[:1]
