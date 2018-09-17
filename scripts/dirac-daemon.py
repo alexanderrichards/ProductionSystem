@@ -5,6 +5,7 @@ import os
 import sys
 import importlib
 import argparse
+import random
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import psutil
@@ -69,7 +70,7 @@ def start(args):
         dirac_class_mock.kill = mock.MagicMock(return_value=None)
         dirac_class_mock.delete = mock.MagicMock(return_value=None)
         dirac_class_mock.status = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
-        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': range(1, len(jobs) + 1)} if isinstance(jobs, list) else {'OK': True, 'Value': [1]})
+        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in xrange(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
         dirac_class_mock.reschedule = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
         sys.modules['DIRAC.Interfaces.API.Job'].Job = mock.MagicMock
         sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac = dirac_class_mock

@@ -6,7 +6,7 @@ from datetime import datetime
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy.orm import relationship, joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
@@ -40,7 +40,8 @@ class Requests(SQLTableBase):
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    parametric_jobs = relationship("ParametricJobs", back_populates="request", cascade="all, delete-orphan")
+    parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
+#    dirac_jobs = relationship("DiracJobs")
     requester = relationship("Users")
     logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class Requests(SQLTableBase):
             parametricjob.pop('id', None)
             try:
                 self.parametric_jobs.append(ParametricJobs(request_id=self.id, id=job_id + 1,
+                                                           requester_id=self.requester_id,
                                                            **parametricjob))
             except ValueError:
                 self.logger.exception("Error creating parametricjob, bad input: %s", parametricjob)
@@ -90,7 +92,7 @@ class Requests(SQLTableBase):
             self.status = LocalStatus.UNKNOWN
             return
 
-        status = self.status
+        status = LocalStatus.UNKNOWN
         for job in self.parametric_jobs:
             try:
                 job.monitor()
@@ -153,8 +155,8 @@ class Requests(SQLTableBase):
             if load_user:
                 query = query.options(joinedload(cls.requester, innerjoin=True))
             if load_parametricjobs:
-                query = query.options(joinedload(cls.parametric_jobs, innerjoin=True))\
-                             .options(joinedload('parametric_jobs.dirac_jobs', innerjoin=True))
+#                query = query.options(selectinload(cls.parametric_jobs).selectinload(ParametricJobs.dirac_jobs))
+                query = query.options(joinedload(cls.parametric_jobs, innerjoin=False).joinedload(ParametricJobs.dirac_jobs))
             if user_id is not None:
                 query = query.filter_by(requester_id=user_id)
             if status is not None:
@@ -194,6 +196,6 @@ class Requests(SQLTableBase):
 def intercept_status_set(target, newvalue, oldvalue, _):
     """Intercept status transitions."""
     # will catch updates in detached state and again when we merge it into session
-    if not inspect(target).detached:
+    if not inspect(target).detached and oldvalue != newvalue:
         target.logger.info("Request %d transitioned from status %s to %s",
                            target.id, oldvalue.name, newvalue.name)

@@ -42,6 +42,7 @@ class ParametricJobs(SQLTableBase):
                        'polymorphic_identity': 'parametricjobs'}
     id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
     request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
+    requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)
     priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3, allowed=True)
     site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
@@ -52,8 +53,7 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    request = relationship("Requests", back_populates="parametric_jobs")
-    dirac_jobs = relationship("DiracJobs", back_populates="parametricjob", cascade="all, delete-orphan")
+    dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan")
     logger = logging.getLogger(__name__)
 
     @hybrid_property
@@ -110,7 +110,9 @@ class ParametricJobs(SQLTableBase):
                     dirac.delete(jobs)
                 return
 
-            self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id) for i in result['Value']]
+            self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
+                                         requester_id=self.requester_id,
+                                         status=DiracStatus.UNKNOWN) for i in result['Value']]
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              len(self.dirac_jobs), self.request_id, self.id)
 
@@ -155,7 +157,7 @@ class ParametricJobs(SQLTableBase):
         # Reschedule jobs
         rescheduled_jobs = set()
         if reschedule_jobs:
-            self.logger.info("Rescheduling jobs: %s", list(reschedule_jobs))
+            self.logger.info("Rescheduling DIRAC jobs: %s", list(reschedule_jobs))
             try:
                 with dirac_api_client() as dirac:
                     result = deepcopy(dirac.reschedule(reschedule_jobs))
@@ -174,21 +176,22 @@ class ParametricJobs(SQLTableBase):
 
         # Update status
         monitored_jobs = {}
-        self.logger.debug("Monitoring jobs: %s", list(monitor_jobs))
-        try:
-            with dirac_api_client() as dirac:
-                dirac_answer = deepcopy(dirac.status(monitor_jobs))
-        except Exception as err:
-            self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
-        else:
-            if not dirac_answer['OK']:
-                self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
-                self.reschedule = False
+        self.logger.debug("Monitoring DIRAC jobs: %s", list(monitor_jobs))
+        if monitor_jobs:
+            try:
+                with dirac_api_client() as dirac:
+                    dirac_answer = deepcopy(dirac.status(monitor_jobs))
+            except Exception as err:
+                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
             else:
-                monitored_jobs = dirac_answer['Value']
-                skipped_jobs = monitor_jobs.difference(monitored_jobs)
-                if skipped_jobs:
-                    self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
+                if not dirac_answer['OK']:
+                    self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
+                    self.reschedule = False
+                else:
+                    monitored_jobs = dirac_answer['Value']
+                    skipped_jobs = monitor_jobs.difference(monitored_jobs)
+                    if skipped_jobs:
+                        self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
 
         statuses = Counter()
         for job in self.dirac_jobs:
@@ -248,7 +251,7 @@ class ParametricJobs(SQLTableBase):
             if parametricjob_id is not None:
                 query = query.filter_by(id=parametricjob_id)
             if user_id is not None:
-                query = query.join(cls.request).filter_by(requester_id=user_id)
+                query = query.filter_by(requester_id=user_id)
 
             if request_id is None or parametricjob_id is None:
                 requests = query.all()
@@ -272,7 +275,7 @@ class ParametricJobs(SQLTableBase):
 def intercept_status_set(target, newvalue, oldvalue, _):
     """Intercept status transitions."""
     # will catch updates in detached state and again when we merge it into session
-    if not inspect(target).detached:
+    if not inspect(target).detached and oldvalue != newvalue:
         target.logger.info("Parametric job %d.%d transitioned from status %s to %s",
                            target.request_id, target.id, oldvalue.name, newvalue.name)
 
@@ -281,13 +284,13 @@ def intercept_status_set(target, newvalue, oldvalue, _):
 def intercept_persistent_to_deleted(session, object_):
     """Intercept deletion of object and remove DIRAC jobs."""
     if isinstance(object_, DiracJobs):
-        DiracJobs.logger.debug("Parametric job %d marked for removal, cascade deleting local DB "
-                               "Dirac job %d", object_.parametricjob_id, object_.id)
+        DiracJobs.logger.debug("Parametric job %d.%d marked for removal, cascade deleting local DB "
+                               "Dirac job %d", object_.request_id, object_.parametricjob_id, object_.id)
 
     if isinstance(object_, ParametricJobs):
         ParametricJobs.logger.info("Request %d marked for removal, cascade deleting Parametric "
-                                   "job %d triggering bulk tidy up of DIRAC job(s).",
-                                   object_.request_id, object_.id)
+                                   "job %d.%d triggering bulk tidy up of DIRAC job(s).",
+                                   object_.request_id, object_.request_id, object_.id)
         dirac_ids = [job.id for job in object_.dirac_jobs]
         try:
             with dirac_api_job_client() as dirac:

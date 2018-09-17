@@ -127,6 +127,7 @@ class MonitoringDaemon(Daemonize):
                     request.status = LocalStatus.SUBMITTING
                     request.update()
                     request.submit()
+                    request.update()
                 request.monitor()
                 request.update()
             except:

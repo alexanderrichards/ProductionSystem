@@ -20,10 +20,11 @@ class DiracJobs(SQLTableBase):
 
     __tablename__ = 'diracjobs'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    request_id = Column(Integer, ForeignKey('requests.id'), nullable=False)
     parametricjob_id = Column(Integer, ForeignKey('parametricjobs.id'), nullable=False)
     status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
     reschedules = Column(Integer, nullable=False, default=0)
-    parametricjob = relationship("ParametricJobs", back_populates='dirac_jobs')
     logger = logging.getLogger(__name__)
 
     @classmethod
@@ -65,14 +66,12 @@ class DiracJobs(SQLTableBase):
             query = session.query(cls)
             if diracjob_id is not None:
                 query = query.filter_by(id=diracjob_id)
-            if parametricjob_id is not None or request_id is not None or user_id is not None:
-                query = query.join(cls.parametricjob)
-                if parametricjob_id is not None:
-                    query = query.filter_by(id=parametricjob_id)
-                if request_id is not None:
-                    query = query.filter_by(request_id=request_id)
-                if user_id is not None:
-                    query = query.join(cls.parametricjob.request).filter_by(requester_id=user_id)
+            if parametricjob_id is not None:
+                query = query.filter_by(parametricjob_id=parametricjob_id)
+            if request_id is not None:
+                query = query.filter_by(request_id=request_id)
+            if user_id is not None:
+                query = query.filter_by(requester_id=user_id)
 
             if diracjob_id is None:
                 requests = query.all()
