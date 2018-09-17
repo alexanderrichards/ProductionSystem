@@ -40,8 +40,8 @@ class ParametricJobs(SQLTableBase):
     classtype = Column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'parametricjobs'}
-    id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
     request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
+    id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
     requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)
     priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3, allowed=True)
     site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
@@ -53,7 +53,9 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan")
+    dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
+                              primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
+                                          "ParametricJobs.id==DiracJobs.parametricjob_id)")
     logger = logging.getLogger(__name__)
 
     @hybrid_property
@@ -220,7 +222,6 @@ class ParametricJobs(SQLTableBase):
         status = max(statuses)
         if status != self.status:
             self.status = status
-            self.logger.info("ParametricJob %d moved to state %s", self.id, status.name)
 
         self.num_completed = statuses[LocalStatus.COMPLETED]
         self.num_failed = statuses[LocalStatus.FAILED]

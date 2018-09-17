@@ -6,7 +6,7 @@ from datetime import datetime
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import relationship, joinedload, selectinload
+from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
@@ -41,7 +41,6 @@ class Requests(SQLTableBase):
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
-#    dirac_jobs = relationship("DiracJobs")
     requester = relationship("Users")
     logger = logging.getLogger(__name__)
 
@@ -104,7 +103,6 @@ class Requests(SQLTableBase):
 
         if status != self.status:
             self.status = status
-            self.logger.info("Request %d moved to state %s", self.id, status.name)
 
     @classmethod
     def delete(cls, request_id):
@@ -156,8 +154,8 @@ class Requests(SQLTableBase):
             if load_user:
                 query = query.options(joinedload(cls.requester, innerjoin=True))
             if load_parametricjobs:
-#                query = query.options(selectinload(cls.parametric_jobs).selectinload(ParametricJobs.dirac_jobs))
-                query = query.options(joinedload(cls.parametric_jobs, innerjoin=False).joinedload(ParametricJobs.dirac_jobs))
+                query = query.options(joinedload(cls.parametric_jobs)
+                                      .joinedload(ParametricJobs.dirac_jobs))
             if user_id is not None:
                 query = query.filter_by(requester_id=user_id)
             if status is not None:
