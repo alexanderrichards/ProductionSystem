@@ -87,6 +87,7 @@ class Requests(SQLTableBase):
 
     def monitor(self):
         """Update request status."""
+        self.logger.info("Monitoring request %s", self.id)
         if not self.parametric_jobs:
             self.logger.warning("No parametric jobs associated with request: %d. returning status unknown", self.id)
             self.status = LocalStatus.UNKNOWN

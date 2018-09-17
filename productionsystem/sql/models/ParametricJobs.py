@@ -71,6 +71,21 @@ class ParametricJobs(SQLTableBase):
         with managed_session() as session:
             session.merge(self)
 
+    def remove_dirac_jobs(self):
+        if not self.dirac_jobs:
+            return
+
+        dirac_ids = [job.id for job in self.dirac_jobs]
+        try:
+            with dirac_api_job_client() as dirac:
+                self.logger.info("Killing/deleting %d DIRAC job(s).", len(dirac_ids))
+                dirac.kill(dirac_ids)
+                dirac.delete(dirac_ids)
+        except BaseException:
+            self.logger.exception("Error doing DIRAC tidy up. Cleaning up local system "
+                                  "and forgetting about the (possibly) orphaned jobs "
+                                  "on DIRAC system")
+
 #    @abstractmethod
     def _setup_dirac_job(self, job, tmp_runscript):
         """Setup the DIRAC parametric job."""
@@ -103,11 +118,7 @@ class ParametricJobs(SQLTableBase):
                 self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
                                   result['Message'])
                 self.status = LocalStatus.FAILED
-                if self.dirac_jobs:  # Clean up local DiracJobs that may have been created
-                    jobs = [diracjob.id for diracjob in self.dirac_jobs]
-                    self.logger.info("Killing/deleting %d existing dirac jobs.", len(jobs))
-                    dirac.kill(jobs)
-                    dirac.delete(jobs)
+                self.remove_dirac_jobs()  # Clean up local DiracJobs that may have been created
                 return
 
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
@@ -284,20 +295,11 @@ def intercept_status_set(target, newvalue, oldvalue, _):
 def intercept_persistent_to_deleted(session, object_):
     """Intercept deletion of object and remove DIRAC jobs."""
     if isinstance(object_, DiracJobs):
-        DiracJobs.logger.debug("Parametric job %d.%d marked for removal, cascade deleting local DB "
-                               "Dirac job %d", object_.request_id, object_.parametricjob_id, object_.id)
+        DiracJobs.logger.debug("Local DB Dirac job %d from parametric job %d.%d is being removed.",
+                               object_.id, object_.request_id, object_.parametricjob_id)
 
     if isinstance(object_, ParametricJobs):
-        ParametricJobs.logger.info("Request %d marked for removal, cascade deleting Parametric "
-                                   "job %d.%d triggering bulk tidy up of DIRAC job(s).",
-                                   object_.request_id, object_.request_id, object_.id)
-        dirac_ids = [job.id for job in object_.dirac_jobs]
-        try:
-            with dirac_api_job_client() as dirac:
-                ParametricJobs.logger.info("Killing/deleting %d DIRAC job(s).", len(dirac_ids))
-                dirac.kill(dirac_ids)
-                dirac.delete(dirac_ids)
-        except BaseException:
-            ParametricJobs.logger.exception("Error doing DIRAC tidy up. Cleaning up local system "
-                                            "and forgetting about the (possibly) orphaned jobs "
-                                            "on DIRAC system")
+        ParametricJobs.logger.info("Parametric job %d.%d is being removed, triggering bulk tidy up "
+                                   "of DIRAC job(s).",
+                                   object_.request_id, object_.id)
+        object_.remove_dirac_jobs()
