@@ -1,10 +1,18 @@
 """DIRAC RPC Client utilities."""
 import logging
 from contextlib import contextmanager
+import copy
 import rpyc
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+# This is not strictly necessary as all works without it when deep copying
+# However it bypasses the standard deepcopy implementation
+# which does type detection for unknown netref type and uses getattr('__deepcopy__')
+# which causes an not found exception server side. This tidy's up server side log since we know
+# netref<class='__builtin__.dict'> behaves as a dict
+netref_dict = rpyc.core.netref.builtin_classes_cache[('dict', '__builtin__')]
+copy._deepcopy_dispatch[netref_dict] = copy._deepcopy_dict
 
 # Used in Solid to list the DIRAC file catalogue
 @contextmanager

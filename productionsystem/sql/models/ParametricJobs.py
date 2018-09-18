@@ -191,21 +191,20 @@ class ParametricJobs(SQLTableBase):
         monitored_jobs = {}
         self.logger.debug("Monitoring DIRAC jobs: %s", list(monitor_jobs))
         if monitor_jobs:
-            with dirac_api_client() as dirac:
-                try:
-                    dirac_answer = dirac.status(monitor_jobs)
-                except Exception as err:
-                    self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
+            try:
+                with dirac_api_client() as dirac:
+                    dirac_answer = deepcopy(dirac.status(monitor_jobs))
+            except Exception as err:
+                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
+            else:
+                if not dirac_answer['OK']:
+                    self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
+                    self.reschedule = False
                 else:
-                    if not dirac_answer['OK']:
-                        self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
-                        self.reschedule = False
-                    else:
-                        # have to deepcopy the netrefs into client-side dict.
-                        monitored_jobs.update({job_id: dict(status_dict) for job_id, status_dict in dirac_answer['Value'].iteritems()})
-                        skipped_jobs = monitor_jobs.difference(monitored_jobs)
-                        if skipped_jobs:
-                            self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
+                    monitored_jobs = dirac_answer['Value']
+                    skipped_jobs = monitor_jobs.difference(monitored_jobs)
+                    if skipped_jobs:
+                        self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
 
         statuses = Counter()
         for job in self.dirac_jobs:
