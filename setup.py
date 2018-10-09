@@ -37,7 +37,11 @@ setup(
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
                      'requests = productionsystem.sql.models.Requests:Requests'],
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
-        'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp']
+#        'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp'],
+        'webapp': [
+#            'jinja2_loader = None',  # This can be filled out by plugins to load their templates
+            'daemon = productionsystem.webapp.WebApp:WebApp'
+        ]
     },
     scripts=['scripts/webapp-daemon.py',
              'scripts/monitoring-daemon.py',

@@ -16,6 +16,7 @@ class WebApp(Daemonize):
                  socket_host='0.0.0.0',
                  socket_port=8080,
                  thread_pool=8,
+                 extra_jinja2_loader=None,
                  **kwargs):
         """Initialisation."""
         super(WebApp, self).__init__(action=self.main, **kwargs)
@@ -23,6 +24,7 @@ class WebApp(Daemonize):
         self._socket_host = socket_host
         self._socket_port = socket_port
         self._thread_pool = thread_pool
+        self._extra_jinja2_loader = extra_jinja2_loader
 
     def _global_config(self):
         static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/static_resources')
@@ -51,7 +53,7 @@ class WebApp(Daemonize):
         return config
 
     def _mount_points(self):
-        cherrypy.tree.mount(HTMLPageServer(),
+        cherrypy.tree.mount(HTMLPageServer(extra_jinja2_loader=self._extra_jinja2_loader),
                             '/',
                             {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
 

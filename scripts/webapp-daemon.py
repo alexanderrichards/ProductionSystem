@@ -55,11 +55,17 @@ def start(args):
     """Start the webapp."""
     # Load WebApp class.
     ###########################################################################
-    WebApp = config_instance.entry_point_map['daemons']['webapp'].load()
+    WebApp = config_instance.entry_point_map['webapp']['daemon'].load()
 #    WebApp = pkg_resources.load_entry_point(config.getConfig('Plugins').get('webapp',
 #                                                                            'productionsystem'),
 #                                            'daemons',
 #                                            'webapp')
+
+    # Get extra jinja2 loader if present
+    ###########################################################################
+    extra_jinja2_loader = config_instance.entry_point_map['webapp'].get('jinja2_loader')
+    if extra_jinja2_loader is not None:
+        extra_jinja2_loader = extra_jinja2_loader.load()
 
     # Daemon setup
     ###########################################################################
@@ -67,6 +73,7 @@ def start(args):
            socket_host=args.socket_host,
            socket_port=args.socket_port,
            thread_pool=args.thread_pool,
+           extra_jinja2_loader=extra_jinja2_loader,
            app=args.app_name,
            pid=args.pid_file,
            logger=logger,
