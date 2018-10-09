@@ -46,7 +46,9 @@ class HTMLPageServer(object):
         """Initialisation."""
         loader = jinja2.PackageLoader("productionsystem.webapp")
         if extra_jinja2_loader is not None:
-            loader = jinja2.ChoiceLoader([extra_jinja2_loader,
+            prefix_loader = jinja2.PrefixLoader({'productionsystem': loader})
+            loader = jinja2.ChoiceLoader([prefix_loader,
+                                          extra_jinja2_loader,
                                           loader])
         self._template_env = jinja2.Environment(loader=loader)
         self._logger = logging.getLogger(__name__)
