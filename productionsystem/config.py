@@ -30,6 +30,19 @@ class ConfigSystem(object):
         """Get list of sections."""
         return self._config.keys()
 
+    @property
+    def entry_point_map(self):
+        """Return the entry point map."""
+        return deepcopy(self._config['Core'].get("entry_point_map"))
+
+    @entry_point_map.setter
+    def entry_point_map(self, map):
+        """Set the entry point map (one time only)."""
+        if self._config['Core'].get("entry_point_map") is not None:
+            self._logger.warning("Can not re-set entry_point_map once it's been set.")
+        else:
+            self._config['Core']['entry_point_map'] = map
+
     def get_section(self, section):
         """Return a given section."""
         return deepcopy(self._config[section])

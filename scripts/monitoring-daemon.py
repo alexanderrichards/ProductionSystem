@@ -7,10 +7,13 @@ Daemon that monitors the DB and creates Ganga jobs from new requests. It
 also runs the Ganga monitoring loop to keep Ganga jobs up to date.
 """
 import os
+import sys
 import argparse
 import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from itertools import chain
+import pkg_resources
 import psutil
 
 from productionsystem.utils import expand_path
@@ -90,8 +93,8 @@ if __name__ == '__main__':
     start_parser = subparser.add_parser('start', help='start the monitoring daemon')
     stop_parser = subparser.add_parser('stop', help='stop the monitoring daemon')
     parser.set_defaults(app_name=app_name)
-    start_parser.set_defaults(func=start)
-    stop_parser.set_defaults(func=stop, debug_mode=True)
+    start_parser.set_defaults(func=start, extension=None)
+    stop_parser.set_defaults(func=stop, debug_mode=True, extension=None)
 
     start_parser.add_argument('-f', '--frequency', default=5, type=int,
                               help="The frequency that the daemon does it's main functionality "
@@ -138,6 +141,15 @@ if __name__ == '__main__':
     start_parser.add_argument('--debug-mode', action='store_true', default=False,
                               help="Run the daemon in a debug interactive monitoring mode. "
                                    "(debugging only)")
+    projects = set(entry_point.dist.project_name for entry_point in
+                   chain(pkg_resources.iter_entry_points('dbmodels'),
+                         pkg_resources.iter_entry_points('daemons'),
+                         pkg_resources.iter_entry_points('webapp.services')))
+    projects -= {'productionsystem'}
+    if projects:
+        extensions = start_parser.add_argument_group("Extensions")
+        extensions.add_argument('--extension', choices=projects,
+                                help="Activate the chosen extension")
     args = parser.parse_args()
 
     # Logging setup
@@ -176,7 +188,25 @@ if __name__ == '__main__':
         logger.warning("Config file '%s' does not exist", real_config)
         real_config = None
     config = importlib.import_module('productionsystem.config')
-    config.ConfigSystem.setup(real_config)
+    config_instance = config.ConfigSystem.setup(real_config)
+    logger.debug("Active config looks like: %s", config_instance.config)
+
+    # Entry Point Setup
+    ###########################################################################
+    config_extension = config_instance.get_section("Core").get("extension")
+    entry_point_map = pkg_resources.get_entry_map('productionsystem')
+    if args.extension is not None:
+        for group, map in entry_point_map.iteritems():
+            map.update(pkg_resources.get_entry_map(args.extension, group))
+    elif config_extension is not None:
+        if config_extension not in projects:
+            logger.critical("Extension '%s' enabled in config file is not valid, "
+                            "expected one of: %s", config_extension, list(projects))
+            sys.exit(1)
+        for group, map in entry_point_map.iteritems():
+            map.update(pkg_resources.get_entry_map(config_extension, group))
+    config_instance.entry_point_map = entry_point_map
+    logger.debug("Starting with entry point map: %s", entry_point_map)
 
     # Enact the subcommand
     ###########################################################################
