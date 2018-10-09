@@ -42,6 +42,7 @@ setup(
     scripts=['scripts/webapp-daemon.py',
              'scripts/monitoring-daemon.py',
              'scripts/dirac-daemon.py'],
+    package_data={'productionsystem': ['webapp/static_resources/*', 'webapp/templates/*']},
     # metadata for upload to PyPI
     author="Alexander Richards",
     author_email="a.richards@imperial.ac.uk",
