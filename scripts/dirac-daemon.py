@@ -74,9 +74,11 @@ def start(args):
         dirac_class_mock.status = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
         dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in xrange(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
         dirac_class_mock.reschedule = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
+        dirac_rpc_mock = mock.MagicMock
+        dirac_rpc_mock.listDirectory = mock.MagicMock(side_effect=lambda directory_path, _: {'OK': True, 'Value':{'Failed': [], 'Successful': {directory_path: {'Files': ['FileA', 'FileB', 'FileC']}}}})
         sys.modules['DIRAC.Interfaces.API.Job'].Job = mock.MagicMock
         sys.modules['DIRAC.Interfaces.API.Dirac'].Dirac = dirac_class_mock
-        sys.modules['DIRAC.Core.DISET.RPCClient'].RPCClient = mock.MagicMock
+        sys.modules['DIRAC.Core.DISET.RPCClient'].RPCClient = dirac_rpc_mock
 
     # DIRAC will parse our command line args unless we remove them
     sys.argv = sys.argv[:1]
