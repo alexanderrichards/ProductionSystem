@@ -140,7 +140,7 @@ if __name__ == '__main__':
                               help="Run the daemon in a debug interactive monitoring mode. "
                                    "(debugging only)")
     start_parser.add_argument('--mock-mode', action='store_true', default=False,
-                              help="Run the daemon in a debug interactive monitoring mode. "
+                              help="Run the daemon with the DIRAC API mocked away. "
                                    "(debugging only)")
     projects = set(entry_point.dist.project_name for entry_point in
                    chain(pkg_resources.iter_entry_points('dbmodels'),
