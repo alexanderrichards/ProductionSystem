@@ -39,7 +39,8 @@ class ParametricJobs(SQLTableBase):
     __tablename__ = 'parametricjobs'
     classtype = Column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
-                       'polymorphic_identity': 'parametricjobs'}
+                       'polymorphic_identity': 'parametricjobs',
+                       'with_polymorphic': '*'}
     request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
     id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
     requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)

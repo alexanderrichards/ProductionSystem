@@ -33,7 +33,8 @@ class Requests(SQLTableBase):
     __tablename__ = 'requests'
     classtype = Column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
-                       'polymorphic_identity': 'requests'}
+                       'polymorphic_identity': 'requests',
+                       'with_polymorphic': '*'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     description = SmartColumn(TEXT, nullable=True, allowed=True)
     requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
