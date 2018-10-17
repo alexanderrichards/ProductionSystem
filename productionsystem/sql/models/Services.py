@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import datetime
 import cherrypy
-from sqlalchemy import Column, Integer, TEXT, TIMESTAMP, Enum
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.apache_utils import dummy_credentials
 from ..registry import managed_session
@@ -19,7 +19,7 @@ class Services(SQLTableBase):
 
     __tablename__ = 'services'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    name = Column(TEXT, nullable=False, unique=True)
+    name = Column(String(30), nullable=False, unique=True)
     status = Column(Enum(ServiceStatus), nullable=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     logger = logging.getLogger(__name__)
