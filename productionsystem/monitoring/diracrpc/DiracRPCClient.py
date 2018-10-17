@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 # netref<class='__builtin__.dict'> behaves as a dict
 netref_dict = rpyc.core.netref.builtin_classes_cache[('dict', '__builtin__')]
 copy._deepcopy_dispatch[netref_dict] = copy._deepcopy_dict
+# Add the other basic collection types
+netref_list = rpyc.core.netref.builtin_classes_cache[('list', '__builtin__')]
+copy._deepcopy_dispatch[netref_list] = copy._deepcopy_list
+netref_tuple = rpyc.core.netref.builtin_classes_cache[('tuple', '__builtin__')]
+copy._deepcopy_dispatch[netref_tuple] = copy._deepcopy_tuple
+
 
 # Used in Solid to list the DIRAC file catalogue
 @contextmanager
