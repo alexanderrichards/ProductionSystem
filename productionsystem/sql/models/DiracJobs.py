@@ -3,7 +3,7 @@ import logging
 import json
 
 import cherrypy
-from sqlalchemy import Column, Integer, Enum, ForeignKey
+from sqlalchemy import Column, Integer, Enum, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
@@ -19,10 +19,12 @@ class DiracJobs(SQLTableBase):
     """Dirac Jobs SQL Table."""
 
     __tablename__ = 'diracjobs'
+    __table_args__ = (ForeignKeyConstraint(['request_id', 'parametricjob_id'],
+                                           ['parametricjobs.request_id', 'parametricjobs.id']),)
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    request_id = Column(Integer, ForeignKey('requests.id'), nullable=False)
-    parametricjob_id = Column(Integer, ForeignKey('parametricjobs.id'), nullable=False)
+    request_id = Column(Integer, nullable=False)
+    parametricjob_id = Column(Integer, nullable=False)
     status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
     reschedules = Column(Integer, nullable=False, default=0)
     logger = logging.getLogger(__name__)
