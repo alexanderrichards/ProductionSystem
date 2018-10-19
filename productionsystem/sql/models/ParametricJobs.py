@@ -124,9 +124,13 @@ class ParametricJobs(SQLTableBase):
                 self.remove_dirac_jobs()  # Clean up local DiracJobs that may have been created
                 return
 
+            dirac_job_ids = result['Value']
+            if isinstance(dirac_job_ids, int):  # non-parametric submission
+                dirac_job_ids = [dirac_job_ids]
+
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
                                          requester_id=self.requester_id,
-                                         status=DiracStatus.UNKNOWN) for i in result['Value']]
+                                         status=DiracStatus.UNKNOWN) for i in dirac_job_ids]
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              len(self.dirac_jobs), self.request_id, self.id)
 
