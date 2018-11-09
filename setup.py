@@ -12,7 +12,7 @@ setup(
                       'requests',
                       'SQLAlchemy',
                       'pymysql',
-                      'mysql-python'
+                      'mysql-python',
                       'rpyc',
                       'suds',
                       'psutil',
