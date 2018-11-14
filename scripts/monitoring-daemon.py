@@ -151,6 +151,19 @@ if __name__ == '__main__':
         extensions.add_argument('--extension', choices=projects,
                                 help="Activate the chosen extension")
     args = parser.parse_args()
+    cli_args = vars(args).copy()
+
+    # Config Setup
+    ###########################################################################
+    config_path = expand_path(args.config)
+    if not os.path.exists(config_path):
+        config_path = None
+    config = importlib.import_module('productionsystem.config')
+    config_instance = config.ConfigSystem.setup(config_path)
+    if config_path is not None:
+        arg_dict = vars(args)
+        arg_dict.update(config_instance.get_section("monitoring"))
+        args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
 
     # Logging setup
     ###########################################################################
@@ -179,32 +192,22 @@ if __name__ == '__main__':
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
-    logger.debug("Script called with args: %s", args)
-
-    # Config Setup
-    ###########################################################################
-    real_config = expand_path(args.config)
-    if not os.path.exists(real_config):
-        logger.warning("Config file '%s' does not exist", real_config)
-        real_config = None
-    config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(real_config)
+    logger.debug("Script called with args: %s", cli_args)
+    if config_path is None:
+        logger.warning("Config file '%s' does not exist", cli_args['config'])
     logger.debug("Active config looks like: %s", config_instance.config)
+    logger.debug("Runtime args: %s", args)
 
     # Entry Point Setup
     ###########################################################################
-    config_extension = config_instance.get_section("Core").get("extension")
     entry_point_map = pkg_resources.get_entry_map('productionsystem')
     if args.extension is not None:
-        for group, map in entry_point_map.iteritems():
-            map.update(pkg_resources.get_entry_map(args.extension, group))
-    elif config_extension is not None:
-        if config_extension not in projects:
+        if args.extension not in projects:
             logger.critical("Extension '%s' enabled in config file is not valid, "
-                            "expected one of: %s", config_extension, list(projects))
+                            "expected one of: %s", args.extension, list(projects))
             sys.exit(1)
         for group, map in entry_point_map.iteritems():
-            map.update(pkg_resources.get_entry_map(config_extension, group))
+            map.update(pkg_resources.get_entry_map(args.extension, group))
     config_instance.entry_point_map = entry_point_map
     logger.debug("Starting with entry point map: %s", entry_point_map)
 
