@@ -67,8 +67,7 @@ def start(args):
     ###########################################################################
     # Add the python src path to the sys.path for future imports
     # sys.path.append(lzprod_root)
-    MonitoringDaemon = importlib.import_module('productionsystem.monitoring.MonitoringDaemon')\
-                                .MonitoringDaemon
+    MonitoringDaemon = config_instance.entry_point_map['monitoring']['daemon'].load()
 
     # Daemon setup
     ###########################################################################

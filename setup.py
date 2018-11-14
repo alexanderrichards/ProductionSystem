@@ -38,6 +38,7 @@ setup(
     entry_points={
         'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
                      'requests = productionsystem.sql.models.Requests:Requests'],
+        'monitoring': ['daemon = productionsystem.monitoring.MonitoringDaemon:MonitoringDaemon'],
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLPageServer:HTMLPageServer'],
 #        'daemons': ['webapp = productionsystem.webapp.WebApp:WebApp'],
         'webapp': [
