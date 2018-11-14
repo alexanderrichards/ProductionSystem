@@ -148,6 +148,7 @@ if __name__ == '__main__':
                                    "(debugging only)")
     projects = set(entry_point.dist.project_name for entry_point in
                    chain(pkg_resources.iter_entry_points('dbmodels'),
+                         pkg_resources.iter_entry_points('monitoring'),
                          pkg_resources.iter_entry_points('webapp'),
                          pkg_resources.iter_entry_points('webapp.services')))
     projects -= {'productionsystem'}
