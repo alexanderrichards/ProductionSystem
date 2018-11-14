@@ -143,12 +143,12 @@ if __name__ == '__main__':
 
     # Config Setup
     ###########################################################################
-    real_config = expand_path(args.config)
-    if not os.path.exists(real_config):
-        real_config = None
+    config_path = expand_path(args.config)
+    if not os.path.exists(config_path):
+        config_path = None
     config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(real_config)
-    if real_config is not None:
+    config_instance = config.ConfigSystem.setup(config_path)
+    if config_path is not None:
         arg_dict = vars(args)
         arg_dict.update(config_instance.get_section("webapp"))
         args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     # setup the main app logger
     logger = logging.getLogger(app_name)
     logger.debug("Script called with args: %s", cli_args)
-    if real_config is None:
+    if config_path is None:
         logger.warning("Config file '%s' does not exist", cli_args['config'])
     logger.debug("Active config looks like: %s", config_instance.config)
     logger.debug("Runtime args: %s", args)
