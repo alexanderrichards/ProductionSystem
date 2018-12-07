@@ -2,14 +2,6 @@ language: python
 python:
   - '2.7'
   - '3.5'
-matrix:
-  include:
-  - name: "Python 2.7 Unit Tests"
-    python: "2.7"
-    env: TEST_SUITE=suite_3_5_unit
-  - name: "Python 3.5 Unit Tests"
-    python: "3.5"
-    env: TEST_SUITE=suite_3_5_integration
 install:
   - pip install --upgrade pip setuptools wheel
   - pip install -e .
