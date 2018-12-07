@@ -13,4 +13,4 @@ matrix:
 install:
   - pip install --upgrade pip setuptools wheel
   - pip install -e .
-script: pytest
+script: py.test
