@@ -4,7 +4,7 @@ import json
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, Iterable
 from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
@@ -16,6 +16,7 @@ from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.apache_utils import check_credentials, dummy_credentials
 from productionsystem.config import getConfig
+from productionsystem.utils import TemporyFileManagerContext
 from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client
 #from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus, DiracStatus
@@ -49,7 +50,7 @@ class ParametricJobs(SQLTableBase):
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     reschedule = Column(Boolean, nullable=False, default=False)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    num_jobs = SmartColumn(Integer, nullable=False, required=True)
+    num_jobs = SmartColumn(Integer, nullable=False, default=0)
     num_completed = Column(Integer, nullable=False, default=0)
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
@@ -62,7 +63,7 @@ class ParametricJobs(SQLTableBase):
     @hybrid_property
     def num_other(self):
         """Return the number of jobs in states other than the known ones."""
-        return self.njobs - (self.num_submitted + self.num_running + self.num_failed + self.num_completed)
+        return self.num_jobs - (self.num_submitted + self.num_running + self.num_failed + self.num_completed)
 
     def __init__(self, **kwargs):
         required_args = set(self.required_columns).difference(kwargs)
@@ -90,47 +91,59 @@ class ParametricJobs(SQLTableBase):
                                   "on DIRAC system")
 
 #    @abstractmethod
-    def _setup_dirac_job(self, job, tmp_runscript):
+    def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
         """Setup the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
+        job = DiracJob()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return job
 
     def submit(self):
         """Submit parametric job."""
-        with dirac_api_job_client() as (dirac, dirac_job_class), NamedTemporaryFile() as runscript:
+        with dirac_api_job_client() as (dirac, dirac_job_class), TemporyFileManagerContext() as tmp_filemanager:
             try:
-                dirac_job = self._setup_dirac_job(dirac_job_class(), runscript)
+                dirac_jobs = self._setup_dirac_job(dirac_job_class, tmp_filemanager.add_file(), tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
                                       self.request_id, self.id, err.message)
                 self.status = LocalStatus.FAILED
                 return
 
-            try:
-                result = dirac.submit(dirac_job)
-            except Exception as err:
-                self.logger.exception("Error submitting parametric job %d.%d: %s",
-                                      self.request_id, self.id, err.message)
-                self.status = LocalStatus.FAILED
-                return
+            if not isinstance(dirac_jobs, Iterable):
+                dirac_jobs = [dirac_jobs]
 
-            if not result['OK']:
-                self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
-                                  result['Message'])
-                self.status = LocalStatus.FAILED
-                self.remove_dirac_jobs()  # Clean up local DiracJobs that may have been created
-                return
+            # If the parametricjob has large number of subjobs then submission could timeout
+            # waiting for DIRAC to create all the subjobs, this allows you to split it into
+            # a few parametricjobs.
+            dirac_job_ids = set()
+            for dirac_job in dirac_jobs:
+                try:
+                    result = dirac.submit(dirac_job)
+                except Exception as err:
+                    self.logger.exception("Error submitting parametric job %d.%d: %s",
+                                          self.request_id, self.id, err.message)
+                    self.status = LocalStatus.FAILED
+                    self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
+                    return
 
-            dirac_job_ids = result['Value']
-            if isinstance(dirac_job_ids, int):  # non-parametric submission
-                dirac_job_ids = [dirac_job_ids]
+                if not result['OK']:
+                    self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
+                                      result['Message'])
+                    self.status = LocalStatus.FAILED
+                    self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
+                    return
+
+                created_ids = result['Value']
+                if isinstance(created_ids, int):  # non-parametric submission
+                    created_ids = [created_ids]
+                dirac_job_ids.update(created_ids)
 
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
                                          requester_id=self.requester_id,
                                          status=DiracStatus.UNKNOWN) for i in dirac_job_ids]
+            self.num_jobs = len(dirac_job_ids)
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              len(self.dirac_jobs), self.request_id, self.id)
 
