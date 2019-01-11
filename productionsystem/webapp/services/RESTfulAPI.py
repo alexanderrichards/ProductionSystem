@@ -1,3 +1,4 @@
+"""RESTful API."""
 import logging
 import os
 from distutils.util import strtobool
@@ -12,6 +13,8 @@ from productionsystem.sql.enums import LocalStatus
 @cherrypy.expose
 @cherrypy.popargs('service_id')
 class ServicesAPI(object):
+    """Services RESTful API."""
+
     mount_point = 'services'
     logger = logging.getLogger(__name__).getChild("ServicesAPI")
 
@@ -39,6 +42,8 @@ class ServicesAPI(object):
 @cherrypy.expose
 @cherrypy.popargs('user_id')
 class UsersAPI(object):
+    """Users RESTful API."""
+
     mount_point = 'users'
     logger = logging.getLogger(__name__).getChild("UsersAPI")
 
@@ -48,7 +53,7 @@ class UsersAPI(object):
     @dummy_credentials
 #    @check_credentials
 #    @admin_only
-    def GET(cls, user_id=None):
+    def GET(cls, user_id=None):  # pylint: disable=invalid-name
         """REST GET method."""
         cls.logger.debug("In GET: user_id = %r", user_id)
 
@@ -92,6 +97,8 @@ class UsersAPI(object):
 @cherrypy.expose
 @cherrypy.popargs('diracjob_id')
 class DiracJobsAPI(object):
+    """Dirac Jobs RESTful API."""
+
     mount_point = 'diracjobs'
     logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
 
@@ -133,6 +140,8 @@ class DiracJobsAPI(object):
 @cherrypy.expose
 @cherrypy.popargs('parametricjob_id')
 class ParametricJobsAPI(object):
+    """Parametric Jobs RESTful API."""
+
     mount_point = 'parametricjobs'
     logger = logging.getLogger(__name__).getChild("ParametricJobsAPI")
     diracjobs = DiracJobsAPI()
@@ -216,6 +225,8 @@ class ParametricJobsAPI(object):
 @cherrypy.expose
 @cherrypy.popargs('request_id')
 class RequestsAPI(object):
+    """Requests RESTful API."""
+
     mount_point = 'requests'
     logger = logging.getLogger(__name__).getChild("RequestsAPI")
     parametricjobs = ParametricJobsAPI()
@@ -258,7 +269,6 @@ class RequestsAPI(object):
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                           "Multiple requests with id %s" % request_id):
             Requests.delete(request_id)
-
 
     @classmethod
     @cherrypy.tools.json_in()
@@ -312,6 +322,7 @@ class RequestsAPI(object):
 
 
 def mount(root):
+    """Mount RESTful API."""
     for api in [ServicesAPI, UsersAPI, RequestsAPI]:
         cherrypy.tree.mount(api(), os.path.join(root, api.mount_point),
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})

@@ -1,16 +1,17 @@
+"""HTML Page Server."""
 import logging
-from collections import defaultdict
+# from collections import defaultdict
 from datetime import datetime
 import jinja2
 import hashlib
-import pkg_resources
+# import pkg_resources
 import cherrypy
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.config import getConfig
+# from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+# from productionsystem.config import getConfig
 from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import dummy_credentials
 from productionsystem.webapp.jinja2_utils import jinja2_filter
-from productionsystem.sql import managed_session
+# from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services, Users
 
 
@@ -18,6 +19,7 @@ from productionsystem.sql.models import Services, Users
 def gravitar_hash(email_add):
     """
     Hash an email address.
+
     Generate a gravitar compatible hash from an email address.
     Args:
         email_add (str): The target email address
@@ -78,6 +80,7 @@ class HTMLPageServer(object):
     @cherrypy.expose
     @dummy_credentials
     def admins(self):
+        """Return admin management page."""
         users = Users.get_users()
         return self._render('admins_template.html', users=users)
 

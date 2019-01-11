@@ -17,7 +17,7 @@ class CVMFSDirectoryListing(object):
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
-    def POST(self, path):
+    def POST(self, path):  # pylint: disable=invalid-name
         """HTTP POST request handler."""
         data = cherrypy.request.json
         with cherrypy.HTTPError.handle(KeyError, 400, "No regex key"):
