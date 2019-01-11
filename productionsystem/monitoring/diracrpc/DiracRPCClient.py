@@ -24,7 +24,8 @@ copy._deepcopy_dispatch[netref_tuple] = copy._deepcopy_tuple
 @contextmanager
 def dirac_rpc_client(rpc_endpoint, host="localhost", port=18861):
     """RPC DIRAC RPC client context."""
-    conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
+    conn = rpyc.connect(host, port, config={"allow_public_attrs": True,
+                                            "sync_request_timeout": 300})  # 5 mins
     try:
         yield conn.root.RPCClient(rpc_endpoint)
     finally:
@@ -34,7 +35,8 @@ def dirac_rpc_client(rpc_endpoint, host="localhost", port=18861):
 @contextmanager
 def dirac_api_client(host="localhost", port=18861):
     """RPC DIRAC API client context."""
-    conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
+    conn = rpyc.connect(host, port, config={"allow_public_attrs": True,
+                                            "sync_request_timeout": 300})
     try:
         yield conn.root.Dirac()
     finally:
@@ -43,7 +45,8 @@ def dirac_api_client(host="localhost", port=18861):
 
 @contextmanager
 def dirac_api_job_client(host="localhost", port=18861):
-    conn = rpyc.connect(host, port, config={"allow_public_attrs": True})
+    conn = rpyc.connect(host, port, config={"allow_public_attrs": True,
+                                            "sync_request_timeout": 300})
     try:
         yield conn.root.Dirac(), conn.root.Job
     finally:
