@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.3.5/jquery.fancybox.min.css"/>
   <style>
     #context_menu { display: none; }
+    .pointer { cursor: pointer; }
     .fancybox-slide--iframe .fancybox-content {
 	  width  : 800px;
 	  height : 600px;
@@ -137,7 +138,7 @@ $(document).ready(function(){
     "order": [[1, "desc"]],
     "columns": [
         {% block requests_table_columns %}
-        { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary parametricjobs_toggle"></span>'},
+        { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary pointer parametricjobs_toggle"></span>'},
         { "title": "ID", "data": "id", "className": "request_id", "width": "5%" },
         { "title": "Description", "data": "description", "width": "60%" },
         { "title": "Status", "data": "status", "width": "5%" },
@@ -220,12 +221,45 @@ $(document).ready(function(){
         "order": [[0, "asc"]],
         "columns": [
             {% block parametricjobs_table_columns %}
-            { "title": "ID", "data": "id", "width": "10%" },
-            { "title": "Progress", "data": "progress", "width": "80%" },
+            { "title": "ID", "className": "parametricjob_id", "data": "id", "width": "10%" },
+            { "title": "Progress", "data": "progress", "width": "75%" },
             { "title": "Status", "data": "status", "width": "10%" },
+            { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-reload text-primary pointer reschedule_job"></span>'},
             {% endblock %}
         ]
     });
+    subtable.on("click", "span.reschedule_job", function(){
+      var combined_id = $(this).closest("tr").find(".parametricjob_id").text();
+      var split_id = combined_id.split(".");
+      console.debug(`Rescheduling parametric job ${combined_id}`);
+      $.ajax({
+          url: `/api/requests/${split_id[0]}/parametricjobs/${split_id[1]}`,
+          type: "PUT",
+          data: {reschedule: true},
+          success: function(){
+            bootstrap_alert("success", "Rescheduled:", `Successfully rescheduled parametric job ${combined_id}`);
+            console.log(`Rescheduled parametric job ${combined_id}`);
+          },
+          error: function(jqXHR, textStatus, errorThrown){
+            console.error(`Error rescheduling parametric job ${combined_id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+          },
+          statusCode: {
+            400: function(){
+              bootstrap_alert("danger", "Failed:", `Failed to reschedule parametric job ${combined_id}, bad request.`);
+              console.warn("Error: bad request");
+            },
+            404: function(){
+              bootstrap_alert("danger", "Failed:", `Failed to reschedule parametric job ${combined_id}, No such job found.`);
+              console.warn("Error: No such parametric job found.");
+            },
+            500: function(){
+              bootstrap_alert("danger", "Failed:", `Failed to reschedule parametric job ${combined_id}, Internal server error. Contact your support person.`);
+              console.error("Error: Internal server error. Contact your support person!");
+            }
+          }
+        })
+    });
+
     row.child(subtable).show();
     tr.addClass('shown');
 
