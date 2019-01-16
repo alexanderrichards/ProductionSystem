@@ -100,11 +100,17 @@ class ParametricJobs(SQLTableBase):
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return job
 
+    def resubmit_failed(self):
+        """Reschedule failed jobs."""
+        if self.status == LocalStatus.FAILED and not self.reschedule:
+            self.reschedule = True
+            self.status = LocalStatus.SUBMITTING
+
     def submit(self):
         """Submit parametric job."""
         with dirac_api_job_client() as (dirac, dirac_job_class), TemporyFileManagerContext() as tmp_filemanager:
             try:
-                dirac_jobs = self._setup_dirac_job(dirac_job_class, tmp_filemanager.add_file(), tmp_filemanager)
+                dirac_jobs = self._setup_dirac_job(dirac_job_class, tmp_filemanager.new_file(), tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
                                       self.request_id, self.id, err.message)
