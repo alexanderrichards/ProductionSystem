@@ -182,8 +182,11 @@ class Requests(SQLTableBase):
 
     @classmethod
     def get_reschedules(cls):
+        """Get Requests with ParametricJobs to reschedule."""
         with managed_session() as session:
             requests = session.query(cls)\
+                              .options(joinedload(cls.parametric_jobs)
+                                       .joinedload(ParametricJobs.dirac_jobs))\
                               .filter_by(status=LocalStatus.FAILED)\
                               .join(cls.parametric_jobs)\
                               .filter_by(reschedule=True)\

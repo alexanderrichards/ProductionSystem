@@ -203,22 +203,28 @@ class ParametricJobsAPI(object):
         if requester.admin:
             user_id = None
 
-        if reschedule:
+        with cherrypy.HTTPError.handle(NoResultFound, 404,
+                                       "No parametric job with id %d.%d"
+                                       % (request_id, parametricjob_id)), \
+             cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                       "Multiple parametric jobs with id %d.%d"
+                                       % (request_id, parametricjob_id)):
+            parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
+                                               request_id=request_id, user_id=user_id)
+
+        if reschedule\
+                and parametricjob.status == LocalStatus.FAILED\
+                and not parametricjob.reschedule:
+
             with cherrypy.HTTPError.handle(NoResultFound, 404,
                                            "No request with id %s" % request_id), \
                  cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                            "Multiple requests with id %s" % request_id):
                 request = Requests.get(request_id=request_id, user_id=user_id)
 
-            with cherrypy.HTTPError.handle(NoResultFound, 404,
-                                           "No parametric job with id %d.%d"
-                                           % (request_id, parametricjob_id)), \
-                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
-                                           "Multiple parametric jobs with id %d.%d"
-                                           % (request_id, parametricjob_id)):
-                parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
-                                                   request_id=request_id, user_id=user_id)
-            parametricjob.resubmit_failed()
+            parametricjob.reschedule = True
+            parametricjob.status = LocalStatus.SUBMITTING
+            request.status = LocalStatus.SUBMITTING
             with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
                                            "Error updating parametric job %d.%d"
                                            % (request_id, parametricjob_id)):

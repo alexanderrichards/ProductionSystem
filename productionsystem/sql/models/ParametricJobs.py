@@ -100,12 +100,6 @@ class ParametricJobs(SQLTableBase):
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return job
 
-    def resubmit_failed(self):
-        """Reschedule failed jobs."""
-        if self.status == LocalStatus.FAILED and not self.reschedule:
-            self.reschedule = True
-            self.status = LocalStatus.SUBMITTING
-
     def submit(self):
         """Submit parametric job."""
         with dirac_api_job_client() as (dirac, dirac_job_class), TemporyFileManagerContext() as tmp_filemanager:
