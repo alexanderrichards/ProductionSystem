@@ -148,6 +148,23 @@ $(document).ready(function(){
     ]
   });
 
+  setInterval(function(){
+    var opened_requests = $("tbody tr td span.oi.oi-chevron-top.text-danger", requests_table);
+    var opened_ids = [];
+    opened_requests.closest("td").next("td.request_id").each(function(index, id_column){
+      opened_ids.push($(id_column).text());
+    });
+    requests_table.DataTable().ajax.reload(function(data){
+      var all_toggles = $("tbody tr td span.oi.parametricjobs_toggle", requests_table);
+      all_toggles.each(function(index, toggle){
+        var id = $(toggle).closest("td").next("td.request_id").text();
+        if ($.inArray(id, opened_ids) >=0 ){
+          $(toggle).trigger("click");
+        }
+      });
+    });
+  }, 120000); // 2 mins in ms
+
   requests_table.on("click", "tbody tr", function(){
     $(this).toggleClass("bg-primary text-light");
     $(this).find("span.parametricjobs_toggle").toggleClass("text-light");
@@ -257,7 +274,7 @@ $(document).ready(function(){
               console.error("Error: Internal server error. Contact your support person!");
             }
           }
-        })
+        });
     });
 
     row.child(subtable).show();
