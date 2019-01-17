@@ -70,7 +70,7 @@ class UsersAPI(object):
     @admin_only
     def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
         """REST Put method."""
-        cls.logger.warning("In PUT: user_id = %s, admin = %s", user_id, admin)
+        cls.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
 
         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
             admin = bool(strtobool(admin))
