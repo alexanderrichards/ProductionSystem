@@ -17,6 +17,7 @@ class WebApp(Daemonize):
                  socket_port=8080,
                  thread_pool=8,
                  extra_jinja2_loader=None,
+                 mock_mode=False,
                  **kwargs):
         """Initialisation."""
         super(WebApp, self).__init__(action=self.main, **kwargs)
@@ -25,6 +26,7 @@ class WebApp(Daemonize):
         self._socket_port = socket_port
         self._thread_pool = thread_pool
         self._extra_jinja2_loader = extra_jinja2_loader
+        self._mock_mode = mock_mode
 
     def _global_config(self):
         static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/static_resources')
@@ -62,34 +64,27 @@ class WebApp(Daemonize):
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
         services.RESTfulAPI.mount('/api')
 
-
     def main(self):
         """Daemon main."""
-        ## Temporary testing
-        #########################
-        import os
-        if os.path.exists(self._dburl[10:]):
-            os.remove(self._dburl[10:])
-        from productionsystem.config import ConfigSystem
-        print ConfigSystem.get_instance().config
-        ##########################
-
         SessionRegistry.setup(self._dburl)
-        #temporary testing entry
-        #######################
-        from productionsystem.sql.models import Requests, DiracJobs, Users
-        from productionsystem.sql.enums import LocalStatus
-        from productionsystem.sql.registry import managed_session
-        with managed_session() as session:
-            session.add(Users(id=17, dn='/blah/CN=mydn/blah', ca='ca', email='test@email.com', suspended=False, admin=True))
-            session.add(Requests(id=1, requester_id=17, description="alex test job",
-                                 parametricjobs=[{'id': 1, 'request_id': 1, 'status': 'FAILED', 'num_jobs': 5}]))
-            session.add(DiracJobs(id=1234, parametricjob_id=1, request_id=1, requester_id=17))
 
-        r = Requests.get(request_id=1)
-        r.status = LocalStatus.RUNNING
-        r.update()
-        #######################
+        # Setup testing entry for mock mode.
+        ####################################
+        if self._mock_mode:
+            from productionsystem.sql.models import Requests, DiracJobs, Users
+            from productionsystem.sql.enums import LocalStatus
+            from productionsystem.sql.registry import managed_session
+            from productionsystem.apache_utils import DUMMY_USER
+            from copy import deepcopy
+            with managed_session() as session:
+                session.add(deepcopy(DUMMY_USER))
+                session.add(Requests(id=1, requester_id=DUMMY_USER.id, description="simple test job",
+                                     parametricjobs=[{'id': 1, 'request_id': 1, 'status': 'FAILED'}]))
+                session.add(DiracJobs(id=1234, parametricjob_id=1, request_id=1, requester_id=DUMMY_USER.id))
+            r = Requests.get(request_id=1)
+            r.status = LocalStatus.RUNNING
+            r.update()
+
 
         cherrypy.config.update(self._global_config())  # global vars need updating global config
         self._mount_points()

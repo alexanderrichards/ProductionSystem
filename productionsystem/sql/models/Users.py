@@ -4,7 +4,6 @@ import cherrypy
 from distutils.util import strtobool
 from sqlalchemy import Column, Integer, TEXT, Boolean
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 

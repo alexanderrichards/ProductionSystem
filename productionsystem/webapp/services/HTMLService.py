@@ -9,7 +9,7 @@ import cherrypy
 # from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 # from productionsystem.config import getConfig
 from productionsystem.sql.enums import ServiceStatus
-from productionsystem.apache_utils import dummy_credentials, check_credentials, admin_only
+from productionsystem.apache_utils import check_credentials, admin_only
 from productionsystem.webapp.jinja2_utils import jinja2_filter
 # from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services, Users
@@ -60,8 +60,7 @@ class HTMLPageServer(object):
         return self._template_env.get_template(template_name).render(**kwargs)
 
     @cherrypy.expose
-    @dummy_credentials
-#    @check_credentials
+    @check_credentials
     def index(self):
         """Return the index page."""
         services = {service.name: service for service in Services.get_services()}
@@ -79,17 +78,15 @@ class HTMLPageServer(object):
                             dirac_service=services.get('DIRAC'))
 
     @cherrypy.expose
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
+    @check_credentials
+    @admin_only
     def admins(self):
         """Return admin management page."""
         users = Users.get_users()
         return self._render('admins_template.html', users=users)
 
     @cherrypy.expose
-    @dummy_credentials
-#    @check_credentials
+    @check_credentials
     def newrequest(self):
         """Return new request page."""
         return self._render("newrequest_template.html")

@@ -14,7 +14,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
-from productionsystem.apache_utils import check_credentials, dummy_credentials
 from productionsystem.config import getConfig
 from productionsystem.utils import TemporyFileManagerContext
 from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client

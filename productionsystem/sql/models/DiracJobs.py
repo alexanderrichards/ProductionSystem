@@ -8,7 +8,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.sql.registry import managed_session
-from productionsystem.apache_utils import check_credentials, dummy_credentials
 from ..enums import DiracStatus
 from ..SQLTableBase import SQLTableBase
 

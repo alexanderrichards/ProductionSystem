@@ -9,8 +9,10 @@ from functools import wraps
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 import productionsystem.sql as sql
+from productionsystem.sql.models import Users
 
-__all__ = ('apache_client_convert', 'check_credentials', 'admin_only', 'dummy_credentials')
+__all__ = ('apache_client_convert', 'check_credentials', 'admin_only',
+           'dummy_credentials', 'DUMMY_USER')
 
 
 def apache_client_convert(client_dn, client_ca=None):
@@ -84,11 +86,14 @@ def check_credentials(func):
     return wrapper
 
 
+DUMMY_USER = Users(id=17, dn='/test/CN=dummy user/testdn', ca='ca', email='test@email.com',
+                   suspended=False, admin=True)
+
+
 def dummy_credentials(func):
     """Assign dummy credentials for testing."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        cherrypy.request.verified_user = sql.models.Users(id=17, dn='dn', ca='ca', email='test@email.com',
-                                                          suspended=False, admin=True)
+        cherrypy.request.verified_user = DUMMY_USER
         return func(*args, **kwargs)
     return wrapper

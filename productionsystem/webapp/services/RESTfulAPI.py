@@ -5,7 +5,7 @@ from distutils.util import strtobool
 import cherrypy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.apache_utils import check_credentials, admin_only, dummy_credentials
+from productionsystem.apache_utils import check_credentials, admin_only
 from productionsystem.sql.models import Services, Users, Requests, ParametricJobs, DiracJobs
 from productionsystem.sql.enums import LocalStatus
 
@@ -21,9 +21,8 @@ class ServicesAPI(object):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
+    @check_credentials
+    @admin_only
     def GET(cls, service_id=None):  # pylint: disable=invalid-name
         """REST Get method."""
         cls.logger.debug("In GET: service_id = %s", service_id)
@@ -50,9 +49,8 @@ class UsersAPI(object):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
+    @check_credentials
+    @admin_only
     def GET(cls, user_id=None):  # pylint: disable=invalid-name
         """REST GET method."""
         cls.logger.debug("In GET: user_id = %r", user_id)
@@ -68,7 +66,6 @@ class UsersAPI(object):
             return Users.get_users(user_id=user_id)
 
     @classmethod
-#    @dummy_credentials
     @check_credentials
     @admin_only
     def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
@@ -105,8 +102,7 @@ class DiracJobsAPI(object):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
-#    @check_credentials
-    @dummy_credentials
+    @check_credentials
     def GET(cls, request_id, parametricjob_id, diracjob_id=None):  # pylint: disable=invalid-name
         """
         REST Get method.
@@ -149,8 +145,7 @@ class ParametricJobsAPI(object):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
-    #    @check_credentials
-    @dummy_credentials
+    @check_credentials
     def GET(cls, request_id, parametricjob_id=None):  # pylint: disable=invalid-name
         """
         REST Get method.
@@ -244,8 +239,7 @@ class RequestsAPI(object):
     @classmethod
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
+    @check_credentials
     def GET(cls, request_id=None):  # pylint: disable=invalid-name
         """REST Get method."""
         cls.logger.debug("In GET: reqid = %r", request_id)
@@ -267,7 +261,6 @@ class RequestsAPI(object):
     @classmethod
     @check_credentials
     @admin_only
-#    @dummy_credentials
     def DELETE(cls, request_id):  # pylint: disable=invalid-name
         """REST Delete method."""
         cls.logger.info("Deleting Request id: %s", request_id)
@@ -282,8 +275,7 @@ class RequestsAPI(object):
 
     @classmethod
     @cherrypy.tools.json_in()
-#    @check_credentials
-    @dummy_credentials
+    @check_credentials
     def POST(cls):  # pylint: disable=invalid-name
         """REST Post method."""
         data = cherrypy.request.json
@@ -302,9 +294,8 @@ class RequestsAPI(object):
         cls.logger.info("New request %d created", request.id)
 
     @classmethod
-#    @check_credentials
-#    @admin_only
-    @dummy_credentials
+    @check_credentials
+    @admin_only
     def PUT(cls, request_id, status):  # pylint: disable=invalid-name
         """REST Put method."""
         cls.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)

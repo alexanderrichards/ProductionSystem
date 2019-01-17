@@ -2,7 +2,7 @@
 import os
 import re
 import cherrypy
-from productionsystem.apache_utils import dummy_credentials, check_credentials, admin_only
+from productionsystem.apache_utils import check_credentials
 
 
 @cherrypy.expose
@@ -18,8 +18,7 @@ class CVMFSDirectoryListing(object):
     @cherrypy.tools.accept(media='application/json')
     @cherrypy.tools.json_in()
     @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
+    @check_credentials
     def POST(self, path):  # pylint: disable=invalid-name
         """HTTP POST request handler."""
         data = cherrypy.request.json

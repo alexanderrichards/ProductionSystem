@@ -8,6 +8,7 @@ import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from itertools import chain
+import mock
 import pkg_resources
 import psutil
 
@@ -53,6 +54,18 @@ def stop(args):
 
 def start(args):
     """Start the webapp."""
+
+    # Force clean local DB for mock-mode
+    ###########################################################################
+    if args.mock_mode:
+        dbpath = os.path.join(current_dir, 'requests.db')
+        args.dburl = "sqlite:///" + dbpath
+        if os.path.exists(dbpath):
+            os.remove(dbpath)
+        apache_utils = importlib.import_module('productionsystem.apache_utils')
+        mock.patch.object(apache_utils, "check_credentials",
+                          wraps=apache_utils.dummy_credentials).start()
+
     # Load WebApp class.
     ###########################################################################
     WebApp = config_instance.entry_point_map['webapp']['daemon'].load()
@@ -74,6 +87,7 @@ def start(args):
            socket_port=args.socket_port,
            thread_pool=args.thread_pool,
            extra_jinja2_loader=extra_jinja2_loader,
+           mock_mode=args.mock_mode,
            app=args.app_name,
            pid=args.pid_file,
            logger=logger,
@@ -92,7 +106,7 @@ if __name__ == '__main__':
     stop_parser = subparser.add_parser('stop', help='stop the webserver')
     parser.set_defaults(app_name=app_name)
     start_parser.set_defaults(func=start, extension=None)
-    stop_parser.set_defaults(func=stop, debug_mode=True, extension=None)
+    stop_parser.set_defaults(func=stop, debug_mode=True, mock_mode=False, extension=None)
 
     start_parser.add_argument('-v', '--verbose', action='count',
                               help="Increase the logged verbosity, can be used twice")
@@ -124,6 +138,11 @@ if __name__ == '__main__':
                              help="The config file [default: %(default)s]")
     start_parser.add_argument('--debug-mode', action='store_true', default=False,
                               help="Run the daemon in a debug interactive monitoring mode. "
+                              "(debugging only)")
+    start_parser.add_argument('--mock-mode', action='store_true', default=False,
+                              help="Run the daemon with dummy user credentials installed and "
+                                   "spoof these credentials when connecting. Also blanks and sets "
+                                   "up a fresh local DB with one test job each time daemon starts. "
                               "(debugging only)")
     stop_parser.add_argument('-p', '--pid-file',
                              default=os.path.join(current_dir, '%s.pid' % app_name),

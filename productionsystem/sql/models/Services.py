@@ -5,7 +5,6 @@ from datetime import datetime
 import cherrypy
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.apache_utils import dummy_credentials
 from ..registry import managed_session
 from ..enums import ServiceStatus
 from ..SQLTableBase import SQLTableBase
