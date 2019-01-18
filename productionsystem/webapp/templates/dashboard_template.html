@@ -150,7 +150,8 @@ $(document).ready(function(){
     ]
   });
 
-  setInterval(function(){
+  // Smarter than simply requests_table.DataTable().ajax.reload() as will maintain open rows
+  function reload_table(){
     var opened_requests = $("tbody tr td span.oi.oi-chevron-top.text-danger", requests_table);
     var opened_ids = [];
     opened_requests.closest("td").next("td.request_id").each(function(index, id_column){
@@ -165,16 +166,21 @@ $(document).ready(function(){
         }
       });
     });
-  }, 120000); // 2 mins in ms
+  }
 
-  requests_table.on("click", "tbody tr", function(){
-    $(this).toggleClass("bg-primary text-light");
-    $(this).find("span.parametricjobs_toggle").toggleClass("text-light");
+  setInterval(reload_table, 120000); // 2 mins in ms
+
+  requests_table.on("click", "tbody tr:not(:has(table))", function(){
+    if ($(this).closest("table").prop("id") === "requests_table"){
+      $(this).toggleClass("bg-primary text-light");
+      $(this).find("span.parametricjobs_toggle").toggleClass("text-light");
+    }
   });
 
   requests_table.on("click", "span.parametricjobs_toggle", function(){
     var parametricjobs_toggle = $(this);
     parametricjobs_toggle.toggleClass("text-primary text-danger oi-chevron-bottom oi-chevron-top");
+    parametricjobs_toggle.closest("tr").trigger("click");  // unhighlight row
 
     var tr = parametricjobs_toggle.closest('tr');
     var row = requests_table.DataTable().row(tr);
@@ -255,6 +261,9 @@ $(document).ready(function(){
           url: `/api/requests/${split_id[0]}/parametricjobs/${split_id[1]}`,
           type: "PUT",
           data: {reschedule: true},
+          complete: function(){
+            reload_table();
+          },
           success: function(){
             bootstrap_alert("success", "Rescheduled:", `Successfully rescheduled parametric job ${combined_id}`);
             console.log(`Rescheduled parametric job ${combined_id}`);
@@ -378,11 +387,11 @@ $(document).ready(function(){
     $.when.apply(this, ajax_calls).then(
       function(){
         bootstrap_alert("success", "Approved:", `Successfully removed ${ids.length} requests.`);
-        requests_table.DataTable().ajax.reload();
+        reload_table();  // maintain open rows
       },
       function(){
         bootstrap_alert("danger", "Failed:", "Request approval failed. Please check the console log.");
-        requests_table.DataTable().ajax.reload();
+        reload_table();
       }
     );
   });
@@ -425,11 +434,11 @@ $(document).ready(function(){
     $.when.apply(this, ajax_calls).then(
       function(){
         bootstrap_alert("success", "Removed:", `Successfully removed ${ids.length} requests.`);
-        requests_table.DataTable().ajax.reload();
+        reload_table();  // maintain open rows
       },
       function(){
         bootstrap_alert("danger", "Failed:", "Request removal failed. Please check the console log.");
-        requests_table.DataTable().ajax.reload();
+        reload_table();
       }
     );
   });
