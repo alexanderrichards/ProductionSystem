@@ -57,7 +57,7 @@
         <br>
         <label for="description">Description:</label>
         <div>
-          <textarea class="form-control" name="description" placeholder="Enter a description of the request here." required></textarea>
+          <textarea id="description" class="form-control" name="description" placeholder="Enter a description of the request here." required></textarea>
         </div>
       {% endblock %}
       </fieldset>
@@ -82,14 +82,20 @@
 $(document).ready(function(){
     {% block document_ready_js %}
     $("#submit_btn").click(function(event){
-        event.preventDefault();
+        event.preventDefault();  // prevent default submission as doesn't create json content.
         parent.$.fancybox.close();
-        var data = {request: {parametricjobs:[{num_jobs:3},{num_jobs:5}]}}
+
+        var form_data = new Object();
+	    $.each($("form").serializeArray(), function(index, mapping){
+	      form_data[mapping.name] = mapping.value;
+	    });
+        form_data["parametricjobs"] = [{num_jobs:3},{num_jobs:5}];
+
         $.ajax({
             url: "/api/requests",
             type: "POST",
             contentType: "application/json; charset=utf-8",
-            data: JSON.stringify(data),
+            data: JSON.stringify({request: form_data}),
             error: function(jqXHR, textStatus, errorThrown){
                 console.error(`Failed to create new requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 parent.bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
