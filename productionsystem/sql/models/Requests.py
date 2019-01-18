@@ -130,7 +130,10 @@ class Requests(SQLTableBase):
         """Get requests."""
         if request_id is not None:
             try:
-                request_id = int(request_id)
+                if isinstance(request_id, (list, tuple)):
+                    request_id = [int(i) for i in request_id]
+                else:
+                    request_id = int(request_id)
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
@@ -163,6 +166,11 @@ class Requests(SQLTableBase):
 
             if request_id is None:
                 requests = query.all()
+                session.expunge_all()
+                return requests
+
+            if isinstance(request_id, (list, tuple)):
+                requests = query.filter(cls.id.in_(request_id)).all()
                 session.expunge_all()
                 return requests
 

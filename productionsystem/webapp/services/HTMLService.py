@@ -12,7 +12,7 @@ from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import check_credentials, admin_only
 from productionsystem.webapp.jinja2_utils import jinja2_filter
 # from productionsystem.sql import managed_session
-from productionsystem.sql.models import Services, Users
+from productionsystem.sql.models import Services, Users, Requests
 
 
 @jinja2_filter
@@ -90,3 +90,16 @@ class HTMLPageServer(object):
     def newrequest(self):
         """Return new request page."""
         return self._render("newrequest_template.html")
+
+    @cherrypy.expose
+    @check_credentials
+    def info(self, **kwargs):
+        """Returns request info page."""
+        ids = kwargs.get('ids[]', [])
+        if not isinstance(ids, list):
+            ids = [ids]
+        ids = sorted([int(i) for i in ids])
+        requests = Requests.get(ids, user_id=cherrypy.request.verified_user.id,
+                                load_user=True, load_parametricjobs=True)
+        return self._render('requestinfo_template.html',
+                            requests=requests)
