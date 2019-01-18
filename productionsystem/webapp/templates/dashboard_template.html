@@ -43,7 +43,9 @@
 </nav>
 <nav class="navbar navbar-light bg-light justify-content-end border shadow rounded-bottom mb-5">
   <img alt="Monitoring daemon status" class="my-auto mx-1" src="{{monitoringd_service| service_badge_url('monitoringd')}}">
-  <img alt="DIRAC status" class="my-auto mx-1" src="{{dirac_service| service_badge_url('DIRAC')}}">
+  <a href="{% block dirac_job_monitor_url %}https://dirac.gridpp.ac.uk:8443/DIRAC/?view=tabs&theme=Grey&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:,{% endblock %}" target="_blank" title="Go to DIRAC job monitor page.">
+    <img alt="DIRAC status" class="my-auto mx-1" src="{{dirac_service| service_badge_url('DIRAC')}}">
+  </a>
   {% if user.admin %}
   <a class="btn btn-outline-primary" data-fancybox data-type="iframe" data-src="/admins" data-caption="Admin Management" href="javascript:;" role="button">
     <span class="oi oi-person"></span>
