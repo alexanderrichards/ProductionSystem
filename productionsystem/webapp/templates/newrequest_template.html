@@ -79,6 +79,14 @@
 <script src="utils.js"></script>
 {% endblock %}
 <script>
+function create_request(form_data){
+    {% block create_request %}
+    form_data["parametricjobs"] = [{num_jobs: 3}, {num_jobs: 5}];
+    return form_data;
+    {% endblock%}
+}
+
+
 $(document).ready(function(){
     {% block document_ready_js %}
     $("#submit_btn").click(function(event){
@@ -89,13 +97,12 @@ $(document).ready(function(){
 	    $.each($("form").serializeArray(), function(index, mapping){
 	      form_data[mapping.name] = mapping.value;
 	    });
-        form_data["parametricjobs"] = [{num_jobs:3},{num_jobs:5}];
 
         $.ajax({
             url: "/api/requests",
             type: "POST",
             contentType: "application/json; charset=utf-8",
-            data: JSON.stringify({request: form_data}),
+            data: JSON.stringify({request: create_request(form_data)}),
             error: function(jqXHR, textStatus, errorThrown){
                 console.error(`Failed to create new requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 parent.bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
