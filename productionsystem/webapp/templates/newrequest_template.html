@@ -89,7 +89,8 @@ function create_request(form_data){
 
 $(document).ready(function(){
     {% block document_ready_js %}
-    $("#submit_btn").click(function(event){
+//    $("#submit_btn").click(function(event){
+    $("form").submit(function(event){
         event.preventDefault();  // prevent default submission as doesn't create json content.
         parent.$.fancybox.close();
 
