@@ -2,6 +2,7 @@
 # import pkg_resources
 from productionsystem.config import ConfigSystem
 from CVMFSListing import CVMFSDirectoryListing
+from GitListing import GitDirectoryListing, GitTagListing, GitSchema
 
 
 HTMLPageServer = ConfigSystem.get_instance()\

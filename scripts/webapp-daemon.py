@@ -86,6 +86,9 @@ def start(args):
            socket_host=args.socket_host,
            socket_port=args.socket_port,
            thread_pool=args.thread_pool,
+           git_schema=args.git_schema,
+           git_token=args.git_token,
+           git_api_base_url=args.git_api_base_url,
            extra_jinja2_loader=extra_jinja2_loader,
            mock_mode=args.mock_mode,
            app=args.app_name,
@@ -127,6 +130,12 @@ if __name__ == '__main__':
                               help="The host port to listen on [default: %(default)s]")
     start_parser.add_argument('--thread-pool', default=8, type=int,
                               help="The number of threads in the pool [default: %(default)s]")
+    start_parser.add_argument('--git-schema', default='GITHUB',
+                              help="The git schema to use [default: %(default)s]")
+    start_parser.add_argument('--git-api-base-url', default='https://api.github.com/repos',
+                              help="The git API base url [default: %(default)s]")
+    start_parser.add_argument('--git-token', default='',
+                              help="The git API access token [default: %(default)s]")
     start_parser.add_argument('-p', '--pid-file',
                               default=os.path.join(current_dir, '%s.pid' % app_name),
                               help="The pid file used by the daemon [default: %(default)s]")

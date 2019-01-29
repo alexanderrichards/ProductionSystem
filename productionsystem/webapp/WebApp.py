@@ -4,7 +4,7 @@ import cherrypy
 from daemonize import Daemonize
 from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
 from productionsystem.sql.registry import SessionRegistry
-from .services import HTMLPageServer, CVMFSDirectoryListing
+from .services import HTMLPageServer, CVMFSDirectoryListing, GitDirectoryListing, GitTagListing, GitSchema
 import services.RESTfulAPI
 
 
@@ -16,6 +16,9 @@ class WebApp(Daemonize):
                  socket_host='0.0.0.0',
                  socket_port=8080,
                  thread_pool=8,
+                 git_schema=GitSchema.GITHUB,
+                 git_token='',
+                 git_api_base_url="https://api.github.com/repos",
                  extra_jinja2_loader=None,
                  mock_mode=False,
                  **kwargs):
@@ -27,6 +30,11 @@ class WebApp(Daemonize):
         self._thread_pool = thread_pool
         self._extra_jinja2_loader = extra_jinja2_loader
         self._mock_mode = mock_mode
+        self._git_token = git_token
+        self._git_api_base_url = git_api_base_url
+        self._git_schema = git_schema
+        if isinstance(git_schema, basestring):
+            self._git_schema = GitSchema[git_schema]
 
     def _global_config(self):
         static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/static_resources')
@@ -61,6 +69,16 @@ class WebApp(Daemonize):
 
         cherrypy.tree.mount(CVMFSDirectoryListing(),
                             '/cvmfs',
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+        cherrypy.tree.mount(GitDirectoryListing(api_base_url=self._git_api_base_url,
+                                                schema=self._git_schema,
+                                                access_token=self._git_token),
+                            '/git',
+                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
+        cherrypy.tree.mount(GitTagListing(api_base_url=self._git_api_base_url,
+                                          schema=self._git_schema,
+                                          access_token=self._git_token),
+                            '/gittags',
                             {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
         services.RESTfulAPI.mount('/api')
 
