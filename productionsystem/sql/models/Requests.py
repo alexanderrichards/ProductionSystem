@@ -53,6 +53,7 @@ class Requests(SQLTableBase):
         if not parametricjobs:
             self.logger.warning("No parametricjobs associated with new request.")
         for job_id, parametricjob in enumerate(parametricjobs):
+            parametricjob.pop('requester_id', None)
             parametricjob.pop('request_id', None)
             parametricjob.pop('id', None)
             try:
