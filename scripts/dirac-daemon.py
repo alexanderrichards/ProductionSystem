@@ -70,6 +70,7 @@ def start(args):
                                       "DIRAC.Interfaces.API.Dirac": mock.MagicMock()}).start()
         dirac_job_mock = mock.MagicMock
         dirac_job_mock.setInputSandbox = mock.MagicMock(return_value=None)
+        dirac_job_mock._setParamValue = mock.MagicMock(return_value=None)
         dirac_class_mock = mock.MagicMock
         dirac_class_mock.kill = mock.MagicMock(return_value=None)
         dirac_class_mock.delete = mock.MagicMock(return_value=None)
