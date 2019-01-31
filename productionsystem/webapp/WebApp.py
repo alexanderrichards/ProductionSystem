@@ -89,20 +89,11 @@ class WebApp(Daemonize):
         # Setup testing entry for mock mode.
         ####################################
         if self._mock_mode:
-            from productionsystem.sql.models import Requests, DiracJobs, Users
-            from productionsystem.sql.enums import LocalStatus
             from productionsystem.sql.registry import managed_session
             from productionsystem.apache_utils import DUMMY_USER
             from copy import deepcopy
             with managed_session() as session:
                 session.add(deepcopy(DUMMY_USER))
-                session.add(Requests(id=1, requester_id=DUMMY_USER.id, description="simple test job",
-                                     parametricjobs=[{'id': 1, 'request_id': 1, 'status': 'FAILED'}]))
-                session.add(DiracJobs(id=1234, parametricjob_id=1, request_id=1, requester_id=DUMMY_USER.id))
-            r = Requests.get(request_id=1)
-            r.status = LocalStatus.RUNNING
-            r.update()
-
 
         cherrypy.config.update(self._global_config())  # global vars need updating global config
         self._mount_points()
