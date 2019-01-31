@@ -5,5 +5,5 @@ git:
   depth: 3
 install:
   - pip install --upgrade pip setuptools wheel
-  - pip install -e .[dev]
+  - pip install --upgrade -e .[dev]
 script: py.test
