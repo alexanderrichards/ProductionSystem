@@ -4,6 +4,6 @@ python:
 git:
   depth: 3
 install:
-  - pip install --upgrade pip setuptools wheel
-  - pip install --upgrade -e .[dev]
+  - pip install --upgrade --upgrade-strategy eager pip setuptools wheel
+  - pip install --upgrade --upgrade-strategy eager -e .[dev]
 script: py.test
