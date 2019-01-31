@@ -24,6 +24,14 @@
 	  max-height : 80%;
 	  margin: 0;
     }
+    .fancybox-slide--html  .fancybox-content{
+	  width  : 800px;
+	  height : 600px;
+	  max-width  : 80%;
+	  max-height : 80%;
+	  margin: 0;
+	  padding: 0;
+    }
   </style>
 
 
@@ -320,9 +328,15 @@ $(document).ready(function(){
     context_menu_request_id = request_id
     if (selected_rows.length > 1){
       context_menu_header.text("Bulk actions for requests");
+      $("#context_info").prop("disabled", true);
+      $("#context_info").removeClass("text-primary");
+      $("#context_info").addClass("text-secondary");
     }
     else{
       context_menu_header.text(`Actions for request ${request_id}`);
+      $("#context_info").prop("disabled", false);
+      $("#context_info").addClass("text-primary");
+      $("#context_info").removeClass("text-secondary");
     }
     context_menu.css({
         top: event.pageY,
@@ -345,26 +359,11 @@ $(document).ready(function(){
   });
 
   $("#context_info").click(function(){
-    var ids = [];
-    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
-    selected_rows.each(function(index, cell){
-      ids.push($(this).text());
-    });
-
-    if (ids.length === 0){
-      ids = [context_menu_request_id];
-    }
-
     $.fancybox.open({
-        src: "/info",
-        type : 'ajax',
+        src: `/info/${context_menu_request_id}`,
+        type : 'iframe',
         title: "Request Info",
-        ajax: {
-          settings: {
-            type: "POST",
-            data: {"ids": ids}
-          }
-        }
+        caption: "Request Info",
     });
   });
 

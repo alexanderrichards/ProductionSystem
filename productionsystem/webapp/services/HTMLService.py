@@ -93,13 +93,8 @@ class HTMLPageServer(object):
 
     @cherrypy.expose
     @check_credentials
-    def info(self, **kwargs):
+    def info(self, id):
         """Returns request info page."""
-        ids = kwargs.get('ids[]', [])
-        if not isinstance(ids, list):
-            ids = [ids]
-        ids = sorted([int(i) for i in ids])
-        requests = Requests.get(ids, user_id=cherrypy.request.verified_user.id,
-                                load_user=True, load_parametricjobs=True)
         return self._render('requestinfo_template.html',
-                            requests=requests)
+                            request=Requests.get(id, user_id=cherrypy.request.verified_user.id,
+                                                 load_user=True, load_parametricjobs=True))
