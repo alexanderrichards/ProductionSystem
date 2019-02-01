@@ -6,4 +6,12 @@ git:
 install:
   - pip install --upgrade --upgrade-strategy eager pip setuptools wheel
   - pip install --upgrade --upgrade-strategy eager -e .[dev]
-script: py.test
+jobs:
+  include:
+    - stage: style
+      script: py.test -vv --pylint --pylint-error-types=EF --pep8 --pep257 productionsystem
+    - stage: test
+      script: py.test -vv --cov=productionsystem --cov-report=term --cov-report=html -cov-fail-under=12 tests
+stages:
+  - test
+  - style
