@@ -11,7 +11,7 @@ jobs:
     - stage: test
       script: py.test -vv -c /dev/null --cov=productionsystem --cov-report=term --cov-report=html --cov-fail-under=0 tests
     - stage: style
-      script: py.test -vv -c tests/style_check.cfg --pylint --pylint-error-types=EF --pep8 --pep257 productionsystem
+      script: py.test -vv -c tests/style_check.cfg
 stages:
   - test
   - style
