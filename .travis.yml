@@ -8,10 +8,10 @@ install:
   - pip install --upgrade --upgrade-strategy eager -e .[dev]
 jobs:
   include:
-    - stage: style
-      script: py.test -vv --pylint --pylint-error-types=EF --pep8 --pep257 productionsystem
     - stage: test
-      script: py.test -vv --cov=productionsystem --cov-report=term --cov-report=html --cov-fail-under=0 tests
+      script: py.test -vv -c /dev/null --cov=productionsystem --cov-report=term --cov-report=html --cov-fail-under=0 tests
+    - stage: style
+      script: py.test -vv -c tests/style_check.cfg --pylint --pylint-error-types=EF --pep8 --pep257 productionsystem
 stages:
   - test
   - style
