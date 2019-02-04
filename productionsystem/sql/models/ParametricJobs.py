@@ -138,7 +138,7 @@ class ParametricJobs(SQLTableBase):
 
                 if not result['OK']:
                     self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
-                                      result['Message'])
+                                      self.request_id, self.id, result['Message'])
                     self.status = LocalStatus.FAILED
                     self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
                     return
@@ -243,6 +243,7 @@ class ParametricJobs(SQLTableBase):
                 job.reschedules += 1
             if job.id in monitored_jobs:
                 try:
+                    # pylint: disable=unsubscriptable-object
                     job.status = DiracStatus[monitored_jobs[job.id]['Status'].upper()]
                 except KeyError:
                     self.logger.warning("Unknown DiracStatus: %s. Setting to UNKNOWN",
