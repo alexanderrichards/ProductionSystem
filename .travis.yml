@@ -6,4 +6,12 @@ git:
 install:
   - pip install --upgrade --upgrade-strategy eager pip setuptools wheel
   - pip install --upgrade --upgrade-strategy eager -e .[dev]
-script: py.test
+jobs:
+  include:
+    - stage: test
+      script: py.test -c tests/unit_tests.cfg
+    - stage: style
+      script: py.test -c tests/style_check.cfg
+stages:
+  - test
+  - style

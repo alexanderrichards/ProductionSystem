@@ -1,7 +1,7 @@
 """CVMFS Directory Listing Service."""
 import os
 import re
-from distutils.version import StrictVersion
+from distutils.version import StrictVersion  # pylint: disable=import-error, no-name-in-module
 import cherrypy
 from productionsystem.apache_utils import check_credentials
 

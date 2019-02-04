@@ -46,6 +46,7 @@ class SingletonMeta(type):
         setattr(cls, '__instance__', instance)
         return instance
 
+
 def singleton(cls):
     """
     Singleton class decorator.

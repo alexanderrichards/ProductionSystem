@@ -4,7 +4,7 @@ from productionsystem.config import ConfigSystem
 from CVMFSListing import CVMFSDirectoryListing
 from GitListing import GitDirectoryListing, GitTagListing, GitSchema
 
-
+# pylint: disable=no-member
 HTMLPageServer = ConfigSystem.get_instance()\
                              .entry_point_map['webapp.services']['htmlpageserver']\
                              .load()

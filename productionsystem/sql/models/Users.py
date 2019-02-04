@@ -1,7 +1,7 @@
 """Users Table."""
 import logging
 import cherrypy
-from distutils.util import strtobool
+from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
 from sqlalchemy import Column, Integer, TEXT, Boolean
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session

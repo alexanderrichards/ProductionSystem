@@ -28,7 +28,7 @@ class SessionRegistry(scoped_session):
 def managed_session():
     """Transactional scoped DB session context."""
     logger = logging.getLogger(__name__)
-    session_registry = SessionRegistry.get_instance()
+    session_registry = SessionRegistry.get_instance()  # pylint: disable=no-member
     try:
         yield session_registry()
         session_registry.commit()
