@@ -10,7 +10,6 @@ from ..enums import ServiceStatus
 from ..SQLTableBase import SQLTableBase
 
 
-
 @cherrypy.expose
 @cherrypy.popargs('service_id')
 class Services(SQLTableBase):

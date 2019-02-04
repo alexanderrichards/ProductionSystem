@@ -48,7 +48,7 @@ class MonitoringDaemon(Daemonize):
 
     def main(self):
         """Daemon main function."""
-        SessionRegistry.setup(self._dburl)
+        SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
         try:
             while True:

@@ -8,6 +8,7 @@ def expand_path(path):
     """Expand filesystem path."""
     return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
 
+
 def igroup(sequence, nentries):
     """
     Split a sequence into groups.
@@ -18,6 +19,7 @@ def igroup(sequence, nentries):
     """
     for i in xrange(0, len(sequence), nentries):
         yield sequence[i:i + nentries]
+
 
 # This can derive from ExitStack in Python3
 class TemporyFileManagerContext(object):

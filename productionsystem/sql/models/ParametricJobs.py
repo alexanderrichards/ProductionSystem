@@ -9,15 +9,17 @@ from copy import deepcopy
 from tempfile import NamedTemporaryFile
 
 import cherrypy
-from sqlalchemy import Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, ForeignKey, Enum, CheckConstraint, event, inspect
+from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
+                        ForeignKey, Enum, CheckConstraint, event, inspect)
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
 from productionsystem.utils import TemporyFileManagerContext
-from productionsystem.monitoring.diracrpc.DiracRPCClient import dirac_api_client, dirac_api_job_client
-#from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
+from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_client,
+                                                                 dirac_api_job_client)
+# from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session, SessionRegistry
 from ..SQLTableBase import SQLTableBase, SmartColumn
@@ -44,7 +46,8 @@ class ParametricJobs(SQLTableBase):
     request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
     id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
     requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)
-    priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'), nullable=False, default=3, allowed=True)
+    priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'),
+                           nullable=False, default=3, allowed=True)
     site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     reschedule = Column(Boolean, nullable=False, default=False)
@@ -62,7 +65,10 @@ class ParametricJobs(SQLTableBase):
     @hybrid_property
     def num_other(self):
         """Return the number of jobs in states other than the known ones."""
-        return self.num_jobs - (self.num_submitted + self.num_running + self.num_failed + self.num_completed)
+        return self.num_jobs - (self.num_submitted +
+                                self.num_running +
+                                self.num_failed +
+                                self.num_completed)
 
     def __init__(self, **kwargs):
         required_args = set(self.required_columns).difference(kwargs)
@@ -101,9 +107,12 @@ class ParametricJobs(SQLTableBase):
 
     def submit(self):
         """Submit parametric job."""
-        with dirac_api_job_client() as (dirac, dirac_job_class), TemporyFileManagerContext() as tmp_filemanager:
+        with dirac_api_job_client() as (dirac, dirac_job_class),\
+             TemporyFileManagerContext() as tmp_filemanager:
             try:
-                dirac_jobs = self._setup_dirac_job(dirac_job_class, tmp_filemanager.new_file(), tmp_filemanager)
+                dirac_jobs = self._setup_dirac_job(dirac_job_class,
+                                                   tmp_filemanager.new_file(),
+                                                   tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
                                       self.request_id, self.id, err.message)
@@ -155,7 +164,9 @@ class ParametricJobs(SQLTableBase):
         # Group jobs by status
 
         if not self.dirac_jobs:
-            self.logger.warning("No dirac jobs associated with parametricjob: %d.%d. returning status unknown", self.request_id, self.id)
+            self.logger.warning("No dirac jobs associated with parametricjob: "
+                                "%d.%d. returning status unknown",
+                                self.request_id, self.id)
             self.status = LocalStatus.UNKNOWN
             self.reschedule = False
             self.num_completed = 0
@@ -215,13 +226,16 @@ class ParametricJobs(SQLTableBase):
                 self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
             else:
                 if not dirac_answer['OK']:
-                    self.logger.error("DIRAC failed to get statuses for jobs belonging to parametricjob is %d.%d: %s", self.request_id, self.id, dirac_answer['Message'])
+                    self.logger.error("DIRAC failed to get statuses for jobs belonging to "
+                                      "parametricjob is %d.%d: %s",
+                                      self.request_id, self.id, dirac_answer['Message'])
                     self.reschedule = False
                 else:
                     monitored_jobs = dirac_answer['Value']
                     skipped_jobs = monitor_jobs.difference(monitored_jobs)
                     if skipped_jobs:
-                        self.logger.warning("Couldn't check the status of jobs: %s", list(skipped_jobs))
+                        self.logger.warning("Couldn't check the status of jobs: %s",
+                                            list(skipped_jobs))
 
         statuses = Counter()
         for job in self.dirac_jobs:

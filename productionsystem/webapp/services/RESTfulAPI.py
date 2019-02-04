@@ -1,7 +1,7 @@
 """RESTful API."""
 import logging
 import os
-from distutils.util import strtobool
+from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
 import cherrypy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -113,7 +113,8 @@ class DiracJobsAPI(object):
                          request_id, parametricjob_id, diracjob_id)
         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad request_id: %r' % request_id):
             request_id = int(request_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad parametricjob_id: %r' % parametricjob_id):
+        with cherrypy.HTTPError.handle(ValueError, 400,
+                                       'Bad parametricjob_id: %r' % parametricjob_id):
             parametricjob_id = int(parametricjob_id)
 
         if diracjob_id is not None:
@@ -304,7 +305,7 @@ class RequestsAPI(object):
             request_id = int(request_id)
 
         with cherrypy.HTTPError.handle(KeyError, 400, 'Bad status: %r' % status):
-            status = LocalStatus[status.upper()]
+            status = LocalStatus[status.upper()]  # pylint: disable=unsubscriptable-object
 
         with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %d" % request_id),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,

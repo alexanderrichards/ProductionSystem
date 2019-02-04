@@ -2,7 +2,7 @@
 import os
 import re
 import logging
-from distutils.version import StrictVersion
+from distutils.version import StrictVersion  # pylint: disable=import-error, no-name-in-module
 import cherrypy
 import requests
 from enum import Enum

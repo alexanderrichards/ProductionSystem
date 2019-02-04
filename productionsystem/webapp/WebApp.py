@@ -4,7 +4,8 @@ import cherrypy
 from daemonize import Daemonize
 from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
 from productionsystem.sql.registry import SessionRegistry
-from .services import HTMLPageServer, CVMFSDirectoryListing, GitDirectoryListing, GitTagListing, GitSchema
+from .services import (HTMLPageServer, CVMFSDirectoryListing, GitDirectoryListing,
+                       GitTagListing, GitSchema)
 import services.RESTfulAPI
 
 
@@ -37,7 +38,8 @@ class WebApp(Daemonize):
             self._git_schema = GitSchema[git_schema]
 
     def _global_config(self):
-        static_resources = pkg_resources.resource_filename('productionsystem', 'webapp/static_resources')
+        static_resources = pkg_resources.resource_filename('productionsystem',
+                                                           'webapp/static_resources')
         config = {
             'global': {
                 'log.screen': False,
@@ -53,7 +55,7 @@ class WebApp(Daemonize):
                 'server.thread_pool': self._thread_pool,
                 'tools.expires.on': True,
                 'tools.expires.secs': 3,  # expire in an hour, 3 secs for debug
-#                'checker.check_static_paths': None
+                # 'checker.check_static_paths': None
             }
         }
         # Prevent CherryPy from trying to open its log files when the autoreloader kicks in.
@@ -84,7 +86,7 @@ class WebApp(Daemonize):
 
     def main(self):
         """Daemon main."""
-        SessionRegistry.setup(self._dburl)
+        SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
         # Setup testing entry for mock mode.
         ####################################

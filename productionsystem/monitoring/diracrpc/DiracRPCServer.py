@@ -1,23 +1,24 @@
 """DIRAC RPC Server."""
 import logging
-#from types import FunctionType
+# from types import FunctionType
 import rpyc
 from rpyc.utils.server import ThreadedServer
 from daemonize import Daemonize
+# pylint: disable=import-error
 from DIRAC.Interfaces.API.Job import Job
 from DIRAC.Interfaces.API.Dirac import Dirac
 from DIRAC.Core.DISET.RPCClient import RPCClient
 
-#logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+# logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-#def autoexpose(cls):
-#    """Tag all methods as exposed."""
-#    for i, j in vars(cls).copy().iteritems():
-#        if isinstance(j, FunctionType) and not\
-#           (i.startswith('__') or i.startswith('exposed_')):
-#            setattr(cls, "exposed_%s" % i, j)
-#    return cls
+# def autoexpose(cls):
+#     """Tag all methods as exposed."""
+#     for i, j in vars(cls).copy().iteritems():
+#         if isinstance(j, FunctionType) and not\
+#            (i.startswith('__') or i.startswith('exposed_')):
+#             setattr(cls, "exposed_%s" % i, j)
+#     return cls
 
 class FixedJob(Job):
     """Fixed DIRAC Job class."""
@@ -74,12 +75,14 @@ class FixedRPCClient(RPCClient):
 #        return RPCClient("DataManagement/FileCatalog").listDirectory('/', False)
 #        return self.listDirectory(self, *args, **kwargs)
 
+
 class DiracService(rpyc.Service):
     """DIRAC RPyC Service."""
 
     exposed_Job = FixedJob
     exposed_Dirac = FixedDirac
     exposed_RPCClient = FixedRPCClient
+
 
 class DiracDaemon(Daemonize):
     """DIRAC daemon to host the server."""

@@ -41,7 +41,8 @@ def admin_only(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not hasattr(cherrypy.request, 'verified_user'):
-            raise cherrypy.HTTPError(500, 'User credentials must be checked before enforcing admin_only')
+            raise cherrypy.HTTPError(500,
+                                     'User credentials must be checked before enforcing admin_only')
         if not cherrypy.request.verified_user.admin:
             raise cherrypy.HTTPError(403, 'Forbidden: Admin users only')
         return func(*args, **kwargs)

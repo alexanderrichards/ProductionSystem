@@ -32,9 +32,11 @@ class SmartColumn(Column):
         Column.__init__(self, *args, **kwargs)
         self._required = required
         self._allowed = required or allowed
+
     @property
     def required(self):
         return self._required
+
     @property
     def allowed(self):
         return self._allowed
@@ -45,10 +47,12 @@ class ColumnsDescriptor(object):
     def __init__(self, required=False, allowed=False):
         self._required = required
         self._allowed = allowed
+
     def __get__(self, obj, cls):
         """Descriptor get."""
         for column in cls.__table__.columns:
-            if self._required and not getattr(column, 'required', False):  # use getattr so works on normal column as well as smart column
+            # use getattr so works (doesnt break) on normal column as well as smart column
+            if self._required and not getattr(column, 'required', False):
                 continue
             if self._allowed and not getattr(column, 'allowed', False):
                 continue

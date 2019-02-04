@@ -14,7 +14,7 @@ from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
 from ..models import ParametricJobs
 from .Users import Users
-#from .ParametricJobs import ParametricJobs
+# from .ParametricJobs import ParametricJobs
 
 
 def subdict(dct, keys, **kwargs):
@@ -89,7 +89,8 @@ class Requests(SQLTableBase):
         """Update request status."""
         self.logger.info("Monitoring request %s", self.id)
         if not self.parametric_jobs:
-            self.logger.warning("No parametric jobs associated with request: %d. returning status unknown", self.id)
+            self.logger.warning("No parametric jobs associated with request: %d. "
+                                "returning status unknown", self.id)
             self.status = LocalStatus.UNKNOWN
             return
 
@@ -97,7 +98,8 @@ class Requests(SQLTableBase):
         for job in self.parametric_jobs:
             try:
                 job.monitor()
-            except:  # get rid of this if parametricjob catches everything. Only when sure as it's complex
+            # get rid of this if parametricjob catches everything. Only when sure as it's complex
+            except:
                 self.logger.exception("Unhandled exception monitoring ParametricJob %s", job.id)
                 job.status = LocalStatus.UNKNOWN
             status = max(status, job.status)
@@ -127,7 +129,8 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
     @classmethod
-    def get(cls, request_id=None, user_id=None, load_user=False, load_parametricjobs=False, status=None):
+    def get(cls, request_id=None, user_id=None,
+            load_user=False, load_parametricjobs=False, status=None):
         """Get requests."""
         if request_id is not None:
             try:
