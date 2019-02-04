@@ -202,9 +202,9 @@ class ParametricJobsAPI(object):
         with cherrypy.HTTPError.handle(NoResultFound, 404,
                                        "No parametric job with id %d.%d"
                                        % (request_id, parametricjob_id)), \
-             cherrypy.HTTPError.handle(MultipleResultsFound, 500,
-                                       "Multiple parametric jobs with id %d.%d"
-                                       % (request_id, parametricjob_id)):
+                cherrypy.HTTPError.handle(MultipleResultsFound, 500,
+                                          "Multiple parametric jobs with id %d.%d"
+                                          % (request_id, parametricjob_id)):
             parametricjob = ParametricJobs.get(parametricjob_id=parametricjob_id,
                                                request_id=request_id, user_id=user_id)
 

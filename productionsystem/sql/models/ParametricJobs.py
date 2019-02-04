@@ -108,7 +108,7 @@ class ParametricJobs(SQLTableBase):
     def submit(self):
         """Submit parametric job."""
         with dirac_api_job_client() as (dirac, dirac_job_class),\
-             TemporyFileManagerContext() as tmp_filemanager:
+                TemporyFileManagerContext() as tmp_filemanager:
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
                                                    tmp_filemanager.new_file(),
@@ -184,13 +184,13 @@ class ParametricJobs(SQLTableBase):
 
         reschedule_jobs = job_types['Reschedule'] if job_types[DiracStatus.DONE] else set()
         monitor_jobs = job_types[DiracStatus.RUNNING] | \
-                       job_types[DiracStatus.RECEIVED] | \
-                       job_types[DiracStatus.QUEUED] | \
-                       job_types[DiracStatus.WAITING] | \
-                       job_types[DiracStatus.CHECKING] | \
-                       job_types[DiracStatus.MATCHED] | \
-                       job_types[DiracStatus.UNKNOWN] | \
-                       job_types[DiracStatus.COMPLETED]
+            job_types[DiracStatus.RECEIVED] | \
+            job_types[DiracStatus.QUEUED] | \
+            job_types[DiracStatus.WAITING] | \
+            job_types[DiracStatus.CHECKING] | \
+            job_types[DiracStatus.MATCHED] | \
+            job_types[DiracStatus.UNKNOWN] | \
+            job_types[DiracStatus.COMPLETED]
 
         if self.reschedule:
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
