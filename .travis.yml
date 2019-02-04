@@ -9,9 +9,9 @@ install:
 jobs:
   include:
     - stage: test
-      script: py.test -vv -c /dev/null --cov=productionsystem --cov-report=term --cov-report=html --cov-fail-under=0 tests
+      script: py.test -c tests/unit_tests.cfg
     - stage: style
-      script: py.test -vv -c tests/style_check.cfg
+      script: py.test -c tests/style_check.cfg
 stages:
   - test
   - style
