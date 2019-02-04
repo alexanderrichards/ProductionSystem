@@ -86,7 +86,7 @@ class ParametricJobs(SQLTableBase):
 
         dirac_ids = [job.id for job in self.dirac_jobs]
         try:
-            with dirac_api_job_client() as dirac:
+            with dirac_api_client() as dirac:
                 self.logger.info("Killing/deleting %d DIRAC job(s).", len(dirac_ids))
                 dirac.kill(dirac_ids)
                 dirac.delete(dirac_ids)
