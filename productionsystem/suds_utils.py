@@ -32,8 +32,9 @@ class HttpCertAuthenticated(HttpAuthenticated):
                                cause pip to fail to validate against PyPI).
         """
         HttpAuthenticated.__init__(self, **kwargs)
-        self.cert = cert
-        self.verify = verify
+        self._session = requests.Session()
+        self._session.cert = cert
+        self._session.verify = verify
 
     def open(self, request):
         """
@@ -42,19 +43,15 @@ class HttpCertAuthenticated(HttpAuthenticated):
         Open the url in the specified request.
         """
         # raw method of the response object returns a file-like object.
-        return requests.get(request.url,
-                            cert=self.cert,
-                            verify=self.verify,
-                            stream=True).raw
+        return self._session.get(request.url,
+                                 stream=True).raw
 
     def send(self, request):
         """Send the request."""
-        response = requests.post(request.url,
-                                 data=request.message,
-                                 headers=request.headers,
-                                 cert=self.cert,
-                                 verify=self.verify,
-                                 stream=True)
+        response = self._session.post(request.url,
+                                      data=request.message,
+                                      headers=request.headers,
+                                      stream=True)
         return Reply(response.status_code, response.headers, response.content)
 
 

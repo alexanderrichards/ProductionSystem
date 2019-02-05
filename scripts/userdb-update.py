@@ -5,6 +5,7 @@ import os
 import logging
 import argparse
 import importlib
+import pkg_resources
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -43,24 +44,44 @@ if __name__ == '__main__':
                              "cause pip to fail to validate against PyPI). This option implies and "
                              "superseeds --verify")
     args = parser.parse_args()
+    cli_args = vars(args).copy()
+
+    # Config Setup
+    ###########################################################################
+    config_path = expand_path(args.config)
+    if not os.path.exists(config_path):
+        config_path = None
+    config = importlib.import_module('productionsystem.config')
+    config_instance = config.ConfigSystem.setup(config_path)
+    if config_path is not None:
+        arg_dict = vars(args)
+        arg_dict.update(config_instance.get_section("userdb"))
+        args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
     if args.trusted_cas:
         args.verify = args.trusted_cas
 
+    # Logging setup
+    ###########################################################################
+    # setup the root logger
     logging.basicConfig(level=max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG),
-                        format="%(name)15s : %(levelname)8s : %(message)s")
+                        format="[%(asctime)s] %(name)15s : %(levelname)8s : %(message)s")
+
+    # setup the main app logger
     logger = logging.getLogger(app_name)
-    logger.debug("Script called with args: %s", args)
+    logger.debug("Script called with args: %s", cli_args)
+    if config_path is None:
+        logger.warning("Config file '%s' does not exist", cli_args['config'])
+    logger.debug("Active config looks like: %s", config_instance.config)
+    logger.debug("Runtime args: %s", args)
 
-    real_config = expand_path(args.config)
-    if not os.path.exists(real_config):
-        logging.warning("Config file '%s' does not exist", real_config)
-        real_config = None
-    config = importlib.import_module('productionsystem.config')
-    config.ConfigSystem.setup(real_config)
+    # Entry Point Setup
+    ###########################################################################
+    entry_point_map = pkg_resources.get_entry_map('productionsystem')
+    config_instance.entry_point_map = entry_point_map
+    logger.debug("Starting with entry point map: %s", entry_point_map)
 
-    # Add the python src path to the sys.path for future imports
-    # sys.path.append(lzprod_root)
-
+    # Do work
+    ###########################################################################
     registry = importlib.import_module('productionsystem.sql.registry')
     Users = importlib.import_module('productionsystem.sql.models.Users').Users
     CertClient = importlib.import_module('productionsystem.suds_utils').CertClient
