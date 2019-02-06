@@ -45,6 +45,7 @@ def dirac_api_client(host="localhost", port=18861):
 
 @contextmanager
 def dirac_api_job_client(host="localhost", port=18861):
+    """"RPC DIRAC API client and DIRAC job handle context."""
     conn = rpyc.connect(host, port, config={"allow_public_attrs": True,
                                             "sync_request_timeout": 300})
     try:

@@ -55,8 +55,7 @@ def stop(args):
 
 
 def start(args):
-    """Start the monitoring daemon."""
-
+    """Start the dirac daemon."""
     if args.mock_mode:
         mock.patch.dict(sys.modules, {"DIRAC": mock.MagicMock(),
                                       "DIRAC.Core": mock.MagicMock(),

@@ -17,7 +17,9 @@ class SessionRegistry(scoped_session):
 
     This avoids the need to make the scoped_session (session registry) global
     """
+
     def __init__(self, url):
+        """Initialisation."""
         engine = create_engine(url)
         SQLTableBase.metadata.create_all(bind=engine)
         super(SessionRegistry, self).__init__(sessionmaker(engine))

@@ -16,6 +16,7 @@ class GitSchema(Enum):
 
     Enum for describing different cloud git hosting APIs.
     """
+
     GITHUB = 0
     GITLAB = 1
 
@@ -31,6 +32,7 @@ class GitListingBase(object):
                  api_base_url="https://api.github.com/repos",
                  schema=GitSchema.GITHUB,
                  access_token=''):
+        """Initialisation."""
         self._logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self._api_base_url = api_base_url
         self._schema = schema

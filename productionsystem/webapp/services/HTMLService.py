@@ -94,7 +94,7 @@ class HTMLPageServer(object):
     @cherrypy.expose
     @check_credentials
     def info(self, id):
-        """Returns request info page."""
+        """Return request info page."""
         return self._render('requestinfo_template.html',
                             request=Requests.get(id, user_id=cherrypy.request.verified_user.id,
                                                  load_user=True, load_parametricjobs=True))

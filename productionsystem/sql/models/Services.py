@@ -23,6 +23,7 @@ class Services(SQLTableBase):
     logger = logging.getLogger(__name__)
 
     def add(self):
+        """Add self to the DB."""
         with managed_session() as session:
             session.add(self)
             session.flush()
@@ -30,6 +31,7 @@ class Services(SQLTableBase):
             session.expunge(self)
 
     def update(self):
+        """Update the DB with current values."""
         with managed_session() as session:
             session.merge(self)
 

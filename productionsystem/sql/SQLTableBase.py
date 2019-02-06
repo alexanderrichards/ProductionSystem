@@ -44,7 +44,9 @@ class SmartColumn(Column):
 
 class ColumnsDescriptor(object):
     """Yield the column names."""
+
     def __init__(self, required=False, allowed=False):
+        """Initialisation."""
         self._required = required
         self._allowed = allowed
 

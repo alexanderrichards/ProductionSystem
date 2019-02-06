@@ -23,14 +23,23 @@ def igroup(sequence, nentries):
 
 # This can derive from ExitStack in Python3
 class TemporyFileManagerContext(object):
+    """Temporary file/dir manager context."""
+
     def __init__(self):
+        """Initialisation."""
         self._files = []
         self._dirs = []
 
     def __enter__(self):
+        """Enter context."""
         return self
 
     def __exit__(self, *_):
+        """
+        Exit context.
+
+        This automatically cleans up all temporary files/dirs.
+        """
         for file_ in self._files:
             file_.close()
         for dir_ in self._dirs:
@@ -39,11 +48,13 @@ class TemporyFileManagerContext(object):
         self._dirs = []
 
     def new_file(self):
+        """Create a new temporary file."""
         file_ = NamedTemporaryFile()
         self._files.append(file_)
         return file_
 
     def new_dir(self):
+        """Create a new temporary dir."""
         dir_ = mkdtemp()
         self._dirs.append(dir_)
         return dir_

@@ -54,7 +54,6 @@ def stop(args):
 
 def start(args):
     """Start the webapp."""
-
     # Force clean local DB for mock-mode
     ###########################################################################
     if args.mock_mode:

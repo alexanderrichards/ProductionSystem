@@ -45,6 +45,7 @@ class Requests(SQLTableBase):
     logger = logging.getLogger(__name__)
 
     def __init__(self, **kwargs):
+        """Initialisation."""
         required_args = set(self.required_columns).difference(kwargs)
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
@@ -65,6 +66,7 @@ class Requests(SQLTableBase):
                 raise
 
     def add(self):
+        """Add self to the DB."""
         with managed_session() as session:
             session.add(self)
             session.flush()
@@ -72,6 +74,7 @@ class Requests(SQLTableBase):
             session.expunge(self)
 
     def update(self):
+        """Update the DB with current values."""
         with managed_session() as session:
             session.merge(self)
 
@@ -109,6 +112,7 @@ class Requests(SQLTableBase):
 
     @classmethod
     def delete(cls, request_id):
+        """Delete a requests from the DB."""
         try:
             request_id = int(request_id)
         except ValueError:

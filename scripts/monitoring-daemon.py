@@ -58,7 +58,6 @@ def stop(args):
 
 def start(args):
     """Start the monitoring daemon."""
-
     # Modify the verify arg based on trusted_cas path
     if args.trusted_cas:
         args.verify = args.trusted_cas

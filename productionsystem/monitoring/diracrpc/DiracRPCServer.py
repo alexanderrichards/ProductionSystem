@@ -69,8 +69,10 @@ class FixedDirac(Dirac):
 
 
 class FixedRPCClient(RPCClient):
+    """Fixed DIRAC RPC Client."""
 
     def exposed_listDirectory(self, *args):
+        """Expose list directory."""
         return self.listDirectory(*args)
 #        return RPCClient("DataManagement/FileCatalog").listDirectory('/', False)
 #        return self.listDirectory(self, *args, **kwargs)

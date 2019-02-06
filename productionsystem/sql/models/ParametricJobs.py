@@ -71,16 +71,19 @@ class ParametricJobs(SQLTableBase):
                                 self.num_completed)
 
     def __init__(self, **kwargs):
+        """Initialisation."""
         required_args = set(self.required_columns).difference(kwargs)
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
     def update(self):
+        """Update DB with current values."""
         with managed_session() as session:
             session.merge(self)
 
     def remove_dirac_jobs(self):
+        """Remove dirac_jobs from the DIRAC system."""
         if not self.dirac_jobs:
             return
 
@@ -158,6 +161,7 @@ class ParametricJobs(SQLTableBase):
     def monitor(self):
         """
         Bulk update status.
+
         This method updates all DIRAC jobs which belong to the given
         parametricjob.
         """
