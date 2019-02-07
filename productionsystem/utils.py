@@ -47,14 +47,15 @@ class TemporyFileManagerContext(object):
         self._files = []
         self._dirs = []
 
-    def new_file(self):
+    def new_file(self, **kwargs):
         """Create a new temporary file."""
-        file_ = NamedTemporaryFile()
+        kwargs.pop("delete", None)  # We want to handle deletion.
+        file_ = NamedTemporaryFile(**kwargs)
         self._files.append(file_)
         return file_
 
-    def new_dir(self):
+    def new_dir(self, **kwargs):
         """Create a new temporary dir."""
-        dir_ = mkdtemp()
+        dir_ = mkdtemp(**kwargs)
         self._dirs.append(dir_)
         return dir_
