@@ -15,6 +15,7 @@ setup(
 #                      'mysql-python',
                       'rpyc',
                       'suds',
+                      'gitpython',
                       'psutil',
                       'mock'
                       ],

@@ -6,6 +6,8 @@ from distutils.version import StrictVersion  # pylint: disable=import-error, no-
 import cherrypy
 import requests
 from enum import Enum
+from git import Repo
+from git.exc import InvalidGitRepositoryError
 from productionsystem.apache_utils import check_credentials
 # gitlab base url: https://lz-git.ua.edu/api/v4
 
@@ -19,6 +21,7 @@ class GitSchema(Enum):
 
     GITHUB = 0
     GITLAB = 1
+    LOCAL = 2
 
 
 SORT_TYPE_MAPPING = {None: None,
@@ -32,11 +35,42 @@ class GitListingBase(object):
                  api_base_url="https://api.github.com/repos",
                  schema=GitSchema.GITHUB,
                  access_token=''):
-        """Initialisation."""
+        """
+        Initialisation.
+
+        Args:
+            api_base_url (str): The base url for the cloud hosted git API. If using LOCAL schema,
+                                This should be the path to the directory containing locally checked
+                                out git repos with structure: api_base_url/owner/repo.
+            schema (GitSchema): The type of schema to use.
+            access_token (str): The personal access token for the git API. Note this is not needed
+                                for LOCAL schema.
+        """
         self._logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self._api_base_url = api_base_url
         self._schema = schema
         self._token = access_token
+
+    def _call_api(self, url, params=None):
+        """Call to the Git API."""
+        headers = {}
+        if self._token and self._schema == GitSchema.GITHUB:
+            headers.update({"Authorization": "token %s" % self._token})
+        elif self._token and self._schema == GitSchema.GITLAB:
+            headers.update({"Private-Token": self._token})
+
+        self._logger.debug("Using Git API (%s): %s", self._schema.name, url)
+        self._logger.debug("->with params: %s", params)
+        # self._logger.debug("->and headers: %s", headers)  # maybe dont disclose token in log.
+        with cherrypy.HTTPError.handle(Exception, 500,
+                                       "Git API (%s) call failed" % self._schema.name):
+            result = requests.get(url, params=params, headers=headers)
+
+        status_code = result.status_code
+        if status_code != 200:
+            raise cherrypy.HTTPError(500, "Git API (%s) returned code: %d"
+                                     % (self._schema.name, status_code))
+        return result.json()
 
 
 @cherrypy.expose
@@ -75,43 +109,37 @@ class GitTagListing(GitListingBase):
                                                  sort_type))
         sort_type = SORT_TYPE_MAPPING[sort_type]
 
-        # Schema selection GitSchema.GITHUB is default.
+        # Get tags.
         # ################
-        headers = {"Authorization": "token %s" % self._token}
-        url = os.path.join(self._api_base_url,
-                           owner,
-                           repo,
-                           "git",
-                           "refs",
-                           "tags")
-        if self._schema == GitSchema.GITLAB:
-            headers = {"Private-Token": self._token}
+        if self._schema == GitSchema.LOCAL:
+            with cherrypy.HTTPError.handle(InvalidGitRepositoryError, 400,
+                                           "No such local git repo %s/%s" % (owner, repo)):
+                tags = (tag.name for tag in
+                        Repo(os.path.join(self._api_base_url, owner, repo)).tags)
+
+        elif self._schema == GitSchema.GITHUB:
+            url = os.path.join(self._api_base_url,
+                               owner,
+                               repo,
+                               "git",
+                               "refs",
+                               "tags")
+            tags = (os.path.basename(x['ref']) for x in self._call_api(url))
+
+        elif self._schema == GitSchema.GITLAB:
             url = os.path.join(self._api_base_url,
                                "projects",
                                "{owner}%2F{repo}".format(owner=owner, repo=repo),  # %2F = /
                                "repository",
                                "tags")
-        # remove attempt at sending Auth token if not present. Will then work for example with
-        # public repos.
-        if not self._token:
-            headers.clear()
+            tags = (x['name'] for x in self._call_api(url))
+        else:
+            msg = "Schema %r doesn't match any enum value." % self._schema
+            self._logger.error(msg)
+            raise cherrypy.HTTPError(500, msg)
 
-        # Call API
-        # ########
-        self._logger.debug("Using Git API: %s", url)
-        # self._logger.debug("->and headers: %s", headers)  # maybe dont disclose token in log.
-        with cherrypy.HTTPError.handle(Exception, 500, "Git API call failed"):
-            result = requests.get(url, headers=headers)
-
-        status_code = result.status_code
-        if status_code != 200:
-            raise cherrypy.HTTPError(500, "Git API returned code: %d" % status_code)
-
-        tags_list = result.json()
-        tags = (os.path.basename(x['ref']) for x in tags_list)
-        if self._schema == GitSchema.GITLAB:
-            tags = (x['name'] for x in tags_list)
-
+        # Format output
+        # #############
         output = list(tags)
         if sort or sort_reversed:
             output.sort(reverse=sort_reversed, key=sort_type)
@@ -183,49 +211,46 @@ class GitDirectoryListing(GitListingBase):
                                      "Bad type: expected tag to be of type str, "
                                      "got (%r, %s)" % (tag, type(tag)))
 
-        # Schema selection GitSchema.GITHUB is default.
-        # ################
+        # List git directory
+        # ##################
         params = {"ref": tag}
-        headers = {"Authorization": "token %s" % self._token}
-        url = os.path.join(self._api_base_url,
-                           owner,
-                           repo,
-                           "contents",
-                           path.lstrip('/'))
-        if self._schema == GitSchema.GITLAB:
+        if self._schema == GitSchema.LOCAL:
+            with cherrypy.HTTPError.handle(IndexError, 400, "No such refs/tag: %s"),\
+                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 400,
+                                           "No such local git repo %s/%s" % (owner, repo)):
+                tag_ref = Repo(os.path.join(self._api_base_url, owner, repo)).refs[tag]
+            path_tree = (tag_ref.commit.tree / path.lstrip('/'))
+            dirs = (item.name for item in path_tree.traverse(depth=1) if item.type == 'tree')
+            files = (item.name for item in path_tree.traverse(depth=1) if item.type == 'blob')
+
+        elif self._schema == GitSchema.GITHUB:
+            url = os.path.join(self._api_base_url,
+                               owner,
+                               repo,
+                               "contents",
+                               path.lstrip('/'))
+            listing = self._call_api(url, params)
+            dirs = (x['name'] for x in listing if x['type'] == "dir")
+            files = (x['name'] for x in listing if x['type'] == "file")
+
+        elif self._schema == GitSchema.GITLAB:
             params.update(path=path)
-            headers = {"Private-Token": self._token}
             url = os.path.join(self._api_base_url,
                                "projects",
                                "{owner}%2F{repo}".format(owner=owner, repo=repo),  # %2F = /
                                "repository",
                                "tree")
-        # remove attempt at sending Auth token if not present. Will then work for example with
-        # public repos.
-        if not self._token:
-            headers.clear()
-
-        # Call API
-        # ########
-        self._logger.debug("Using Git API: %s", url)
-        self._logger.debug("->with params: %s", params)
-        # self._logger.debug("->and headers: %s", headers)  # maybe dont disclose token in log.
-        with cherrypy.HTTPError.handle(Exception, 500, "Git API call failed"):
-            result = requests.get(url,
-                                  params=params,
-                                  headers=headers)
-
-        status_code = result.status_code
-        if status_code != 200:
-            raise cherrypy.HTTPError(500, "Git API returned code: %d" % status_code)
-
-        output = []
-        listing = result.json()
-        dirs = (x['name'] for x in listing if x['type'] == "dir")
-        files = (x['name'] for x in listing if x['type'] == "file")
-        if self._schema == GitSchema.GITLAB:
+            listing = self._call_api(url, params)
             dirs = (x['name'] for x in listing if x['type'] == "tree")
             files = (x['name'] for x in listing if x['type'] == "blob")
+        else:
+            msg = "Schema %r doesn't match any enum value." % self._schema
+            self._logger.error(msg)
+            raise cherrypy.HTTPError(500, msg)
+
+        # Format output
+        # #############
+        output = []
         if list_type in ('dirs', 'all'):
             for dir_ in dirs:
                 match = regex.match(dir_)
