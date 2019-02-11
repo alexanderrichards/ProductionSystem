@@ -6,8 +6,7 @@ from distutils.version import StrictVersion  # pylint: disable=import-error, no-
 import cherrypy
 import requests
 from enum import Enum
-from git import Repo
-from git.exc import InvalidGitRepositoryError
+from git import Repo, NoSuchPathError, InvalidGitRepositoryError
 from productionsystem.apache_utils import check_credentials
 # gitlab base url: https://lz-git.ua.edu/api/v4
 
@@ -112,8 +111,10 @@ class GitTagListing(GitListingBase):
         # Get tags.
         # ################
         if self._schema == GitSchema.LOCAL:
-            with cherrypy.HTTPError.handle(InvalidGitRepositoryError, 400,
-                                           "No such local git repo %s/%s" % (owner, repo)):
+            with cherrypy.HTTPError.handle(NoSuchPathError, 404,
+                                           "No such local git repo %s/%s" % (owner, repo)),\
+                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 500,
+                                           "Invalid git repo %s/%s" % (owner, repo)):
                 tags = (tag.name for tag in
                         Repo(os.path.join(self._api_base_url, owner, repo)).tags)
 
@@ -216,11 +217,18 @@ class GitDirectoryListing(GitListingBase):
         params = {"ref": tag}
         if self._schema == GitSchema.LOCAL:
             with cherrypy.HTTPError.handle(IndexError, 404, "No such refs/tag: %s"),\
-                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 404,
-                                           "No such local git repo %s/%s" % (owner, repo)):
-                tag_ref = Repo(os.path.join(self._api_base_url, owner, repo)).refs[tag]
-            with cherrypy.HTTPError.handle(KeyError, 404, "No Such path: %r" % path.lstrip('/')):
-                path_tree = (tag_ref.commit.tree / path.lstrip('/'))
+                 cherrypy.HTTPError.handle(KeyError, 404, "No Such path: %r" % path.lstrip('/')),\
+                 cherrypy.HTTPError.handle(NoSuchPathError, 404,
+                                           "No such local git repo %s/%s" % (owner, repo)),\
+                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 500,
+                                           "Invalid git repo %s/%s" % (owner, repo)):
+                path_tree = Repo(os.path.join(self._api_base_url, owner, repo))\
+                    .refs[tag]\
+                    .commit\
+                    .tree / path.lstrip('/')
+            if path_tree.type != 'tree':
+                raise cherrypy.HTTPError(400, "Path %r is not a directory. (type = %s)"
+                                         % (path.lstrip('/'), path_tree.type))
             dirs = (item.name for item in path_tree.traverse(depth=1) if item.type == 'tree')
             files = (item.name for item in path_tree.traverse(depth=1) if item.type == 'blob')
 
