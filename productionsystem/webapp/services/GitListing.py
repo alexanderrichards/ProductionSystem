@@ -215,11 +215,12 @@ class GitDirectoryListing(GitListingBase):
         # ##################
         params = {"ref": tag}
         if self._schema == GitSchema.LOCAL:
-            with cherrypy.HTTPError.handle(IndexError, 400, "No such refs/tag: %s"),\
-                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 400,
+            with cherrypy.HTTPError.handle(IndexError, 404, "No such refs/tag: %s"),\
+                 cherrypy.HTTPError.handle(InvalidGitRepositoryError, 404,
                                            "No such local git repo %s/%s" % (owner, repo)):
                 tag_ref = Repo(os.path.join(self._api_base_url, owner, repo)).refs[tag]
-            path_tree = (tag_ref.commit.tree / path.lstrip('/'))
+            with cherrypy.HTTPError.handle(KeyError, 404, "No Such path: %r" % path.lstrip('/')):
+                path_tree = (tag_ref.commit.tree / path.lstrip('/'))
             dirs = (item.name for item in path_tree.traverse(depth=1) if item.type == 'tree')
             files = (item.name for item in path_tree.traverse(depth=1) if item.type == 'blob')
 
