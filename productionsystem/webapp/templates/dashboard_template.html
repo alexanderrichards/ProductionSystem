@@ -251,7 +251,8 @@ $(document).ready(function(){
                         bootstrap_alert("warning", "Attention:", `Request id ${request_id} is not valid.`)
                     }
                  }},
-        "order": [[0, "asc"]],
+        "ordering": false,
+        "lengthMenu": [[-1], ["All"]],
         "columns": [
             {% block parametricjobs_table_columns %}
             { "title": "ID", "className": "parametricjob_id", "data": "id", "width": "10%" },
