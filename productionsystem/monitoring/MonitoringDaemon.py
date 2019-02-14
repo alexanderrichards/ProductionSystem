@@ -116,6 +116,7 @@ class MonitoringDaemon(Daemonize):
         create new Ganga tasks for new requests.
         """
         monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
+                                                  LocalStatus.SUBMITTING,
                                                   LocalStatus.SUBMITTED,
                                                   LocalStatus.RUNNING),
                                           load_parametricjobs=True)
