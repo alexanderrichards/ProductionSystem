@@ -7,6 +7,7 @@ from datetime import datetime
 from collections import defaultdict, Counter, Iterable
 from copy import deepcopy
 from tempfile import NamedTemporaryFile
+from operator import attrgetter
 
 import cherrypy
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
@@ -303,9 +304,10 @@ class ParametricJobs(SQLTableBase):
                 query = query.filter_by(requester_id=user_id)
 
             if request_id is None or parametricjob_id is None:
-                requests = query.all()
+                parametricjobs = query.all()
                 session.expunge_all()
-                return requests
+                parametricjobs.sort(key=attrgetter("id"))
+                return parametricjobs
 
             try:
                 parametricjob = query.one()

@@ -2,6 +2,7 @@
 import json
 import logging
 from datetime import datetime
+from operator import attrgetter
 
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
@@ -175,11 +176,13 @@ class Requests(SQLTableBase):
             if request_id is None:
                 requests = query.all()
                 session.expunge_all()
+                requests.sort(key=attrgetter('id'))
                 return requests
 
             if isinstance(request_id, (list, tuple)):
                 requests = query.filter(cls.id.in_(request_id)).all()
                 session.expunge_all()
+                requests.sort(key=attrgetter('id'))
                 return requests
 
             try:
