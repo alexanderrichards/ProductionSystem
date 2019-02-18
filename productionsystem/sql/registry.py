@@ -20,7 +20,9 @@ class SessionRegistry(scoped_session):
 
     def __init__(self, url):
         """Initialisation."""
-        engine = create_engine(url)
+        # recycle based on (prob don't need pessimistic ping same link but above.):
+        #   https://docs.sqlalchemy.org/en/latest/core/pooling.html#setting-pool-recycle
+        engine = create_engine(url, pool_recycle=7200)  # 2 hours
         SQLTableBase.metadata.create_all(bind=engine)
         super(SessionRegistry, self).__init__(sessionmaker(engine))
         self._logger = logging.getLogger(__name__)

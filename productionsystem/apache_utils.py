@@ -78,6 +78,10 @@ def check_credentials(func):
             except NoResultFound:
                 raise cherrypy.HTTPError(403, 'Forbidden: Unknown user. user: (%s, %s)'
                                          % (client_dn, client_ca))
+            except Exception as err:
+                raise cherrypy.HTTPError(500,
+                                         "Internal Server Error: Unknown Exception caught %s-> %s"
+                                         % (type(err), err.message))
             if user.suspended:
                 raise cherrypy.HTTPError(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
                                          % (client_dn, client_ca))
