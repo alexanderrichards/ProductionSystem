@@ -3,7 +3,7 @@ import logging
 import json
 
 import cherrypy
-from sqlalchemy import Column, Integer, Enum, ForeignKey, ForeignKeyConstraint
+from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
@@ -18,6 +18,10 @@ class DiracJobs(SQLTableBase):
     """Dirac Jobs SQL Table."""
 
     __tablename__ = 'diracjobs'
+    classtype = Column(TEXT)
+    __mapper_args__ = {'polymorphic_on': classtype,
+                       'polymorphic_identity': 'diracjobs',
+                       'with_polymorphic': '*'}
     __table_args__ = (ForeignKeyConstraint(['request_id', 'parametricjob_id'],
                                            ['parametricjobs.request_id', 'parametricjobs.id']),)
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name

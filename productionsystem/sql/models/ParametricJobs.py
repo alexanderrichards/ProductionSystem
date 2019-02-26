@@ -24,7 +24,7 @@ from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_clien
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session, SessionRegistry
 from ..SQLTableBase import SQLTableBase, SmartColumn
-from .DiracJobs import DiracJobs
+from ..models import DiracJobs
 
 
 def subdict(dct, keys, **kwargs):

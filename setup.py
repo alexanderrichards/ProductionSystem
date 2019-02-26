@@ -37,7 +37,8 @@ setup(
     tests_require=["pytest", 'coverage', 'pytest-cov', 'pytest-pylint', 'pytest-pep8', 'pytest-pep257'],
     test_suit="tests",
     entry_points={
-        'dbmodels': ['parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
+        'dbmodels': ['diracjobs = productionsystem.sql.models.DiracJobs:DiracJobs',
+                     'parametricjobs = productionsystem.sql.models.ParametricJobs:ParametricJobs',
                      'requests = productionsystem.sql.models.Requests:Requests'],
         'monitoring': ['daemon = productionsystem.monitoring.MonitoringDaemon:MonitoringDaemon'],
         'webapp.services': ['htmlpageserver = productionsystem.webapp.services.HTMLService:HTMLPageServer'],
