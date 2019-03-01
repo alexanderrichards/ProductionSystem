@@ -47,10 +47,12 @@ class TemporyFileManagerContext(object):
         self._files = []
         self._dirs = []
 
-    def new_file(self, **kwargs):
+    def new_file(self, mode=None, **kwargs):
         """Create a new temporary file."""
         kwargs.pop("delete", None)  # We want to handle deletion.
         file_ = NamedTemporaryFile(**kwargs)
+        if mode is not None:
+            os.chmod(file_, mode)
         self._files.append(file_)
         return file_
 

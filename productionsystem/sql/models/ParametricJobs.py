@@ -115,7 +115,8 @@ class ParametricJobs(SQLTableBase):
                 TemporyFileManagerContext() as tmp_filemanager:
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
-                                                   tmp_filemanager.new_file(prefix="jobscript_",
+                                                   tmp_filemanager.new_file(mode=0o755,
+                                                                            prefix="jobscript_",
                                                                             suffix=".sh"),
                                                    tmp_filemanager)
             except Exception as err:
