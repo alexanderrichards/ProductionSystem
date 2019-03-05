@@ -52,7 +52,7 @@ class TemporyFileManagerContext(object):
         kwargs.pop("delete", None)  # We want to handle deletion.
         file_ = NamedTemporaryFile(**kwargs)
         if mode is not None:
-            os.chmod(file_, mode)
+            os.chmod(file_.name, mode)
         self._files.append(file_)
         return file_
 
