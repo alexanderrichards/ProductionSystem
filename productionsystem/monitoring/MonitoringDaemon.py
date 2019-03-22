@@ -6,6 +6,7 @@ from datetime import datetime
 import requests
 from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services
@@ -84,6 +85,7 @@ class MonitoringDaemon(Daemonize):
         if 'DIRAC' in services:
             dirac_service = services['DIRAC']
             dirac_service.status = status
+            flag_modified(dirac_service, "status")  # force sql update to happen, even if in the database the value is the same
             try:
                 dirac_service.update()
             except SQLAlchemyError as err:
@@ -98,6 +100,7 @@ class MonitoringDaemon(Daemonize):
         if 'monitoringd' in services:
             monitoringd_service = services['monitoringd']
             monitoringd_service.status = ServiceStatus.UP
+            flag_modified(monitoringd_service, "status")
             try:
                 monitoringd_service.update()
             except SQLAlchemyError as err:
