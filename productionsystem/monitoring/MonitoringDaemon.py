@@ -85,7 +85,8 @@ class MonitoringDaemon(Daemonize):
         if 'DIRAC' in services:
             dirac_service = services['DIRAC']
             dirac_service.status = status
-            flag_modified(dirac_service, "status")  # force sql update to happen, even if in the database the value is the same
+            # force sql update to happen, even if in the database the value is the same
+            flag_modified(dirac_service, "status")
             try:
                 dirac_service.update()
             except SQLAlchemyError as err:
