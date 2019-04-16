@@ -163,6 +163,7 @@ if __name__ == '__main__':
         arg_dict = vars(args)
         # Lay the config params on top of default parser ones
         arg_dict.update(config_instance.get_section("monitoring"))
+
         # Now parse again with the current namespace to lay non-default parsed params on top
         # args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
 
@@ -170,12 +171,6 @@ if __name__ == '__main__':
         # change was made to pass a blank namespace to the subparsers to pick up any
         # modified defaults. This breaks the logic of our code. Will have to use the subparser
         # directly and cut out the subcommand from the args to parse.
-
-#        # can do start_parser.parse_args(sys.argv[2:], namespace=...)
-#        # but is this always ok to use start_parser?
-#        args = locals().get('%s_parser' % arg_dict['subcommand'], start_parser)\
-#                       .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
-#        # better
         args = subparser.choices[arg_dict['subcommand']]\
                         .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
 
