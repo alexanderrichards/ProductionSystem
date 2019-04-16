@@ -18,7 +18,7 @@ class Services(SQLTableBase):
     __tablename__ = 'services'
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     name = Column(String(30), nullable=False, unique=True)
-    status = Column(Enum(ServiceStatus), nullable=False)
+    status = Column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     logger = logging.getLogger(__name__)
 
@@ -33,6 +33,9 @@ class Services(SQLTableBase):
     def update(self):
         """Update the DB with current values."""
         with managed_session() as session:
+            # Onupdate doesn't trigger if setting status field to same as current value as it's
+            # no-op in some DBs.
+            self.timestamp = datetime.utcnow()
             session.merge(self)
 
     @classmethod
