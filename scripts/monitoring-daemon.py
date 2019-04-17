@@ -13,6 +13,7 @@ import importlib
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from itertools import chain
+from pprint import pformat
 import pkg_resources
 import psutil
 
@@ -201,11 +202,11 @@ if __name__ == '__main__':
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
-    logger.debug("Script called with args: %s", cli_args)
+    logger.debug("Script called with args:\n%s", pformat(cli_args))
     if config_path is None:
         logger.warning("Config file '%s' does not exist", cli_args['config'])
-    logger.debug("Active config looks like: %s", config_instance.config)
-    logger.debug("Runtime args: %s", args)
+    logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
+    logger.debug("Runtime args:\n%s", pformat(vars(args)))
 
     # Entry Point Setup
     ###########################################################################
@@ -218,7 +219,7 @@ if __name__ == '__main__':
         for group, map in entry_point_map.iteritems():
             map.update(pkg_resources.get_entry_map(args.extension, group))
     config_instance.entry_point_map = entry_point_map
-    logger.debug("Starting with entry point map: %s", entry_point_map)
+    logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))
 
     # Enact the subcommand
     ###########################################################################
