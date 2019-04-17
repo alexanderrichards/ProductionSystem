@@ -5,6 +5,7 @@ import os
 import logging
 import argparse
 import importlib
+from pprint import pformat
 import pkg_resources
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -68,11 +69,11 @@ if __name__ == '__main__':
 
     # setup the main app logger
     logger = logging.getLogger(app_name)
-    logger.debug("Script called with args: %s", cli_args)
+    logger.debug("Script called with args:\n%s", pformat(cli_args))
     if config_path is None:
         logger.warning("Config file '%s' does not exist", cli_args['config'])
-    logger.debug("Active config looks like: %s", config_instance.config)
-    logger.debug("Runtime args: %s", args)
+    logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
+    logger.debug("Runtime args:\n%s", pformat(vars(args)))
 
     # Entry Point Setup
     ###########################################################################
