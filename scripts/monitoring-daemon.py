@@ -161,8 +161,18 @@ if __name__ == '__main__':
     config_instance = config.ConfigSystem.setup(config_path)
     if config_path is not None:
         arg_dict = vars(args)
+        # Lay the config params on top of default parser ones
         arg_dict.update(config_instance.get_section("monitoring"))
-        args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
+
+        # Now parse again with the current namespace to lay non-default parsed params on top
+        # args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
+
+        # Note this doesn't work in 2.7.13 but does in 2.7.5
+        # change was made to pass a blank namespace to the subparsers to pick up any
+        # modified defaults. This breaks the logic of our code. Will have to use the subparser
+        # directly and cut out the subcommand from the args to parse.
+        args = subparser.choices[arg_dict['subcommand']]\
+                        .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
 
     # Logging setup
     ###########################################################################

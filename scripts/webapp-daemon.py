@@ -177,8 +177,11 @@ if __name__ == '__main__':
     config_instance = config.ConfigSystem.setup(config_path)
     if config_path is not None:
         arg_dict = vars(args)
+        # Lay the config params on top of default parser ones
         arg_dict.update(config_instance.get_section("webapp"))
-        args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
+        # Now parse again with the current namespace to lay non-default parsed params on top
+        args = subparser.choices[arg_dict['subcommand']] \
+                        .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
 
     # Logging setup
     ###########################################################################
