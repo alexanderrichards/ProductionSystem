@@ -1,4 +1,9 @@
 """Github/lab Directory/Tag Listing Service."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import re
 import logging
@@ -104,7 +109,7 @@ class GitTagListing(GitListingBase):
         if sort_type not in SORT_TYPE_MAPPING:
             raise cherrypy.HTTPError(400,
                                      "Bad type: expected sort-type to be one of %s, "
-                                     "got %s" % (SORT_TYPE_MAPPING.keys(),
+                                     "got %s" % (list(SORT_TYPE_MAPPING),
                                                  sort_type))
         sort_type = SORT_TYPE_MAPPING[sort_type]
 
@@ -202,12 +207,12 @@ class GitDirectoryListing(GitListingBase):
         if sort_type not in SORT_TYPE_MAPPING:
             raise cherrypy.HTTPError(400,
                                      "Bad type: expected sort-type to be one of %s, "
-                                     "got %s" % (SORT_TYPE_MAPPING.keys(),
+                                     "got %s" % (list(SORT_TYPE_MAPPING),
                                                  sort_type))
         sort_type = SORT_TYPE_MAPPING[sort_type]
 
         tag = data.get("tag", "master")
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, str):
             raise cherrypy.HTTPError(400,
                                      "Bad type: expected tag to be of type str, "
                                      "got (%r, %s)" % (tag, type(tag)))

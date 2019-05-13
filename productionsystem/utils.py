@@ -1,4 +1,9 @@
 """Package utility module."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
@@ -17,7 +22,7 @@ def igroup(sequence, nentries):
         sequence (Sequence): The sequence to be split
         nentries (int): The number of entries per group
     """
-    for i in xrange(0, len(sequence), nentries):
+    for i in range(0, len(sequence), nentries):
         yield sequence[i:i + nentries]
 
 
@@ -47,12 +52,12 @@ class TemporyFileManagerContext(object):
         self._files = []
         self._dirs = []
 
-    def new_file(self, mode=None, **kwargs):
+    def new_file(self, permissions=None, **kwargs):
         """Create a new temporary file."""
         kwargs.pop("delete", None)  # We want to handle deletion.
         file_ = NamedTemporaryFile(**kwargs)
-        if mode is not None:
-            os.chmod(file_.name, mode)
+        if permissions is not None:
+            os.chmod(file_.name, permissions)
         self._files.append(file_)
         return file_
 

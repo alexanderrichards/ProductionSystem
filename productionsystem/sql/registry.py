@@ -1,4 +1,9 @@
 """SQLAlchemy global session registry."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import logging
 from contextlib import contextmanager
 

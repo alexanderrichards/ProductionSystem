@@ -6,6 +6,12 @@ DB monitoring daemon.
 Daemon that monitors the DB and creates Ganga jobs from new requests. It
 also runs the Ganga monitoring loop to keep Ganga jobs up to date.
 """
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from future.utils import viewitems
+
 import os
 import sys
 import argparse
@@ -216,7 +222,7 @@ if __name__ == '__main__':
             logger.critical("Extension '%s' enabled in config file is not valid, "
                             "expected one of: %s", args.extension, list(projects))
             sys.exit(1)
-        for group, map in entry_point_map.iteritems():
+        for group, map in viewitems(entry_point_map):
             map.update(pkg_resources.get_entry_map(args.extension, group))
     config_instance.entry_point_map = entry_point_map
     logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))

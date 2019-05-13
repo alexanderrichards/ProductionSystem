@@ -1,4 +1,9 @@
 """ParametricJobs Table."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import json
 import logging
@@ -107,7 +112,7 @@ class ParametricJobs(SQLTableBase):
         job = DiracJob()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
-        return job
+        return [job]
 
     def submit(self):
         """Submit parametric job."""
@@ -115,7 +120,8 @@ class ParametricJobs(SQLTableBase):
                 TemporyFileManagerContext() as tmp_filemanager:
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
-                                                   tmp_filemanager.new_file(mode=0o755,
+                                                   tmp_filemanager.new_file(mode="w",
+                                                                            permissions=0o755,
                                                                             prefix="jobscript_",
                                                                             suffix=".sh"),
                                                    tmp_filemanager)

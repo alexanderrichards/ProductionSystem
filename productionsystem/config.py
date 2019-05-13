@@ -1,11 +1,16 @@
 """Configuration System Module."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import ast
 import logging
 from os.path import abspath, realpath, expanduser, expandvars
 from copy import deepcopy
-from ConfigParser import SafeConfigParser
 from collections import defaultdict
 
+import configparser
 from .singleton import singleton
 
 
@@ -22,13 +27,13 @@ class ConfigSystem(object):
 
     @property
     def config(self):
-        """The current state of the configuration."""
+        """Get the current state of the configuration."""
         return dict(deepcopy(self._config))
 
     @property
     def sections(self):
         """Get list of sections."""
-        return self._config.keys()
+        return list(self._config)
 
     @property
     def entry_point_map(self):
@@ -48,22 +53,26 @@ class ConfigSystem(object):
         return deepcopy(self._config[section])
 
     def read(self, filenames, ignore_errors=False):
-        """Setup the configuration system."""
-        config_parser = SafeConfigParser()
+        """Set-up the configuration system."""
+        config_parser = configparser.ConfigParser()
         config_parser.optionxform = str
 
-        if isinstance(filenames, basestring):
+        if isinstance(filenames, str):
             filenames = [filenames]
         filenames = {abspath(realpath(expanduser(expandvars(filename))))
                      for filename in filenames}
 
         for filename in filenames:
             try:
-                with open(filename, 'rb') as config_file:
-                    config_parser.readfp(config_file)
+                with open(filename, 'r') as config_file:
+                    config_parser.read_file(config_file)
                 self._logger.debug("Read config file: %s", filename)
-            except Exception:
-                self._logger.warning("Failed to read config file: %s", filename)
+            except IOError:
+                self._logger.warning("Failed to open config file: %r", filename)
+                if not ignore_errors:
+                    raise
+            except configparser.Error:
+                self._logger.warning("Failed to read config file: %r", filename)
                 if not ignore_errors:
                     raise
 

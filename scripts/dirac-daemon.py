@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
 """Dirac daemon run script."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from future.utils import viewitems
+
 import os
 import sys
 import importlib
@@ -75,7 +81,7 @@ def start(args):
         dirac_class_mock.kill = mock.MagicMock(return_value=None)
         dirac_class_mock.delete = mock.MagicMock(return_value=None)
         dirac_class_mock.status = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
-        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in xrange(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
+        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in range(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
         dirac_class_mock.reschedule = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
         dirac_rpc_mock = mock.MagicMock
         dirac_rpc_mock.listDirectory = mock.MagicMock(side_effect=lambda directory_path, _: {'OK': True, 'Value':{'Failed': [], 'Successful': {directory_path: {'Files': {'FileA': {}, 'FileB': {}, 'FileC': {}}}}}})
@@ -216,7 +222,7 @@ if __name__ == '__main__':
             logger.critical("Extension '%s' enabled in config file is not valid, "
                             "expected one of: %s", args.extension, list(projects))
             sys.exit(1)
-        for group, map in entry_point_map.iteritems():
+        for group, map in viewitems(entry_point_map):
             map.update(pkg_resources.get_entry_map(args.extension, group))
     config_instance.entry_point_map = entry_point_map
     logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))

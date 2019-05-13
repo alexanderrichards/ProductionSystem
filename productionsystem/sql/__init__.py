@@ -1,2 +1,3 @@
 """ProductionSystem SQL subpackage."""
-from registry import managed_session
+from __future__ import absolute_import
+from .registry import managed_session

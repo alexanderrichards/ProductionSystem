@@ -1,8 +1,9 @@
 """SQL Models."""
+from __future__ import absolute_import
 import pkg_resources
 from productionsystem.config import ConfigSystem
-from Users import Users
-from Services import Services
+from .Users import Users
+from .Services import Services
 # from DiracJobs import DiracJobs
 
 # pylint: disable=no-member

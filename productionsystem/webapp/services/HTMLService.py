@@ -1,4 +1,10 @@
 """HTML Page Server."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from future.utils import native_str
+
 import logging
 # from collections import defaultdict
 from datetime import datetime
@@ -26,7 +32,7 @@ def gravitar_hash(email_add):
     Returns:
         str: The hash string
     """
-    return hashlib.md5(email_add.strip().lower()).hexdigest()
+    return hashlib.md5(email_add.strip().lower().encode("utf-8")).hexdigest()
 
 
 @jinja2_filter

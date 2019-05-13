@@ -1,4 +1,9 @@
 """DIRAC RPC Client utilities."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import logging
 from contextlib import contextmanager
 import copy
@@ -11,12 +16,15 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 # which does type detection for unknown netref type and uses getattr('__deepcopy__')
 # which causes an not found exception server side. This tidy's up server side log since we know
 # netref<class='__builtin__.dict'> behaves as a dict
-netref_dict = rpyc.core.netref.builtin_classes_cache[('dict', '__builtin__')]
+# NOTE can't use dict or list as py2 compatibility layer rebinds these so use {}.__class__ etc.
+netref_dict = rpyc.core.netref.builtin_classes_cache[({}.__class__.__name__,
+                                                      {}.__class__.__module__)]
 copy._deepcopy_dispatch[netref_dict] = copy._deepcopy_dict
 # Add the other basic collection types
-netref_list = rpyc.core.netref.builtin_classes_cache[('list', '__builtin__')]
+netref_list = rpyc.core.netref.builtin_classes_cache[([].__class__.__name__,
+                                                      [].__class__.__module__)]
 copy._deepcopy_dispatch[netref_list] = copy._deepcopy_list
-netref_tuple = rpyc.core.netref.builtin_classes_cache[('tuple', '__builtin__')]
+netref_tuple = rpyc.core.netref.builtin_classes_cache[(tuple.__name__, tuple.__module__)]
 copy._deepcopy_dispatch[netref_tuple] = copy._deepcopy_tuple
 
 
