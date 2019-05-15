@@ -56,6 +56,7 @@ class Services(SQLTableBase):
 
         Returns:
             list/Services: The services/service pulled from the database
+
         """
         if service_name is not None:
             if not isinstance(service_name, str):

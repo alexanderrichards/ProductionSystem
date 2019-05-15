@@ -33,6 +33,7 @@ def apache_client_convert(client_dn, client_ca=None):
 
     Returns:
         tuple: The converted client (DN, CA)
+
     """
     if not client_dn.startswith('/'):
         client_dn = '/' + '/'.join(reversed(client_dn.split(',')))
@@ -86,7 +87,7 @@ def check_credentials(func):
             except Exception as err:
                 raise cherrypy.HTTPError(500,
                                          "Internal Server Error: Unknown Exception caught %s-> %s"
-                                         % (type(err), err.message))
+                                         % (type(err), err))
             if user.suspended:
                 raise cherrypy.HTTPError(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
                                          % (client_dn, client_ca))

@@ -23,6 +23,7 @@ class SingletonMeta(type):
     Examples:
         >>> class test(object):
         >>>     __metaclass__ = SingletonMeta
+
     """
 
     def __call__(cls, *args, **kwargs):
@@ -39,7 +40,7 @@ class SingletonMeta(type):
         return instance
 
     def setup(cls, *args, **kwargs):
-        """Setup the instance."""
+        """Set-up the instance."""
         instance = vars(cls).get('__instance__')
         if instance is not None:
             raise InstantiationError("Singleton class '%s' can not be setup again. Call "
@@ -61,6 +62,7 @@ def singleton(cls):
         >>> @singleton
         >>> class test(object):
         >>>     pass
+
     """
     # It's hard to dynamically change meta so rebind new class
     # based on old one.

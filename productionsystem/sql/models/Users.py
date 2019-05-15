@@ -40,6 +40,7 @@ class Users(SQLTableBase):
 
         Returns:
             str: The human-readable name
+
         """
         cns = (token[len('CN='):] for token in self.dn.split('/')
                if token.startswith('CN='))
@@ -50,7 +51,7 @@ class Users(SQLTableBase):
         return hash((self.dn, self.ca))
 
     def __eq__(self, other):
-        """equality check."""
+        """Equality check."""
         return (self.dn, self.ca) == (other.dn, other.ca)
 
     def update(self):
@@ -70,6 +71,7 @@ class Users(SQLTableBase):
 
         Returns:
             list/Users: The users/user pulled from the database
+
         """
         if user_id is not None:
             try:

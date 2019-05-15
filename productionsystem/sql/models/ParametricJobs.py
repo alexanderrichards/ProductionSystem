@@ -106,7 +106,7 @@ class ParametricJobs(SQLTableBase):
 
 #    @abstractmethod
     def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
-        """Setup the DIRAC parametric job."""
+        """Set-up the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
         job = DiracJob()
@@ -127,7 +127,7 @@ class ParametricJobs(SQLTableBase):
                                                    tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
-                                      self.request_id, self.id, err.message)
+                                      self.request_id, self.id, err)
                 self.status = LocalStatus.FAILED
                 return
 
@@ -143,7 +143,7 @@ class ParametricJobs(SQLTableBase):
                     result = dirac.submit(dirac_job)
                 except Exception as err:
                     self.logger.exception("Error submitting parametric job %d.%d: %s",
-                                          self.request_id, self.id, err.message)
+                                          self.request_id, self.id, err)
                     self.status = LocalStatus.FAILED
                     self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
                     return
@@ -216,7 +216,7 @@ class ParametricJobs(SQLTableBase):
                 try:
                     result = dirac.reschedule(reschedule_jobs)
                 except Exception as err:
-                    self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err.message)
+                    self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err)
                 else:
                     if not result['OK']:
                         self.logger.error("DIRAC failed to reschedule jobs: %s", result['Message'])
@@ -236,7 +236,7 @@ class ParametricJobs(SQLTableBase):
                 with dirac_api_client() as dirac:
                     dirac_answer = deepcopy(dirac.status(monitor_jobs))
             except Exception as err:
-                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
+                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err)
             else:
                 if not dirac_answer['OK']:
                     self.logger.error("DIRAC failed to get statuses for jobs belonging to "
