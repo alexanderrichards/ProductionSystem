@@ -42,7 +42,7 @@ def managed_session():
         yield session_registry()
         session_registry.commit()
         logger.debug("DB transaction committed.")
-    except:  # pylint: disable=bare-except
+    except BaseException:
         logger.exception("Problem with DB session, rolling back.")
         session_registry.rollback()
         raise

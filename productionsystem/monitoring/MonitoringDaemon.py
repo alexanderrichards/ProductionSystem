@@ -137,5 +137,5 @@ class MonitoringDaemon(Daemonize):
                     request.update()
                 request.monitor()
                 request.update()
-            except:
+            except BaseException:
                 self.logger.exception("Unhandled exception while monitoring request %d", request.id)

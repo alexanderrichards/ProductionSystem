@@ -96,6 +96,8 @@ class Users(SQLTableBase):
                 raise
             session.expunge(user)
             return user
+
+
 '''
     @classmethod
     @cherrypy.tools.accept(media='application/json')

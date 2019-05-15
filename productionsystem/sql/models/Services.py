@@ -95,6 +95,8 @@ class Services(SQLTableBase):
                 raise
             session.expunge(service)
             return service
+
+
 '''
     @classmethod
     @cherrypy.tools.accept(media='application/json')
