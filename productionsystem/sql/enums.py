@@ -1,4 +1,9 @@
 """Status enums for use in SQL tables."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 from enum import unique, Enum, IntEnum
 
 

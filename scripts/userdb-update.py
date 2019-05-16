@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
 """Script to read users info from VOMS and update locat SQL table."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import logging
 import argparse

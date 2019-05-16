@@ -1,17 +1,39 @@
 language: python
-python:
-  - '2.7'
+matrix:
+  include:
+    - python: 2.7
+      stage: style
+      name: "py2_pycodestyle"
+      script: pycodestyle productionsystem
+    - python: 2.7
+      stage: style
+      name: "py2_pydocstyle"
+      script: pydocstyle productionsystem
+    - python: 2.7
+      stage: style
+      name: "py2_pylint"
+      script: pylint --disable=W,C,R productionsystem
+    - python: 3.6
+      stage: style
+      name: "py3_pycodestyle"
+      script: pycodestyle productionsystem
+    - python: 3.6
+      stage: style
+      name: "py3_pydocstyle"
+      script: pydocstyle productionsystem
+    - python: 3.6
+      stage: style
+      name: "py3_pylint"
+      script: pylint --disable=W,C,R productionsystem
+
+    - python: 2.7
+      stage: test
+      script: pytest
+    - python: 3.6
+      stage: test
+      script: pytest
 git:
   depth: 3
 install:
   - pip install --upgrade --upgrade-strategy eager pip setuptools wheel
   - pip install --upgrade --upgrade-strategy eager -e .[dev]
-jobs:
-  include:
-    - stage: test
-      script: py.test -c tests/unit_tests.cfg
-    - stage: style
-      script: py.test -c tests/style_check.cfg
-stages:
-  - test
-  - style

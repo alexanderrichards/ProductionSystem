@@ -1,4 +1,9 @@
 """Services Table."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import json
 import logging
 from datetime import datetime
@@ -51,9 +56,10 @@ class Services(SQLTableBase):
 
         Returns:
             list/Services: The services/service pulled from the database
+
         """
         if service_name is not None:
-            if not isinstance(service_name, basestring):
+            if not isinstance(service_name, str):
                 cls.logger.error("Service name: %r should be of type str", service_name)
                 raise TypeError
 
@@ -90,6 +96,8 @@ class Services(SQLTableBase):
                 raise
             session.expunge(service)
             return service
+
+
 '''
     @classmethod
     @cherrypy.tools.accept(media='application/json')

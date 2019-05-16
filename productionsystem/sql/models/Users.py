@@ -1,4 +1,9 @@
 """Users Table."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import logging
 import cherrypy
 from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
@@ -35,6 +40,7 @@ class Users(SQLTableBase):
 
         Returns:
             str: The human-readable name
+
         """
         cns = (token[len('CN='):] for token in self.dn.split('/')
                if token.startswith('CN='))
@@ -45,7 +51,7 @@ class Users(SQLTableBase):
         return hash((self.dn, self.ca))
 
     def __eq__(self, other):
-        """equality check."""
+        """Equality check."""
         return (self.dn, self.ca) == (other.dn, other.ca)
 
     def update(self):
@@ -65,6 +71,7 @@ class Users(SQLTableBase):
 
         Returns:
             list/Users: The users/user pulled from the database
+
         """
         if user_id is not None:
             try:
@@ -91,6 +98,8 @@ class Users(SQLTableBase):
                 raise
             session.expunge(user)
             return user
+
+
 '''
     @classmethod
     @cherrypy.tools.accept(media='application/json')

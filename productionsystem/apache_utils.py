@@ -5,6 +5,11 @@ Tools for dealing with credential checking from X509 SSL certificates.
 These are useful when using Apache as a reverse proxy to check user
 credentials against a local DB.
 """
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 from functools import wraps
 import cherrypy
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -28,6 +33,7 @@ def apache_client_convert(client_dn, client_ca=None):
 
     Returns:
         tuple: The converted client (DN, CA)
+
     """
     if not client_dn.startswith('/'):
         client_dn = '/' + '/'.join(reversed(client_dn.split(',')))
@@ -54,7 +60,7 @@ def check_credentials(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
-        missing_headers = required_headers.difference(cherrypy.request.headers.iterkeys())
+        missing_headers = required_headers.difference(cherrypy.request.headers)
         if missing_headers:
             raise cherrypy.HTTPError(401, 'Unauthorized: Incomplete certificate information '
                                           'available, required: %s' % list(missing_headers))
@@ -81,7 +87,7 @@ def check_credentials(func):
             except Exception as err:
                 raise cherrypy.HTTPError(500,
                                          "Internal Server Error: Unknown Exception caught %s-> %s"
-                                         % (type(err), err.message))
+                                         % (type(err), err))
             if user.suspended:
                 raise cherrypy.HTTPError(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
                                          % (client_dn, client_ca))

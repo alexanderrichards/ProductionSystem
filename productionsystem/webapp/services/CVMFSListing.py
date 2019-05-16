@@ -1,4 +1,9 @@
 """CVMFS Directory Listing Service."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import re
 from distutils.version import StrictVersion  # pylint: disable=import-error, no-name-in-module
@@ -54,13 +59,13 @@ class CVMFSDirectoryListing(object):
         if sort_type not in CVMFSDirectoryListing.sort_type_map:
             raise cherrypy.HTTPError(400,
                                      "Bad type: expected sort-type to be one of %s, "
-                                     "got %s" % (CVMFSDirectoryListing.sort_type_map.keys(),
+                                     "got %s" % (list(CVMFSDirectoryListing.sort_type_map),
                                                  sort_type))
         sort_type = CVMFSDirectoryListing.sort_type_map[sort_type]
 
         target = os.path.join('/cvmfs', path)
         try:
-            _, dirs, files = os.walk(target).next()
+            _, dirs, files = next(os.walk(target))
         except StopIteration:
             raise cherrypy.HTTPError(404, "Couldn't access '%s'" % target)
 

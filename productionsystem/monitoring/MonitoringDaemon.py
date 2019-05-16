@@ -1,4 +1,9 @@
 """Monitoring Daemon."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import logging
 import time
 from datetime import datetime
@@ -35,7 +40,7 @@ class MonitoringDaemon(Daemonize):
             try:
                 Services(name="monitoringd", status=ServiceStatus.DOWN).add()
             except SQLAlchemyError as err:
-                self.logger.exception("Error adding new monitoringd status to DB: %s", err.message)
+                self.logger.exception("Error adding new monitoringd status to DB: %s", err)
         except MultipleResultsFound:
             self.logger.error("Multiple services named 'monitoringd'. This needs investigating.")
         else:
@@ -44,7 +49,7 @@ class MonitoringDaemon(Daemonize):
                 monitoring_service.update()
             except SQLAlchemyError as err:
                 self.logger.exception("Error updating the status of monitoring daemon: %s",
-                                      err.message)
+                                      err)
         super(MonitoringDaemon, self).exit()
 
     def main(self):
@@ -79,7 +84,7 @@ class MonitoringDaemon(Daemonize):
                 status = ServiceStatus.UP
         except IOError as err:
             self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
-                              "for PEM password): %s", err.message)
+                              "for PEM password): %s", err)
             status = ServiceStatus.UNKNOWN
 
         if 'DIRAC' in services:
@@ -88,12 +93,12 @@ class MonitoringDaemon(Daemonize):
             try:
                 dirac_service.update()
             except SQLAlchemyError as err:
-                self.logger.exception("Error updating DIRAC service status: %s", err.message)
+                self.logger.exception("Error updating DIRAC service status: %s", err)
         else:
             try:
                 Services(name="DIRAC", status=status).add()
             except SQLAlchemyError as err:
-                self.logger.exception("Error adding new DIRAC service: %s", err.message)
+                self.logger.exception("Error adding new DIRAC service: %s", err)
 
         # monitoringd
         if 'monitoringd' in services:
@@ -102,12 +107,12 @@ class MonitoringDaemon(Daemonize):
             try:
                 monitoringd_service.update()
             except SQLAlchemyError as err:
-                self.logger.exception("Error updating monitoringd service status: %s", err.message)
+                self.logger.exception("Error updating monitoringd service status: %s", err)
         else:
             try:
                 Services(name="monitoringd", status=ServiceStatus.UP).add()
             except SQLAlchemyError as err:
-                self.logger.exception("Error adding new monitoringd service: %s", err.message)
+                self.logger.exception("Error adding new monitoringd service: %s", err)
 
     def monitor_requests(self):
         """
@@ -132,5 +137,5 @@ class MonitoringDaemon(Daemonize):
                     request.update()
                 request.monitor()
                 request.update()
-            except:
+            except BaseException:
                 self.logger.exception("Unhandled exception while monitoring request %d", request.id)

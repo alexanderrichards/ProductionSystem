@@ -1,4 +1,9 @@
 """ParametricJobs Table."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import os
 import json
 import logging
@@ -101,13 +106,13 @@ class ParametricJobs(SQLTableBase):
 
 #    @abstractmethod
     def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
-        """Setup the DIRAC parametric job."""
+        """Set-up the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
         job = DiracJob()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
-        return job
+        return [job]
 
     def submit(self):
         """Submit parametric job."""
@@ -115,13 +120,14 @@ class ParametricJobs(SQLTableBase):
                 TemporyFileManagerContext() as tmp_filemanager:
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
-                                                   tmp_filemanager.new_file(mode=0o755,
+                                                   tmp_filemanager.new_file(mode="w",
+                                                                            permissions=0o755,
                                                                             prefix="jobscript_",
                                                                             suffix=".sh"),
                                                    tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
-                                      self.request_id, self.id, err.message)
+                                      self.request_id, self.id, err)
                 self.status = LocalStatus.FAILED
                 return
 
@@ -137,7 +143,7 @@ class ParametricJobs(SQLTableBase):
                     result = dirac.submit(dirac_job)
                 except Exception as err:
                     self.logger.exception("Error submitting parametric job %d.%d: %s",
-                                          self.request_id, self.id, err.message)
+                                          self.request_id, self.id, err)
                     self.status = LocalStatus.FAILED
                     self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
                     return
@@ -210,7 +216,7 @@ class ParametricJobs(SQLTableBase):
                 try:
                     result = dirac.reschedule(reschedule_jobs)
                 except Exception as err:
-                    self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err.message)
+                    self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err)
                 else:
                     if not result['OK']:
                         self.logger.error("DIRAC failed to reschedule jobs: %s", result['Message'])
@@ -230,7 +236,7 @@ class ParametricJobs(SQLTableBase):
                 with dirac_api_client() as dirac:
                     dirac_answer = deepcopy(dirac.status(monitor_jobs))
             except Exception as err:
-                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err.message)
+                self.logger.exception("Error calling DIRAC to monitor jobs: %s", err)
             else:
                 if not dirac_answer['OK']:
                     self.logger.error("DIRAC failed to get statuses for jobs belonging to "

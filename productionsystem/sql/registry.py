@@ -1,4 +1,9 @@
 """SQLAlchemy global session registry."""
+# Py2/3 compatibility layer
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+
 import logging
 from contextlib import contextmanager
 
@@ -37,7 +42,7 @@ def managed_session():
         yield session_registry()
         session_registry.commit()
         logger.debug("DB transaction committed.")
-    except:  # pylint: disable=bare-except
+    except BaseException:
         logger.exception("Problem with DB session, rolling back.")
         session_registry.rollback()
         raise
