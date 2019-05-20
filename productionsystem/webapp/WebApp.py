@@ -39,7 +39,7 @@ class WebApp(Daemonize):
         self._git_token = git_token
         self._git_api_base_url = git_api_base_url
         self._git_schema = git_schema
-        if isinstance(git_schema, str):
+        if not isinstance(git_schema, GitSchema):
             self._git_schema = GitSchema[git_schema]
 
     def _global_config(self):
