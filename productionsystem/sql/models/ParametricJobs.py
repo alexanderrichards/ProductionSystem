@@ -188,11 +188,13 @@ class ParametricJobs(SQLTableBase):
             self.num_running = 0
             return
 
+        num_reschedules = getConfig("parametricjobs").get("reschedules", 2)
         job_types = defaultdict(set)
         for job in self.dirac_jobs:
             job_types[job.status].add(job.id)
             # add auto-reschedule jobs
-            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and job.reschedules < 2:
+            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and\
+                    job.reschedules < num_reschedules:
                 job_types['Reschedule'].add(job.id)
 
         reschedule_jobs = job_types['Reschedule'] if job_types[DiracStatus.DONE] else set()
