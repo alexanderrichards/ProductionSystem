@@ -17,14 +17,13 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 # which causes an not found exception server side. This tidy's up server side log since we know
 # netref<class='__builtin__.dict'> behaves as a dict
 # NOTE can't use dict or list as py2 compatibility layer rebinds these so use {}.__class__ etc.
-netref_dict = rpyc.core.netref.builtin_classes_cache[({}.__class__.__name__,
-                                                      {}.__class__.__module__)]
+netref_cache = rpyc.core.netref.builtin_classes_cache
+netref_dict = netref_cache.get('builtins.dict', netref_cache[('dict', {}.__class__.__module__)])
 copy._deepcopy_dispatch[netref_dict] = copy._deepcopy_dict
 # Add the other basic collection types
-netref_list = rpyc.core.netref.builtin_classes_cache[([].__class__.__name__,
-                                                      [].__class__.__module__)]
+netref_list = netref_cache.get('builtins.list', netref_cache[('list', [].__class__.__module__)])
 copy._deepcopy_dispatch[netref_list] = copy._deepcopy_list
-netref_tuple = rpyc.core.netref.builtin_classes_cache[(tuple.__name__, tuple.__module__)]
+netref_tuple = netref_cache.get('builtins.tuple', netref_cache[('tuple', tuple.__module__)])
 copy._deepcopy_dispatch[netref_tuple] = copy._deepcopy_tuple
 
 
