@@ -15,7 +15,7 @@ setup(
                       'SQLAlchemy',
                       'pymysql',
 #                      'mysql-python',
-                      'rpyc',
+                      'rpyc>=4.1.0',
                       'suds;python_version<"3"',
                       'suds-py3;python_version>"3"',
                       'gitpython',
