@@ -19,24 +19,14 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 # netref<class='__builtin__.dict'> behaves as a dict
 # NOTE can't use dict or list as py2 compatibility layer rebinds these so use {}.__class__ etc.
 netref_cache = rpyc.core.netref.builtin_classes_cache
-
-try:
-    netref_dict = netref_cache['builtins.dict']
-except KeyError:
-    netref_dict = netref_cache[(native_str('dict'), {}.__class__.__module__)]
+netref_dict = netref_cache[native_str('.'.join(({}.__class__.__module__, 'dict')))]
 copy._deepcopy_dispatch[netref_dict] = copy._deepcopy_dict
 
 # Add the other basic collection types
-try:
-    netref_list = netref_cache['builtins.list']
-except KeyError:
-    netref_list = netref_cache[(native_str('list'), [].__class__.__module__)]
+netref_list = netref_cache[native_str('.'.join(([].__class__.__module__, 'list')))]
 copy._deepcopy_dispatch[netref_list] = copy._deepcopy_list
 
-try:
-    netref_tuple = netref_cache['builtins.tuple']
-except KeyError:
-    netref_tuple = netref_cache[(native_str('tuple'), tuple.__module__)]
+netref_tuple = netref_cache[native_str('.'.join((tuple.__module__, 'tuple')))]
 copy._deepcopy_dispatch[netref_tuple] = copy._deepcopy_tuple
 
 
