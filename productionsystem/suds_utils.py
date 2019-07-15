@@ -35,6 +35,7 @@ class HttpCertAuthenticated(HttpAuthenticated):
                                This list of trusted CAs can also be specified through
                                the REQUESTS_CA_BUNDLE environment variable (this may
                                cause pip to fail to validate against PyPI).
+
         """
         HttpAuthenticated.__init__(self, **kwargs)
         self._session = requests.Session()
@@ -84,6 +85,7 @@ class CertClient(Client):
                                of trusted CAs can also be specified through the
                                REQUESTS_CA_BUNDLE environment variable (this may
                                cause pip to fail to validate against PyPI).
+
         """
         kwargs.setdefault('transport', HttpCertAuthenticated(cert, verify))
         Client.__init__(self, url, **kwargs)

@@ -21,6 +21,7 @@ def igroup(sequence, nentries):
     Args:
         sequence (Sequence): The sequence to be split
         nentries (int): The number of entries per group
+
     """
     for i in range(0, len(sequence), nentries):
         yield sequence[i:i + nentries]

@@ -31,6 +31,7 @@ def gravitar_hash(email_add):
         email_add (str): The target email address
     Returns:
         str: The hash string
+
     """
     return hashlib.md5(email_add.strip().lower().encode("utf-8")).hexdigest()
 
