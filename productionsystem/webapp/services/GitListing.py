@@ -49,6 +49,7 @@ class GitListingBase(object):
             schema (GitSchema): The type of schema to use.
             access_token (str): The personal access token for the git API. Note this is not needed
                                 for LOCAL schema.
+
         """
         self._logger = logging.getLogger(__name__).getChild(self.__class__.__name__)
         self._api_base_url = api_base_url
