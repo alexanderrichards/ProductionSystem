@@ -5,6 +5,7 @@ from __future__ import (absolute_import, division,
 from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
 
 import logging
+from future.utils import native
 import cherrypy
 from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
 from sqlalchemy import Column, Integer, TEXT, Boolean
@@ -75,7 +76,7 @@ class Users(SQLTableBase):
         """
         if user_id is not None:
             try:
-                user_id = int(user_id)
+                user_id = native(int(user_id))
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)
