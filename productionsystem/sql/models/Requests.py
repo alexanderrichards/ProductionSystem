@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from operator import attrgetter
 
+from future.utils import native
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
 from sqlalchemy.exc import SQLAlchemyError
@@ -120,7 +121,7 @@ class Requests(SQLTableBase):
     def delete(cls, request_id):
         """Delete a requests from the DB."""
         try:
-            request_id = int(request_id)
+            request_id = native(int(request_id))
         except ValueError:
             cls.logger.error("Request id: %r should be of type int "
                              "(or convertable to int)", request_id)
@@ -145,9 +146,9 @@ class Requests(SQLTableBase):
         if request_id is not None:
             try:
                 if isinstance(request_id, (list, tuple)):
-                    request_id = [int(i) for i in request_id]
+                    request_id = [native(int(i)) for i in request_id]
                 else:
-                    request_id = int(request_id)
+                    request_id = native(int(request_id))
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
@@ -155,7 +156,7 @@ class Requests(SQLTableBase):
 
         if user_id is not None:
             try:
-                user_id = int(user_id)
+                user_id = native(int(user_id))
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)

@@ -7,6 +7,7 @@ from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-impor
 import logging
 import json
 
+from future.utils import native
 import cherrypy
 from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint
 from sqlalchemy.orm import relationship
@@ -42,7 +43,7 @@ class DiracJobs(SQLTableBase):
         """Get dirac jobs."""
         if diracjob_id is not None:
             try:
-                diracjob_id = int(diracjob_id)
+                diracjob_id = native(int(diracjob_id))
             except ValueError:
                 cls.logger.error("Dirac job id: %r should be of type int "
                                  "(or convertable to int)", diracjob_id)
@@ -50,7 +51,7 @@ class DiracJobs(SQLTableBase):
 
         if parametricjob_id is not None:
             try:
-                parametricjob_id = int(parametricjob_id)
+                parametricjob_id = native(int(parametricjob_id))
             except ValueError:
                 cls.logger.error("Parametric job id: %r should be of type int "
                                  "(or convertable to int)", parametricjob_id)
@@ -58,7 +59,7 @@ class DiracJobs(SQLTableBase):
 
         if request_id is not None:
             try:
-                request_id = int(request_id)
+                request_id = native(int(request_id))
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
@@ -66,7 +67,7 @@ class DiracJobs(SQLTableBase):
 
         if user_id is not None:
             try:
-                user_id = int(user_id)
+                user_id = native(int(user_id))
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)

@@ -7,6 +7,7 @@ from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-impor
 import json
 import logging
 from datetime import datetime
+from future.utils import native, native_str
 import cherrypy
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -59,13 +60,13 @@ class Services(SQLTableBase):
 
         """
         if service_name is not None:
-            if not isinstance(service_name, str):
+            if not isinstance(service_name, (str, native_str)):
                 cls.logger.error("Service name: %r should be of type str", service_name)
                 raise TypeError
 
         if service_id is not None:
             try:
-                service_id = int(service_id)
+                service_id = native(int(service_id))
             except ValueError:
                 cls.logger.error("Service id: %r should be of type int "
                                  "(or convertable to int)", service_id)
