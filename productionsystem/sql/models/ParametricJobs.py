@@ -118,13 +118,12 @@ class ParametricJobs(SQLTableBase):
     def submit(self):
         """Submit parametric job."""
         with dirac_api_job_client() as (dirac, dirac_job_class),\
-                TemporyFileManagerContext() as tmp_filemanager:
+                TemporyFileManagerContext() as tmp_filemanager,\
+                open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript:
+            os.chmod(tmp_runscript.name, 0o755)
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
-                                                   tmp_filemanager.new_file(mode="w",
-                                                                            permissions=0o755,
-                                                                            prefix="jobscript_",
-                                                                            suffix=".sh"),
+                                                   tmp_runscript,
                                                    tmp_filemanager)
             except Exception as err:
                 self.logger.exception("Error setting up the parametric job %d.%d: %s",
