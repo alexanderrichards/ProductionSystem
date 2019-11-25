@@ -80,6 +80,11 @@ class Requests(SQLTableBase):
             session.refresh(self)
             session.expunge(self)
 
+    def remove(self):
+        """Remove self from the DB."""
+        with managed_session() as session:
+            session.delete(self)
+
     def update(self):
         """Update the DB with current values."""
         with managed_session() as session:

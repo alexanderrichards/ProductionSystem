@@ -144,6 +144,14 @@ $(document).ready(function(){
              "error": function(jqXHR, textStatus, errorThrown){
                 console.error(`Failed to get requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 bootstrap_alert("danger", "ERROR:", "Failed to get requests!");
+             },
+             complete: function(){
+                requests_table.find("tbody tr td.status:contains('Removing')").each(function(index, row){
+                  var row = $(this).closest("tr");
+                  row.addClass("text-secondary");
+                  row.prop("disabled", true);
+                  row.attr("disabled", true);
+                });
              }},
     "order": [[1, "desc"]],
     "columns": [
@@ -151,7 +159,7 @@ $(document).ready(function(){
         { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-chevron-bottom text-primary pointer parametricjobs_toggle"></span>'},
         { "title": "ID", "data": "id", "className": "request_id", "width": "5%" },
         { "title": "Description", "data": "description", "width": "60%" },
-        { "title": "Status", "data": "status", "width": "5%" },
+        { "title": "Status", "data": "status", "className": "status", "width": "5%" },
         { "title": "Date Requested", "data": "request_date", "width": "15%" },
         { "title": "Requester", "data": "requester.name", "width": "10%" },
         {% endblock%}
@@ -166,6 +174,13 @@ $(document).ready(function(){
       opened_ids.push($(id_column).text());
     });
     requests_table.DataTable().ajax.reload(function(data){
+      requests_table.find("tbody tr td.status:contains('Removing')").each(function(index, row){
+          var row = $(this).closest("tr");
+          row.addClass("text-secondary");
+          row.prop("disabled", true);
+          row.attr("disabled", true);
+      });
+
       var all_toggles = $("tbody tr td span.oi.parametricjobs_toggle", requests_table);
       all_toggles.each(function(index, toggle){
         var id = $(toggle).closest("td").next("td.request_id").text();
@@ -241,6 +256,17 @@ $(document).ready(function(){
                     });
                     return data;
                  },
+                 "complete": function(){
+                    var inner_rows = subtable.find("tr");
+                    inner_rows.prop("disabled", true);
+                    inner_rows.attr("disabled", true)
+                    if (tr.children("td.status").text() === "Removing") {
+                      inner_rows.addClass("text-secondary");
+                      var reschedule_icon = subtable.find("span.reschedule_job");
+                      reschedule_icon.prop("disabled", true);
+                      reschedule_icon.toggleClass("text-primary pointer text-secondary");
+                    }
+                 },
                  "error": function(jqXHR, textStatus, errorThrown){
                     console.error(`Failed to get parametric jobs for request ${request_id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                     bootstrap_alert("danger", "ERROR:", `Failed to get parametricjobs for request ${request_id}`);
@@ -261,6 +287,9 @@ $(document).ready(function(){
             { "data": null, "orderable": false, "width": "5%", "defaultContent": '<span class="oi oi-reload text-primary pointer reschedule_job"></span>'},
             {% endblock %}
         ]
+    });
+    subtable.on("contextmenu", "tr", function(event){
+      event.stopPropagation();  // Stops the context menu popping up by stopping propagation to parent
     });
     subtable.on("click", "span.reschedule_job", function(){
       var combined_id = $(this).closest("tr").find(".parametricjob_id").text();
@@ -307,7 +336,7 @@ $(document).ready(function(){
   var context_menu_header = context_menu.children(".dropdown-header");
   context_menu.contextmenu(function(){ return false; });
 
-  requests_table.on("contextmenu", "tbody tr", function(event){
+  requests_table.on("contextmenu", "tbody tr:not([disabled])", function(event){
     var request_id = $(this).find("td.request_id").text();
     var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
     var selected_ids = [];
@@ -399,10 +428,10 @@ $(document).ready(function(){
               console.warn("Only jobs in Requested may transition to Approved.");
             },
             401: function(){
-              console.warn("Unauthorised delete request.");
+              console.warn("Unauthorised approve request.");
             },
             403: function(){
-              console.error("Delete request is forbidden for current user.");
+              console.error("Approve request is forbidden for current user.");
             }
           }
         })
@@ -410,7 +439,7 @@ $(document).ready(function(){
     });
     $.when.apply(this, ajax_calls).then(
       function(){
-        bootstrap_alert("success", "Approved:", `Successfully removed ${ids.length} requests.`);
+        bootstrap_alert("success", "Approved:", `Successfully approved ${ids.length} requests.`);
         reload_table();  // maintain open rows
       },
       function(){
@@ -445,6 +474,9 @@ $(document).ready(function(){
             console.error(`Error removing request ${id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
           },
           statusCode: {  // Since these menu items should only be available when jinja renders the admin page this should not happen.
+            400: function(){
+              console.warn("Request is already marked for deletion.");
+            },
             401: function(){
               console.warn("Unauthorised delete request.");
             },
@@ -457,7 +489,7 @@ $(document).ready(function(){
     });
     $.when.apply(this, ajax_calls).then(
       function(){
-        bootstrap_alert("success", "Removed:", `Successfully removed ${ids.length} requests.`);
+        bootstrap_alert("success", "Removed:", `Successfully marked ${ids.length} requests for removal.`);
         reload_table();  // maintain open rows
       },
       function(){

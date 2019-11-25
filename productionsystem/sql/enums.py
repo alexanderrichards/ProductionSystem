@@ -58,6 +58,7 @@ class LocalStatus(IntEnum):
     SUBMITTED = 7
     SUBMITTING = 8
     RUNNING = 9
+    REMOVING = 10
 
 
 STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
