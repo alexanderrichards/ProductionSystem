@@ -109,5 +109,5 @@ class DiracDaemon(Daemonize):
                        port=port,
                        logger=self.logger,
                        protocol_config={"allow_public_attrs": True,
-                                        "sync_request_timeout": 300,  # 5 mins
+                                        "sync_request_timeout": 600,  # 10 mins
                                         "allow_pickle": True}).start()
