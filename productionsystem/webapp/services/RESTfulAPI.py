@@ -277,7 +277,16 @@ class RequestsAPI(object):
         with cherrypy.HTTPError.handle(NoResultFound, 404, "No request with id %s" % request_id),\
                 cherrypy.HTTPError.handle(MultipleResultsFound, 500,
                                           "Multiple requests with id %s" % request_id):
-            Requests.delete(request_id)
+            request = Requests.get(request_id=request_id)
+
+        if request.status == LocalStatus.REMOVING:
+            raise cherrypy.HTTPError(400, "Request %s is already marked for deletion" % request_id)
+
+        request.status = LocalStatus.REMOVING
+        with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
+                                       "Error updating request with id %d" % request_id):
+            request.update()
+        cls.logger.info("Request %d changed to status REMOVING", request_id)
 
     @classmethod
     @cherrypy.tools.json_in()

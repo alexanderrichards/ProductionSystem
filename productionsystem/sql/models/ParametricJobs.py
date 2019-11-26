@@ -23,7 +23,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
-from productionsystem.utils import TemporyFileManagerContext
+from productionsystem.utils import TemporyFileManagerContext, igroup
 from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_client,
                                                                  dirac_api_job_client)
 # from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
@@ -89,21 +89,22 @@ class ParametricJobs(SQLTableBase):
         with managed_session() as session:
             session.merge(self)
 
-    def remove_dirac_jobs(self):
+    def _remove_dirac_jobs(self):
         """Remove dirac_jobs from the DIRAC system."""
         if not self.dirac_jobs:
             return
 
         dirac_ids = [job.id for job in self.dirac_jobs]
-        try:
-            with dirac_api_client() as dirac:
-                self.logger.info("Killing/deleting %d DIRAC job(s).", len(dirac_ids))
-                dirac.kill(dirac_ids)
-                dirac.delete(dirac_ids)
-        except BaseException:
-            self.logger.exception("Error doing DIRAC tidy up. Cleaning up local system "
-                                  "and forgetting about the (possibly) orphaned jobs "
-                                  "on DIRAC system")
+        for ids in igroup(dirac_ids, 1000):
+            try:
+                with dirac_api_client() as dirac:
+                    self.logger.info("Killing/deleting %d DIRAC job(s).", len(ids))
+                    dirac.kill(ids)
+                    dirac.delete(ids)
+            except BaseException:
+                self.logger.exception("Error doing DIRAC tidy up of %d job(s). Cleaning up local "
+                                      "system and forgetting about the (possibly) orphaned jobs "
+                                      "on DIRAC system", len(ids))
 
 #    @abstractmethod
     def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
@@ -145,14 +146,14 @@ class ParametricJobs(SQLTableBase):
                     self.logger.exception("Error submitting parametric job %d.%d: %s",
                                           self.request_id, self.id, err)
                     self.status = LocalStatus.FAILED
-                    self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
+                    self._remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
                     return
 
                 if not result['OK']:
                     self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
                                       self.request_id, self.id, result['Message'])
                     self.status = LocalStatus.FAILED
-                    self.remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
+                    self._remove_dirac_jobs()  # Clean up Dirac jobs that may have been created
                     return
 
                 created_ids = result['Value']
@@ -163,9 +164,9 @@ class ParametricJobs(SQLTableBase):
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
                                          requester_id=self.requester_id,
                                          status=DiracStatus.UNKNOWN) for i in dirac_job_ids]
-            self.num_jobs = len(dirac_job_ids)
+            self.num_jobs = len(self.dirac_jobs)
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
-                             len(self.dirac_jobs), self.request_id, self.id)
+                             self.num_jobs, self.request_id, self.id)
 
     def monitor(self):
         """
@@ -351,4 +352,4 @@ def intercept_persistent_to_deleted(session, object_):
         ParametricJobs.logger.info("Parametric job %d.%d is being removed, triggering bulk tidy up "
                                    "of DIRAC job(s).",
                                    object_.request_id, object_.id)
-        object_.remove_dirac_jobs()
+        object_._remove_dirac_jobs()

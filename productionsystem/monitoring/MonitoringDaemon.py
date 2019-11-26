@@ -124,7 +124,8 @@ class MonitoringDaemon(Daemonize):
         monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
                                                   LocalStatus.SUBMITTING,
                                                   LocalStatus.SUBMITTED,
-                                                  LocalStatus.RUNNING),
+                                                  LocalStatus.RUNNING,
+                                                  LocalStatus.REMOVING),
                                           load_parametricjobs=True)
         monitored_requests.extend(Requests.get_reschedules())
 
@@ -135,6 +136,9 @@ class MonitoringDaemon(Daemonize):
                     request.update()
                     request.submit()
                     request.update()
+                if request.status == LocalStatus.REMOVING:
+                    request.remove()
+                    continue
                 request.monitor()
                 request.update()
             except BaseException:
