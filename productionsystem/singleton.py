@@ -9,7 +9,7 @@ class InstantiationError(RuntimeError):
     """Instantiation exception."""
 
     def __init__(self, *args, **kwargs):
-        """Initialisation."""
+        """Initialise."""
         super(InstantiationError, self).__init__(*args, **kwargs)
 
 
@@ -40,7 +40,7 @@ class SingletonMeta(type):
         return instance
 
     def setup(cls, *args, **kwargs):
-        """Set-up the instance."""
+        """Initialise the instance."""
         instance = vars(cls).get('__instance__')
         if instance is not None:
             raise InstantiationError("Singleton class '%s' can not be setup again. Call "

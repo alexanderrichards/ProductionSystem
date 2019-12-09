@@ -32,7 +32,7 @@ class TemporyFileManagerContext(object):
     """Temporary file/dir manager context."""
 
     def __init__(self):
-        """Initialisation."""
+        """Initialise."""
         self._files = []
         self._dirs = []
 

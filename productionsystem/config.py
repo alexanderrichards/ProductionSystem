@@ -19,7 +19,7 @@ class ConfigSystem(object):
     """Config system singleton."""
 
     def __init__(self, configs=None):
-        """Initialisation."""
+        """Initialise."""
         self._config = defaultdict(dict)
         self._logger = logging.getLogger(__name__)
         if configs is not None:
@@ -53,7 +53,7 @@ class ConfigSystem(object):
         return deepcopy(self._config[section])
 
     def read(self, filenames, ignore_errors=False):
-        """Set-up the configuration system."""
+        """Initialise the configuration system."""
         config_parser = configparser.ConfigParser()
         config_parser.optionxform = str
 

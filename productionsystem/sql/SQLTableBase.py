@@ -52,7 +52,7 @@ class ColumnsDescriptor(object):
     """Yield the column names."""
 
     def __init__(self, required=False, allowed=False):
-        """Initialisation."""
+        """Initialise."""
         self._required = required
         self._allowed = allowed
 

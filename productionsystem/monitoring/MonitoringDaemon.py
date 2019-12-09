@@ -24,7 +24,7 @@ class MonitoringDaemon(Daemonize):
     """Monitoring Daemon."""
 
     def __init__(self, dburl, delay, cert, verify=False, **kwargs):
-        """Initialisation."""
+        """Initialise."""
         super(MonitoringDaemon, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._delay = delay
