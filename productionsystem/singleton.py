@@ -40,7 +40,7 @@ class SingletonMeta(type):
         return instance
 
     def setup(cls, *args, **kwargs):
-        """Set-up the instance."""
+        """Initialise the instance."""
         instance = vars(cls).get('__instance__')
         if instance is not None:
             raise InstantiationError("Singleton class '%s' can not be setup again. Call "

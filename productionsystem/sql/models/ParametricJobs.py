@@ -108,7 +108,7 @@ class ParametricJobs(SQLTableBase):
 
 #    @abstractmethod
     def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
-        """Set-up the DIRAC parametric job."""
+        """Define the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
         job = DiracJob()

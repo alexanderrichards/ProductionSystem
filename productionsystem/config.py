@@ -53,7 +53,7 @@ class ConfigSystem(object):
         return deepcopy(self._config[section])
 
     def read(self, filenames, ignore_errors=False):
-        """Set-up the configuration system."""
+        """Initialise the configuration system."""
         config_parser = configparser.ConfigParser()
         config_parser.optionxform = str
 
