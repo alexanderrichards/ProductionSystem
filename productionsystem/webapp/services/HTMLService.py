@@ -52,7 +52,7 @@ class HTMLPageServer(object):
     """The Web server."""
 
     def __init__(self, extra_jinja2_loader=None):
-        """Initialisation."""
+        """Initialise."""
         loader = jinja2.PackageLoader("productionsystem.webapp")
         if extra_jinja2_loader is not None:
             prefix_loader = jinja2.PrefixLoader({'productionsystem': loader})

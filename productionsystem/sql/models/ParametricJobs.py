@@ -78,7 +78,7 @@ class ParametricJobs(SQLTableBase):
                                 self.num_completed)
 
     def __init__(self, **kwargs):
-        """Initialisation."""
+        """Initialise."""
         required_args = set(self.required_columns).difference(kwargs)
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))

@@ -21,7 +21,7 @@ class HttpCertAuthenticated(HttpAuthenticated):
 
     def __init__(self, cert, verify=True, **kwargs):
         """
-        Initialisation.
+        Initialise.
 
         Args:
             cert (tuple): Tuple containing the path to the cert file followed
@@ -66,7 +66,7 @@ class CertClient(Client):
 
     def __init__(self, url, cert, verify=True, **kwargs):
         """
-        Initialisation.
+        Initialise.
 
         Sets up the underlying client with a certificate authenticated
         http transport. This can be overridden if the user provides an

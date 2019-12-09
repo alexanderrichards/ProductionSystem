@@ -19,7 +19,7 @@ class ConfigSystem(object):
     """Config system singleton."""
 
     def __init__(self, configs=None):
-        """Initialisation."""
+        """Initialise."""
         self._config = defaultdict(dict)
         self._logger = logging.getLogger(__name__)
         if configs is not None:

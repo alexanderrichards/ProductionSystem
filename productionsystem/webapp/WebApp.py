@@ -28,7 +28,7 @@ class WebApp(Daemonize):
                  extra_jinja2_loader=None,
                  mock_mode=False,
                  **kwargs):
-        """Initialisation."""
+        """Initialise."""
         super(WebApp, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._socket_host = socket_host

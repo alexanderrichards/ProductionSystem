@@ -9,7 +9,7 @@ class InstantiationError(RuntimeError):
     """Instantiation exception."""
 
     def __init__(self, *args, **kwargs):
-        """Initialisation."""
+        """Initialise."""
         super(InstantiationError, self).__init__(*args, **kwargs)
 
 

@@ -24,7 +24,7 @@ class SessionRegistry(scoped_session):
     """
 
     def __init__(self, url):
-        """Initialisation."""
+        """Initialise."""
         # recycle based on (prob don't need pessimistic ping same link but above.):
         #   https://docs.sqlalchemy.org/en/latest/core/pooling.html#setting-pool-recycle
         engine = create_engine(url, pool_pre_ping=True)  # 2 hours

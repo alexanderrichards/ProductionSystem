@@ -40,7 +40,7 @@ class GitListingBase(object):
                  schema=GitSchema.GITHUB,
                  access_token=''):
         """
-        Initialisation.
+        Initialise.
 
         Args:
             api_base_url (str): The base url for the cloud hosted git API. If using LOCAL schema,
