@@ -54,6 +54,7 @@ function start_daemon {
     esac
 }
 
+crond
 start_daemon $1
 # Allow time to receive and process SIGTERM handler
 while true

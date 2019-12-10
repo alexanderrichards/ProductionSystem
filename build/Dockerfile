@@ -6,7 +6,7 @@ ARG python_version=27
 ARG productionsystem_version=master
 
 RUN dnf swap -y coreutils-single coreutils  # Fix for wrapper coreutils
-RUN dnf install -y gcc git wget python2 python3 python3-devel
+RUN dnf install -y cronie gcc git wget python2 python3 python3-devel
 RUN alternatives --set python /usr/bin/python2  # Set unversioned python command to python2 for DIRAC scripts
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install --upgrade productionsystem@git+https://github.com/alexanderrichards/ProductionSystem.git@$productionsystem_version
@@ -27,7 +27,7 @@ RUN rm -f dirac-install
 
 
 ## setup cron jobs - maybe not needed if mounting from outside.
-
+RUN echo "@daily userdb-update.py &>> /root/log/userdb-update.log" | crontab
 
 WORKDIR /root
 
