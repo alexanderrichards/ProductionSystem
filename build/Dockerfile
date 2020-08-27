@@ -3,7 +3,7 @@ ARG dirac_version=v6r22p26
 FROM alexanderrichards/dirac_ui:${dirac_version}
 ARG productionsystem_version=master
 
-RUN yum install -y git python3
+RUN yum install -y git gcc python3
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install --upgrade productionsystem@git+https://github.com/alexanderrichards/ProductionSystem.git@$productionsystem_version
 RUN yum clean all
