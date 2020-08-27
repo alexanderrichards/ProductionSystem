@@ -53,9 +53,10 @@ class Requests(SQLTableBase):
 
     def __init__(self, **kwargs):
         """Initialise."""
-        required_args = set(self.required_columns).difference(kwargs)
+        required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
+        # pylint: disable=no-member
         super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
         parametricjobs = kwargs.get('parametricjobs', [])
         if not parametricjobs:
