@@ -48,7 +48,7 @@ if __name__ == '__main__':
                              "supplied with OpenSSL. If using a CA_BUNDLE file can also consider "
                              "using the REQUESTS_CA_BUNDLE environment variable instead (this may "
                              "cause pip to fail to validate against PyPI). This option implies and "
-                             "superseeds --verify")
+                             "supersedes --verify")
     args = parser.parse_args()
     cli_args = vars(args).copy()
 
