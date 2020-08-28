@@ -6,6 +6,7 @@ ARG productionsystem_version=master
 RUN yum install -y git gcc cronie python3 python3-devel
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install --upgrade productionsystem@git+https://github.com/alexanderrichards/ProductionSystem.git@$productionsystem_version
+RUN . /root/dirac_ui/bashrc && python -m pip install --upgrade productionsystem@git+https://github.com/alexanderrichards/ProductionSystem.git@$productionsystem_version
 RUN yum clean all
 
 ## setup cron jobs - maybe not needed if mounting from outside.
