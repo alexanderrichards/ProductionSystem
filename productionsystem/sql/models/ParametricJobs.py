@@ -100,8 +100,8 @@ class ParametricJobs(SQLTableBase):
             try:
                 with dirac_api_client() as dirac:
                     self.logger.info("Killing/deleting %d DIRAC job(s).", len(ids))
-                    dirac.kill(ids)
-                    dirac.delete(ids)
+                    dirac.killJob(ids)
+                    dirac.deleteJob(ids)
             except BaseException:
                 self.logger.exception("Error doing DIRAC tidy up of %d job(s). Cleaning up local "
                                       "system and forgetting about the (possibly) orphaned jobs "
@@ -142,7 +142,7 @@ class ParametricJobs(SQLTableBase):
             dirac_job_ids = set()
             for dirac_job in dirac_jobs:
                 try:
-                    result = dirac.submit(dirac_job)
+                    result = dirac.submitJob(dirac_job)
                 except Exception as err:
                     self.logger.exception("Error submitting parametric job %d.%d: %s",
                                           self.request_id, self.id, err)
@@ -218,7 +218,7 @@ class ParametricJobs(SQLTableBase):
             self.logger.info("Rescheduling DIRAC jobs: %s", list(reschedule_jobs))
             with dirac_api_client() as dirac:
                 try:
-                    result = dirac.reschedule(reschedule_jobs)
+                    result = dirac.rescheduleJob(reschedule_jobs)
                 except Exception as err:
                     self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err)
                 else:
@@ -238,7 +238,7 @@ class ParametricJobs(SQLTableBase):
         if monitor_jobs:
             try:
                 with dirac_api_client() as dirac:
-                    dirac_answer = deepcopy(dirac.status(monitor_jobs))
+                    dirac_answer = deepcopy(dirac.getJobStatus(monitor_jobs))
             except Exception as err:
                 self.logger.exception("Error calling DIRAC to monitor jobs: %s", err)
             else:
