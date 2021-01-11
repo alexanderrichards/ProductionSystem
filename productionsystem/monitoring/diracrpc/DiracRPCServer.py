@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from future.utils import text_to_native_str
 
 import logging
 # from types import FunctionType
@@ -42,7 +43,7 @@ class FixedJob(Job):
 
     def setPriority(self, priority):
         """Set the job Priority."""
-        super(FixedJob, self)._setParamValue("Priority", priority)
+        super(FixedJob, self)._setParamValue(text_to_native_str("Priority"), priority)
 
 
 class FixedDirac(Dirac):
