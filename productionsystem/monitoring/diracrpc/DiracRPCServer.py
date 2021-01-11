@@ -3,6 +3,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from future.utils import text_to_native_str
 
 import logging
 # from types import FunctionType
@@ -42,13 +43,13 @@ class FixedJob(Job):
 
     def setPriority(self, priority):
         """Set the job Priority."""
-        super(FixedJob, self)._setParamValue("Priority", priority)
+        super(FixedJob, self)._setParamValue(text_to_native_str("Priority"), priority)
 
 
 class FixedDirac(Dirac):
     """Fixed DIRAC Dirac class."""
 
-    def status(self, jobid):
+    def getJobStatus(self, jobid):
         """
         Return the status of DIRAC jobs.
 
@@ -58,9 +59,9 @@ class FixedDirac(Dirac):
         """
         if isinstance(jobid, (list, set)):
             jobid = list(jobid)
-        return super(FixedDirac, self).status(jobid)
+        return super(FixedDirac, self).getJobStatus(jobid)
 
-    def reschedule(self, jobid):
+    def rescheduleJob(self, jobid):
         """
         Reschedule the given jobs.
 
@@ -70,7 +71,7 @@ class FixedDirac(Dirac):
         """
         if isinstance(jobid, (list, set)):
             jobid = list(jobid)
-        return super(FixedDirac, self).reschedule(jobid)
+        return super(FixedDirac, self).rescheduleJob(jobid)
 
 
 class FixedRPCClient(RPCClient):

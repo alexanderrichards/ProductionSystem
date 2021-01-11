@@ -78,11 +78,11 @@ def start(args):
         dirac_job_mock.setInputSandbox = mock.MagicMock(return_value=None)
         dirac_job_mock._setParamValue = mock.MagicMock(return_value=None)
         dirac_class_mock = mock.MagicMock
-        dirac_class_mock.kill = mock.MagicMock(return_value=None)
-        dirac_class_mock.delete = mock.MagicMock(return_value=None)
-        dirac_class_mock.status = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
-        dirac_class_mock.submit = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in range(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
-        dirac_class_mock.reschedule = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
+        dirac_class_mock.killJob = mock.MagicMock(return_value=None)
+        dirac_class_mock.deleteJob = mock.MagicMock(return_value=None)
+        dirac_class_mock.getJobStatus = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': {id: {'Status': 'DONE'} for id in ids}})
+        dirac_class_mock.submitJob = mock.MagicMock(side_effect=lambda jobs: {'OK': True, 'Value': [random.randrange(1234) for _ in range(1, len(jobs) +1 )]} if isinstance(jobs, list) else {'OK': True, 'Value': [random.randrange(1234)]})
+        dirac_class_mock.rescheduleJob = mock.MagicMock(side_effect=lambda ids: {'OK': True, 'Value': ids})
         dirac_rpc_mock = mock.MagicMock
         dirac_rpc_mock.listDirectory = mock.MagicMock(side_effect=lambda directory_path, _: {'OK': True, 'Value':{'Failed': [], 'Successful': {directory_path: {'Files': {'FileA': {}, 'FileB': {}, 'FileC': {}}}}}})
         sys.modules['DIRAC.Interfaces.API.Job'].Job = dirac_job_mock
