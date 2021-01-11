@@ -49,7 +49,7 @@ class FixedJob(Job):
 class FixedDirac(Dirac):
     """Fixed DIRAC Dirac class."""
 
-    def status(self, jobid):
+    def getJobStatus(self, jobid):
         """
         Return the status of DIRAC jobs.
 
@@ -59,9 +59,9 @@ class FixedDirac(Dirac):
         """
         if isinstance(jobid, (list, set)):
             jobid = list(jobid)
-        return super(FixedDirac, self).status(jobid)
+        return super(FixedDirac, self).getJobStatus(jobid)
 
-    def reschedule(self, jobid):
+    def rescheduleJob(self, jobid):
         """
         Reschedule the given jobs.
 
@@ -71,7 +71,7 @@ class FixedDirac(Dirac):
         """
         if isinstance(jobid, (list, set)):
             jobid = list(jobid)
-        return super(FixedDirac, self).reschedule(jobid)
+        return super(FixedDirac, self).rescheduleJob(jobid)
 
 
 class FixedRPCClient(RPCClient):
