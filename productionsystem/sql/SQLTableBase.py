@@ -11,8 +11,7 @@ from datetime import datetime
 from abc import ABCMeta
 from collections import Mapping
 from sqlalchemy import Column
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.ext.declarative.api import DeclarativeMeta
+from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import DetachedInstanceError
 
