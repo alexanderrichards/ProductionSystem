@@ -37,6 +37,7 @@ class DiracStatus(IntEnum):
     WAITING = 11
     CHECKING = 12
     MATCHED = 13
+    COMPLETING = 14
 
     @property
     def local_status(self):
@@ -66,6 +67,7 @@ STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.KILLED: LocalStatus.KILLED,
               DiracStatus.DONE: LocalStatus.COMPLETED,
               DiracStatus.COMPLETED: LocalStatus.RUNNING,
+              DiracStatus.COMPLETING: LocalStatus.RUNNING,
               DiracStatus.FAILED: LocalStatus.FAILED,
               DiracStatus.STALLED: LocalStatus.FAILED,
               DiracStatus.RUNNING: LocalStatus.RUNNING,
