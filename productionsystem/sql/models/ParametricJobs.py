@@ -207,7 +207,7 @@ class ParametricJobs(SQLTableBase):
             job_types[DiracStatus.CHECKING] | \
             job_types[DiracStatus.MATCHED] | \
             job_types[DiracStatus.UNKNOWN] | \
-            job_types[DiracStatus.COMPLETED] \
+            job_types[DiracStatus.COMPLETED] | \
             job_types[DiracStatus.COMPLETING]
 
         if self.reschedule:
