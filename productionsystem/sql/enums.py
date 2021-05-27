@@ -30,13 +30,14 @@ class DiracStatus(IntEnum):
     COMPLETED = 4
     FAILED = 5
     STALLED = 6
-    RUNNING = 7
-    SUBMITTING = 8
-    RECEIVED = 9
-    QUEUED = 10
-    WAITING = 11
-    CHECKING = 12
-    MATCHED = 13
+    COMPLETING = 7
+    RUNNING = 8
+    SUBMITTING = 9
+    RECEIVED = 10
+    QUEUED = 11
+    WAITING = 12
+    CHECKING = 13
+    MATCHED = 14
 
     @property
     def local_status(self):
@@ -66,6 +67,7 @@ STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.KILLED: LocalStatus.KILLED,
               DiracStatus.DONE: LocalStatus.COMPLETED,
               DiracStatus.COMPLETED: LocalStatus.RUNNING,
+              DiracStatus.COMPLETING: LocalStatus.RUNNING,
               DiracStatus.FAILED: LocalStatus.FAILED,
               DiracStatus.STALLED: LocalStatus.FAILED,
               DiracStatus.RUNNING: LocalStatus.RUNNING,
