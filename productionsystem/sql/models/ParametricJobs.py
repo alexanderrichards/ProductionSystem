@@ -267,6 +267,10 @@ class ParametricJobs(SQLTableBase):
                     self.logger.warning("Unknown DiracStatus: %s. Setting to UNKNOWN",
                                         monitored_jobs[job.id]['Status'].upper())
                     job.status = DiracStatus.UNKNOWN
+            if not isinstance(job.status, DiracStatus):
+                self.logger.error("Dirac job %r status is invalid type %r",
+                                  str(job.id), type(job.status))
+                job.status = DiracStatus.RUNNING
             statuses.update((job.status.local_status,))
 
         status = max(statuses)
