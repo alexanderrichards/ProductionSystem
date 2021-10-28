@@ -180,7 +180,7 @@ class ParametricJobs(SQLTableBase):
 
         if not self.dirac_jobs:
             self.logger.warning("No dirac jobs associated with parametricjob: "
-                                "%d.%d. returning status unknown",
+                                "%d.%d. returning status UNKNOWN",
                                 self.request_id, self.id)
             self.status = LocalStatus.UNKNOWN
             self.reschedule = False
@@ -268,8 +268,8 @@ class ParametricJobs(SQLTableBase):
                                         monitored_jobs[job.id]['Status'].upper())
                     job.status = DiracStatus.UNKNOWN
             if not isinstance(job.status, DiracStatus):
-                self.logger.error("Dirac job %r status is invalid type %r",
-                                  str(job.id), type(job.status))
+                self.logger.error("Dirac job %r status %r is invalid type %r",
+                                  str(job.id), job.status, type(job.status))
                 job.status = DiracStatus.RUNNING
             statuses.update((job.status.local_status,))
 
