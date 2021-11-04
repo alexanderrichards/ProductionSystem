@@ -178,6 +178,14 @@ class ParametricJobs(SQLTableBase):
         """
         # Group jobs by status
 
+        if self.status not in (LocalStatus.APPROVED,
+                               LocalStatus.SUBMITTED,
+                               LocalStatus.SUBMITTING,
+                               LocalStatus.RUNNING,
+                               LocalStatus.REMOVING):
+            self.logger.debug("Not monitoring parametric job %d.%d as state %r", self.request_id, self.id, self.status)
+            return
+
         if not self.dirac_jobs:
             self.logger.warning("No dirac jobs associated with parametricjob: "
                                 "%d.%d. returning status UNKNOWN",
@@ -210,7 +218,7 @@ class ParametricJobs(SQLTableBase):
             job_types[DiracStatus.COMPLETED] | \
             job_types[DiracStatus.COMPLETING]
 
-        if self.reschedule:
+        if self.reschedule:  # Manually triggered reschedule of all failed/stalled from Web app
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
 
         # Reschedule jobs
