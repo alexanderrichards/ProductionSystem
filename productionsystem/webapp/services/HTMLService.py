@@ -48,6 +48,14 @@ def service_badge_url(service, service_name):
         .format(name=name, status=status)
 
 
+@jinja2_filter
+def log_splitter(log):
+    """Split up the log string by line."""
+    if log is None:
+        return []
+    return log.splitlines()
+
+
 class HTMLPageServer(object):
     """The Web server."""
 
@@ -107,5 +115,17 @@ class HTMLPageServer(object):
         if requester.admin:
             user_id = None
         return self._render('requestinfo_template.html',
+                            request=Requests.get(id, user_id=user_id,
+                                                 load_user=True, load_parametricjobs=True))
+
+    @cherrypy.expose
+    @check_credentials
+    def log(self, id):
+        """Return request log page."""
+        requester = cherrypy.request.verified_user
+        user_id = requester.id
+        if requester.admin:
+            user_id = None
+        return self._render('log_template.html',
                             request=Requests.get(id, user_id=user_id,
                                                  load_user=True, load_parametricjobs=True))
