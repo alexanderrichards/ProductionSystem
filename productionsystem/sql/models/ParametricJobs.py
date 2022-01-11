@@ -177,6 +177,7 @@ class ParametricJobs(SQLTableBase):
         # Group jobs by status
 
         if self.status not in (LocalStatus.APPROVED,
+                               LocalStatus.REQUESTED,
                                LocalStatus.SUBMITTED,
                                LocalStatus.SUBMITTING,
                                LocalStatus.RUNNING,
