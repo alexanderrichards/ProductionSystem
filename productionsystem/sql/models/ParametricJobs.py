@@ -165,7 +165,7 @@ class ParametricJobs(SQLTableBase):
 
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
                                          requester_id=self.requester_id,
-                                         status=DiracStatus.UNKNOWN) for i in dirac_job_ids]
+                                         status=DiracStatus.RECEIVED) for i in dirac_job_ids]
             self.num_jobs = len(self.dirac_jobs)
             self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                              self.num_jobs, self.request_id, self.id)
