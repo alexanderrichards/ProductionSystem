@@ -2,16 +2,13 @@
 # Py2/3 compatibility layer
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin # noqa: F401, F403
 
 import os
-import json
 import logging
-from abc import abstractmethod
 from datetime import datetime
 from collections import defaultdict, Counter, Iterable
 from copy import deepcopy
-from tempfile import NamedTemporaryFile
 from operator import attrgetter
 
 from future.utils import native

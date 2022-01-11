@@ -2,9 +2,8 @@
 # Py2/3 compatibility layer
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin # noqa: F401, F403
 
-import json
 import logging
 from datetime import datetime
 from operator import attrgetter
@@ -12,7 +11,7 @@ from operator import attrgetter
 from future.utils import native
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
-from sqlalchemy.exc import SQLAlchemyError
+# from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
@@ -20,8 +19,6 @@ from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
 from ..models import ParametricJobs
-from .Users import Users
-# from .ParametricJobs import ParametricJobs
 
 
 def subdict(dct, keys, **kwargs):
