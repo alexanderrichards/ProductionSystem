@@ -2,7 +2,7 @@
 # Py2/3 compatibility layer
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin # noqa: F401, F403
+from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin, bad-option-value # noqa: F401, F403, E501
 
 import logging
 from datetime import datetime
