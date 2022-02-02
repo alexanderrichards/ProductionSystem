@@ -95,7 +95,8 @@ class Requests(SQLTableBase):
         try:
             for job in self.parametric_jobs:
                 job.submit()
-        except BaseException:
+        except BaseException as err:
+            self.log += "Unhandled exception while submitting request\n%s\n" % err
             self.logger.exception("Unhandled exception while submitting request %s", self.id)
             self.status = LocalStatus.FAILED
 
@@ -103,6 +104,7 @@ class Requests(SQLTableBase):
         """Update request status."""
         self.logger.info("Monitoring request %s", self.id)
         if not self.parametric_jobs:
+            self.log += "No parametric jobs present, changing status to Unknown\n"
             self.logger.warning("No parametric jobs associated with request: %d. "
                                 "returning status unknown", self.id)
             self.status = LocalStatus.UNKNOWN
@@ -113,7 +115,8 @@ class Requests(SQLTableBase):
             try:
                 job.monitor()
             # get rid of this if parametricjob catches everything. Only when sure as it's complex
-            except BaseException:
+            except BaseException as err:
+                self.log += "Unhandled exception monitoring ParametricJob\n%s\n" % err
                 self.logger.exception("Unhandled exception monitoring ParametricJob %s", job.id)
                 job.status = LocalStatus.UNKNOWN
             status = max(status, job.status)
