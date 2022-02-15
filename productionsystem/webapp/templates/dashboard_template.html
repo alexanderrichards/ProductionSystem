@@ -365,12 +365,18 @@ $(document).ready(function(){
       $("#context_info").prop("disabled", true);
       $("#context_info").removeClass("text-primary");
       $("#context_info").addClass("text-secondary");
+      $("#context_log").prop("disabled", true);
+      $("#context_log").removeClass("text-primary");
+      $("#context_log").addClass("text-secondary");
     }
     else{
       context_menu_header.text(`Actions for request ${request_id}`);
       $("#context_info").prop("disabled", false);
       $("#context_info").addClass("text-primary");
       $("#context_info").removeClass("text-secondary");
+      $("#context_log").prop("disabled", false);
+      $("#context_log").addClass("text-primary");
+      $("#context_log").removeClass("text-secondary");
     }
     context_menu.css({
         top: event.pageY,

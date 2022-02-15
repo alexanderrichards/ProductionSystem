@@ -44,7 +44,7 @@ class Requests(SQLTableBase):
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    log = Column(TEXT, nullable=True)
+    log = Column(TEXT, nullable=False, default="")
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship("Users")
     logger = logging.getLogger(__name__)
