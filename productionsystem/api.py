@@ -62,6 +62,8 @@ class JSI:
             requests.exceptions.HTTPError: Problem with the request
             requests.exceptions.SSLError: Problem with the SSL
         """
+        if not isinstance(request_id, (int, type(None))):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests"
         if request_id is None:
             url = up.urlunsplit(self._url._replace(path=path))
@@ -106,6 +108,8 @@ class JSI:
             requests.exceptions.HTTPError: Problem with the request
             requests.exceptions.SSLError: Problem with the SSL
         """
+        if not isinstance(request, dict):
+            raise TypeError("request parameter should be of type dict, received %r" % request)
         url = up.urlunsplit(self._url._replace(path="api/requests"))
         ret = requests.post(url, json={"request": request},
                             verify=self._verify, cert=self._cert)
@@ -129,6 +133,8 @@ class JSI:
             requests.exceptions.HTTPError: Problem with the request
             requests.exceptions.SSLError: Problem with the SSL
         """
+        if not isinstance(request_id, int):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
         ret = requests.put(url, data={"status": "Approved"},
@@ -154,6 +160,8 @@ class JSI:
             HTTPError: Problem with the request
             SSLError: Problem with the SSL
         """
+        if not isinstance(request_id, int):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
         ret = requests.delete(url, verify=self._verify, cert=self._cert)
