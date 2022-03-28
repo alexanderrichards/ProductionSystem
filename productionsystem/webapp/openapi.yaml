@@ -1,0 +1,439 @@
+openapi: 3.0.1
+info:
+  title: Production System
+  description: 'This is the REST API documentation for the ProductionSystem.
+                Please note that to make any of the following requests requires
+                x509 cert/key authentication.'
+  # termsOfService: http://swagger.io/terms/
+  contact:
+    email: a.richards@imperial.ac.uk
+  license:
+    name: MIT License
+    url: https://github.com/alexanderrichards/ProductionSystem/blob/master/LICENSE
+  version: 1.0.0
+externalDocs:
+  description: Find out more about the ProductionSystem
+  url: https://github.com/alexanderrichards/ProductionSystem
+servers:
+- url: https://lzprod01.grid.hep.ph.ic.ac.uk:8443/api
+tags:
+- name: requests
+  description: API for interacting with requests in the Production System
+#  externalDocs:
+#    description: Find out more
+#    url: https://github.com/alexanderrichards/ProductionSystem
+
+paths:
+  /requests:
+    post:
+      tags:
+      - requests
+      summary: Add a new request to the Production System
+      description: Submit a new request to the Production System
+      operationId: addRequest
+      requestBody:
+        required: true
+        description: 'The new request in JSON format. This must contain as a
+                      minimum the required fields in order for the request to
+                      be created.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LZRequest'
+      responses:
+        400:
+          description: Invalid request data, couldn't instantiate Request.
+        500:
+          description: Error adding request to DB
+
+    get:
+      tags:
+      - requests
+      summary: Get all requests
+      description: Query the production system and return all requests.
+      operationId: getRequests
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requests'
+        500:
+          description: Server Error, getting requests.
+
+  /requests/{request_id}:
+    get:
+      tags:
+      - requests
+      summary: Return request by ID
+      description: 'Query the production system for a given request id. If
+                    present the request will be returned as a JSON object.'
+      operationId: getRequestById
+      parameters:
+      - name: request_id
+        in: path
+        description: ID of request to return
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        400:
+          description: Invalid ID supplied
+        404:
+          description: Request not found
+        500:
+          description: Server Error, possibly multiple requests with ID found.
+
+    put:
+      tags:
+      - requests
+      summary: Updates a requests status
+      description: 'Update the status of request ID. in the web app front end
+                    this is typically used by an admin to mark the request as
+                    "Approved". In which case it is then picked up by the
+                    backend and submitted.'
+      operationId: updateRequestWithForm
+      parameters:
+      - name: request_id
+        in: path
+        description: ID of request that needs to be updated
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        description: Object containing only the new status.
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequestStatus'
+      responses:
+        400:
+          description: Invalid request ID or status
+          content: {}
+        404:
+          description: Request ID not found
+          content: {}
+        500:
+          description: Error updating request ID
+          content: {}
+      security:
+      - petstore_auth:
+        - write:pets
+        - read:pets
+
+    delete:
+      tags:
+      - requests
+      summary: Request deletion of a request
+      description: 'Moves the request into the "Removing" state, marking it
+                    ready for deletion by the backend.'
+      operationId: deleteRequest
+      parameters:
+      - name: request_id
+        in: path
+        description: ID of request to be deleted
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Request ID not found
+          content: {}
+        500:
+          description: Error marking request ID for deletion
+          content: {}
+      security:
+      - petstore_auth:
+        - write:pets
+        - read:pets
+
+
+
+components:
+  schemas:
+    RequestStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          description: The desired new status of the request.
+          enum:
+          - Approved
+          - Requested
+          - Unknown
+          - Deleted
+          - Killed
+          - Completed
+          - Failed
+          - Approved
+          - Submitted
+          - Submitting
+          - Running
+          - Removing
+
+    Request:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        description:
+          type: string
+          description: A description of the request
+        requester_id:
+          type: integer
+          format: int32
+        request_date:
+          type: string
+          format: date-time
+        timestamp:
+          type: string
+          description: Timestamp for last status change
+          format: date-time
+        status:
+          type: string
+          description: The request status
+          enum:
+          - Approved
+          - Requested
+          - Unknown
+          - Deleted
+          - Killed
+          - Completed
+          - Failed
+          - Approved
+          - Submitted
+          - Submitting
+          - Running
+          - Removing
+        log:
+          type: string
+          description: Loggin information for the request
+        parametric_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParametricJob'
+
+
+
+
+    Requests:
+      type: array
+      items:
+          $ref: '#/components/schemas/Request'
+
+    ParametricJob:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: integer
+          format: int64
+        requester_id:
+          type: integer
+          format: int64
+          description: Number of jobs running
+        priority:
+          type: integer
+          format: int64
+          description: Priority value 0 - 9
+        site:
+          type: string
+          description: Site to sent jobs to
+        reschedule:
+          type: boolean
+          description: Flag to tell system to reschedule the job if failed.
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp for last status change
+        num_jobs:
+          type: integer
+          format: int64
+          description: Number of parametric jobs
+        num_completed:
+          type: integer
+          format: int64
+          description: Number of jobs completed
+        num_failed:
+          type: integer
+          format: int64
+          description: Number of jobs failed
+        num_submitted:
+          type: integer
+          format: int64
+          description: Number of jobs submitted
+        num_running:
+          type: integer
+          format: int64
+          description: Number of jobs running
+        status:
+          type: string
+          description: The request status
+          enum:
+          - Approved
+          - Requested
+          - Unknown
+          - Deleted
+          - Killed
+          - Completed
+          - Failed
+          - Approved
+          - Submitted
+          - Submitting
+          - Running
+          - Removing
+        log:
+          type: string
+          description: Loggin information for the request
+        dirac_jobs:
+          type: array
+          items:
+            type: string
+            description: DIRAC job ID
+
+    LZRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: A description of the request
+        sim_lead:
+          type: string
+          description: Simulation lead
+
+        parametric_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LZParametricJob'
+
+    LZParametricJob:
+      type: object
+      properties:
+        priority:
+          type: integer
+          format: int64
+          description: Priority value 0 - 9
+        site:
+          type: string
+          description: Site to sent jobs to
+        app:
+          type: string
+          description: Application type (e.g. BACCARAT)
+        app_version:
+          type: string
+          description: Application version
+        sim_type:
+          type: string
+          description: what?
+        sim_lfn_outputdir:
+          type: string
+          description: LFN directory for sim output
+        mctruth_lfn_outputdir:
+          type: string
+          description: LFN directory for mctruth output (deprecated?)
+        macro:
+          type: string
+          description: macro name to use for application
+        platform:
+          type: string
+          description: platform type for job
+        tags:
+          type: string
+          description: what?
+        dbtag:
+          type: string
+          description: what?
+        njobs:
+          type: integer
+          format: int64
+          description: Number of subjobs for the application to split into
+        nevents:
+          type: integer
+          format: int64
+          description: Number of events to process
+        seed:
+          type: integer
+          format: int64
+          description: Random number seed
+        run_number:
+          type: string
+          description: CSV of run ids to use. can use ranges 1-9 etc.
+        lzlama_version:
+          type: string
+          description: LZLAMA version string
+        lzlama_tag:
+          type: string
+          description: LZLAMA tag
+        lzlama_lfn_inputdir:
+          type: string
+          description: LFN directory for LZLAMA input
+        lzlama_lfn_outputdir:
+          type: string
+          description: LFN directory for LZLAMA output
+        der_version:
+          type: string
+          description: DER version string
+        der_lfn_inputdir:
+          type: string
+          description: LFN directory for DER input
+        der_lfn_outputdir:
+          type: string
+          description: LFN directory for DER output
+        lzap_version:
+          type: string
+          description: LZap version string
+        steering_dir:
+          type: string
+          description: Steering file directory
+        steering_file:
+          type: string
+          description: steering file name
+        lzap_lfn_inputdir:
+          type: string
+          description: LFN directory for LZap input
+        lzap_lfn_outputdir:
+          type: string
+          description: LFN directory for LZap output
+        blacklist:
+          type: array
+          description: Blacklisted sites
+          items:
+            type: string
+            description: blacklisted site
+        prod_version:
+          type: string
+          description: what?
+        file_version:
+          type: string
+          description: what?
+
+  securitySchemes:
+    petstore_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: http://petstore.swagger.io/oauth/dialog
+          scopes:
+            write:pets: modify pets in your account
+            read:pets: read your pets
+    api_key:
+      type: apiKey
+      name: api_key
+      in: header
