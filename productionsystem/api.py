@@ -5,7 +5,9 @@ import requests
 
 
 class JSI:
-    """JSI API class."""
+    """Object providing Pythonic access to the HTTP RESTful API used by the backend server."""
+
+    __slots__ = ("_url", "_cert", "_verify", "_logger")
 
     def __init__(self, url, cert=None, verify=False):
         """
@@ -171,4 +173,5 @@ if __name__ == "__main__":
 
     jsi = JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443", verify=False,
               cert=(r"C:\Users\infer\.globus\usercert.pem", r"C:\Users\infer\.globus\userkey-unenc.pem"))
-    print(jsi.get_requests(777))
+    print(jsi.get_requests())
+    # print(jsi.get_requests(777))
