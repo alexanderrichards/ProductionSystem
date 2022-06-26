@@ -76,13 +76,15 @@ class TestJSI(TestCase):
         with self.assertRaisesRegex(TypeError, "request parameter should be of type dict"):
             jsi.create_request(12)
         jsi.create_request({})
-        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
+        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}},
+                                          verify=False, cert=None)
         mock_post.reset_mock()
 
         mock_post.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
         with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
             jsi.create_request({})
-        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
+        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}},
+                                          verify=False, cert=None)
 
     @patch("requests.delete")
     def test_delete_request(self, mock_delete):
@@ -106,13 +108,15 @@ class TestJSI(TestCase):
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
             jsi.approve_request("12")
         jsi.approve_request(12)
-        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
+        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'},
+                                         verify=False, cert=None)
         mock_put.reset_mock()
 
         mock_put.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
         with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
             jsi.approve_request(12)
-        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
+        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'},
+                                         verify=False, cert=None)
 
 
 class TestLiveServer(TestCase):

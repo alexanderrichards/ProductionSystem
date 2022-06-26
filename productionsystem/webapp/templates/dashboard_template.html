@@ -140,6 +140,15 @@
 <script>
 $(document).ready(function(){
 
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for category, message in messages %}
+        console.log("Server Message -- {{category}}: {{message}}");
+        bootstrap_alert("{{ category }}", "Server Message", "{{ message }}");
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
   var requests_table = $("#requests_table");
 
   console.debug("Getting requests.");
