@@ -74,14 +74,19 @@ class FixedDirac(Dirac):
         return super(FixedDirac, self).rescheduleJob(jobid)
 
 
-class FixedRPCClient(RPCClient):
+# Switched from inheritance to composition as the DIRAC _MagicMethods were
+# not playing nicely with RPyC. using composition as a wrapper is better as
+# keeps all the DIRAC stuff server side.
+class RPCClientWrapper(object):
     """Fixed DIRAC RPC Client."""
 
-    def exposed_listDirectory(self, *args):
+    def __init__(self, *args, **kwargs):
+        """Initialise."""
+        self._wrapped = RPCClient(*args, **kwargs)
+
+    def listDirectory(self, *args):
         """Expose list directory."""
-        return self.listDirectory(*args)
-#        return RPCClient("DataManagement/FileCatalog").listDirectory('/', False)
-#        return self.listDirectory(self, *args, **kwargs)
+        return self._wrapped.listDirectory(*args)
 
 
 class DiracService(rpyc.Service):
@@ -89,7 +94,7 @@ class DiracService(rpyc.Service):
 
     exposed_Job = FixedJob
     exposed_Dirac = FixedDirac
-    exposed_RPCClient = FixedRPCClient
+    exposed_RPCClient = RPCClientWrapper
 
 
 class DiracDaemon(Daemonize):
