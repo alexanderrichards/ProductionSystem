@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # pylint: disable=invalid-name
 """Dirac daemon run script."""
 # Py2/3 compatibility layer
