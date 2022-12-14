@@ -10,7 +10,7 @@ from operator import attrgetter
 
 from future.utils import native
 import cherrypy
-from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
+from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, PickleType, ForeignKey, Enum, event, inspect
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -25,6 +25,16 @@ def subdict(dct, keys, **kwargs):
     """Create a sub dictionary."""
     out = {k: dct[k] for k in keys if k in dct}
     out.update(kwargs)
+    return out
+
+
+def split_args(dct, inclusive_keys):
+    out = {"data": {}}
+    for key, value in dct.items():
+        if key in inclusive_keys:
+            out[key] = value
+        else:
+            out["data"][key] = value
     return out
 
 
@@ -45,20 +55,25 @@ class Requests(SQLTableBase):
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     log = Column(TEXT, nullable=False, default="")
+    data = Column(PickleType, nullable=True, default={})
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship("Users")
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def __init__(self, **kwargs):
         """Initialise."""
         required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
         if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
-        # pylint: disable=no-member
-        super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
-        parametricjobs = kwargs.get('parametricjobs', [])
+            raise ValueError(f"Missing required keyword args: {list(required_args)!s}")
+
+        # disallow direct setting of the data attribute
+        kwargs.pop("data", None)
+        parametricjobs = kwargs.pop('parametricjobs', [])
         if not parametricjobs:
             self.logger.warning("No parametricjobs associated with new request.")
+        # pylint: disable=no-member
+        super().__init__(**split_args(kwargs, self.allowed_columns))
+
         for job_id, parametricjob in enumerate(parametricjobs):
             parametricjob.pop('requester_id', None)
             parametricjob.pop('request_id', None)

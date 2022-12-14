@@ -7,13 +7,17 @@ from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-impor
 import os
 import logging
 from datetime import datetime
-from collections import defaultdict, Counter, Iterable
+from collections import defaultdict, Counter
+try:
+    from collections import Iterable
+except ImportError:
+    from collections.abc import Iterable
 from copy import deepcopy
 from operator import attrgetter
 
 from future.utils import native
 import cherrypy
-from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
+from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP, PickleType,
                         ForeignKey, Enum, CheckConstraint, event, inspect)
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
@@ -34,6 +38,16 @@ def subdict(dct, keys, **kwargs):
     """Create a sub dictionary."""
     out = {k: dct[k] for k in keys if k in dct}
     out.update(kwargs)
+    return out
+
+
+def split_args(dct, inclusive_keys):
+    out = {"data": {}}
+    for key, value in dct.items():
+        if key in inclusive_keys:
+            out[key] = value
+        else:
+            out["data"][key] = value
     return out
 
 
@@ -62,10 +76,11 @@ class ParametricJobs(SQLTableBase):
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
     log = Column(TEXT, nullable=False, default="")
+    data = Column(PickleType, nullable=True, default={})
     dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
                               primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
                                           "ParametricJobs.id==DiracJobs.parametricjob_id)")
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @hybrid_property
     def num_other(self):
@@ -79,9 +94,11 @@ class ParametricJobs(SQLTableBase):
         """Initialise."""
         required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
         if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
+            raise ValueError(f"Missing required keyword args: {list(required_args)!s}")
         # pylint: disable=no-member
-        super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
+        # disallow users to specify the data attribute directly
+        kwargs.pop("data", None)
+        super().__init__(**split_args(kwargs, self.allowed_columns))
 
     def update(self):
         """Update DB with current values."""

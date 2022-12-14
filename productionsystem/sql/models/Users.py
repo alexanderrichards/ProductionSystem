@@ -26,7 +26,7 @@ class Users(SQLTableBase):
     email = Column(TEXT, nullable=False)
     suspended = Column(Boolean, nullable=False)
     admin = Column(Boolean, nullable=False)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @property
     def name(self):
