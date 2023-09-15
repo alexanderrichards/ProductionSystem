@@ -7,7 +7,11 @@ from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-impor
 import os
 import logging
 from datetime import datetime
-from collections import defaultdict, Counter, Iterable
+from collections import defaultdict, Counter
+try:
+    from collections import Iterable
+except ImportError:
+    from collections.abc import Iterable
 from copy import deepcopy
 from operator import attrgetter
 
@@ -65,7 +69,7 @@ class ParametricJobs(SQLTableBase):
     dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
                               primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
                                           "ParametricJobs.id==DiracJobs.parametricjob_id)")
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @hybrid_property
     def num_other(self):

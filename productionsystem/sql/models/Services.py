@@ -26,7 +26,7 @@ class Services(SQLTableBase):
     name = Column(String(30), nullable=False, unique=True)
     status = Column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def add(self):
         """Add self to the DB."""
