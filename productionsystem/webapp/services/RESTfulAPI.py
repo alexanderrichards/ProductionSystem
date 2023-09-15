@@ -327,8 +327,15 @@ class RequestsAPI(object):
             request = Requests.get(request_id=request_id)
 
         if status == LocalStatus.APPROVED and request.status != LocalStatus.REQUESTED:
-            raise cherrypy.HTTPError(400,
+            raise cherrypy.HTTPError(410,
                                      "Only requests in state Requested can transition to Approved.")
+        if status == LocalStatus.CHECKED and (request.status != LocalStatus.COMPLETED
+                                                or request.status != LocalStatus.FAILED):
+            raise cherrypy.HTTPError(411,
+                                     "Only requests in state Completed/Failed can transition to Checked.")
+        if status == LocalStatus.CLOSED and request.status != LocalStatus.CHECKED:
+            raise cherrypy.HTTPError(412,
+                                     "Only requests in state Checked can transition to Closed.")
 
         request.status = status
         with cherrypy.HTTPError.handle(SQLAlchemyError, 500,
