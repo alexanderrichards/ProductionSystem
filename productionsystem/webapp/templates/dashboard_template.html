@@ -95,6 +95,14 @@
       <span class="oi oi-thumb-up"></span>
       Approve
   </button>
+  <button id="context_checked" class="dropdown-item btn btn-success text-success" type="button">
+    <span class="oi oi-data-transfer-upload"></span>
+    Mark Checked
+  </button>
+  <button id="context_closed" class="dropdown-item btn btn-success text-success" type="button">
+    <span class="oi oi-data-transfer-upload"></span>
+    Mark Closed
+  </button>
   <button id="context_remove" class="dropdown-item btn btn-danger text-danger" type="button">
       <span class="oi oi-trash"></span>
       Remove
@@ -463,6 +471,120 @@ $(document).ready(function(){
       },
       function(){
         bootstrap_alert("danger", "Failed:", "Request approval failed. Please check the console log.");
+        reload_table();
+      }
+    );
+  });
+
+  $("#context_checked").click(function(){
+
+    var ids = [];
+    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
+    selected_rows.each(function(index, cell){
+      ids.push($(this).text());
+    });
+
+    if (ids.length === 0){
+      ids = [context_menu_request_id];
+    }
+
+    ajax_calls = [];
+    $.each(ids, function(index, id){
+      ajax_calls.push(
+        $.ajax({
+          url: `/api/requests/${id}`,
+          type: "PUT",
+          data: {status: "Checked"},
+          success: function(){
+            console.log(`Request ${id} marked as Checked`);
+          },
+          error: function(jqXHR, textStatus, errorThrown){
+            console.error(`Error marking request ${id} as checked.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+          },
+          statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
+            410: function(){
+              console.warn("Only jobs in Requested may transition to Approved.");
+            },
+            411: function(){
+              console.warn("Only requests in state Completed/Failed may transition to Checked.");
+            },
+            412: function(){
+              console.warn("Only requests in state Checked can transition to Closed.");
+            },
+            401: function(){
+              console.warn("Unauthorised checked request.");
+            },
+            403: function(){
+              console.error("Checked request is forbidden for current user.");
+            }
+          }
+        })
+      );
+    });
+    $.when.apply(this, ajax_calls).then(
+      function(){
+        bootstrap_alert("success", "Marked Checked:", `Successfully checked ${ids.length} requests.`);
+        reload_table();  // maintain open rows
+      },
+      function(){
+        bootstrap_alert("danger", "Failed:", "failed to mark request as checked. Please check the console log.");
+        reload_table();
+      }
+    );
+  });
+
+  $("#context_closed").click(function(){
+
+    var ids = [];
+    var selected_rows = requests_table.find("tbody tr.text-light td.request_id");
+    selected_rows.each(function(index, cell){
+      ids.push($(this).text());
+    });
+
+    if (ids.length === 0){
+      ids = [context_menu_request_id];
+    }
+
+    ajax_calls = [];
+    $.each(ids, function(index, id){
+      ajax_calls.push(
+        $.ajax({
+          url: `/api/requests/${id}`,
+          type: "PUT",
+          data: {status: "Closed"},
+          success: function(){
+            console.log(`Request ${id} marked as Closed`);
+          },
+          error: function(jqXHR, textStatus, errorThrown){
+            console.error(`Error marking request ${id} as closed.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
+          },
+          statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
+            410: function(){
+              console.warn("Only jobs in Requested may transition to Approved.");
+            },
+            411: function(){
+              console.warn("Only requests in state Completed/Failed may transition to Checked.");
+            },
+            412: function(){
+              console.warn("Only requests in state Checked can transition to Closed.");
+            },
+            401: function(){
+              console.warn("Unauthorised checked request.");
+            },
+            403: function(){
+              console.error("Checked request is forbidden for current user.");
+            }
+          }
+        })
+      );
+    });
+    $.when.apply(this, ajax_calls).then(
+      function(){
+        bootstrap_alert("success", "Marked Closed:", `Successfully closed ${ids.length} requests.`);
+        reload_table();  // maintain open rows
+      },
+      function(){
+        bootstrap_alert("danger", "Failed:", "failed to mark request as closed. Please check the console log.");
         reload_table();
       }
     );

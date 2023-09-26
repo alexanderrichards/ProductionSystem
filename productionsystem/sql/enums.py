@@ -53,6 +53,8 @@ class LocalStatus(IntEnum):
     UNKNOWN = 1
     DELETED = 2
     KILLED = 3
+    CLOSED = 12
+    CHECKED = 11
     COMPLETED = 4
     FAILED = 5
     APPROVED = 6
