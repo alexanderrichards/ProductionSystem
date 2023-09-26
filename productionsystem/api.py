@@ -142,6 +142,56 @@ class JSI:
         ret.raise_for_status()
         return ret
 
+    def mark_checked(self, request_id):
+        """
+        Mark JSI request as checked.
+
+        Move a request into the 'Checked' state.
+
+        Note that this operation requires the user's DN to be registered in the
+        JSI and for them to also have admin privilages.
+
+        Args:
+            request_id (int): The numerical id of the request to approve.
+
+        Raises:
+            requests.exceptions.HTTPError: Problem with the request
+            requests.exceptions.SSLError: Problem with the SSL
+        """
+        if not isinstance(request_id, int):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
+        path = "api/requests/%d" % request_id
+        url = up.urlunsplit(self._url._replace(path=path))
+        ret = requests.put(url, data={"status": "Checked"},
+                           verify=self._verify, cert=self._cert)
+        ret.raise_for_status()
+        return ret
+
+    def mark_closed(self, request_id):
+        """
+        Mark JSI request as closed.
+
+        Move a request into the 'Closed' state.
+
+        Note that this operation requires the user's DN to be registered in the
+        JSI and for them to also have admin privilages.
+
+        Args:
+            request_id (int): The numerical id of the request to approve.
+
+        Raises:
+            requests.exceptions.HTTPError: Problem with the request
+            requests.exceptions.SSLError: Problem with the SSL
+        """
+        if not isinstance(request_id, int):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
+        path = "api/requests/%d" % request_id
+        url = up.urlunsplit(self._url._replace(path=path))
+        ret = requests.put(url, data={"status": "Closed"},
+                           verify=self._verify, cert=self._cert)
+        ret.raise_for_status()
+        return ret
+
     def delete_request(self, request_id):
         """Delete JSI request.
 
