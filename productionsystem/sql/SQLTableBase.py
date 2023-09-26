@@ -9,7 +9,10 @@ import json
 from enum import Enum
 from datetime import datetime
 from abc import ABCMeta
-from collections import Mapping
+try:
+    from collections import Mapping
+except ImportError:
+    from collections.abc import Mapping
 from sqlalchemy import Column
 from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute

@@ -47,7 +47,7 @@ class Requests(SQLTableBase):
     log = Column(TEXT, nullable=False, default="")
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship("Users")
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def __init__(self, **kwargs):
         """Initialise."""

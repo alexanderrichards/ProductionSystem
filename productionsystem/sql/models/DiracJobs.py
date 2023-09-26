@@ -36,7 +36,7 @@ class DiracJobs(SQLTableBase):
     parametricjob_id = Column(Integer, nullable=False)
     status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
     reschedules = Column(Integer, nullable=False, default=0)
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @classmethod
     def get(cls, diracjob_id=None, request_id=None, parametricjob_id=None, user_id=None):
