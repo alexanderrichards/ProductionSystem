@@ -78,7 +78,7 @@ class MonitoringDaemon(Daemonize):
         # DIRAC
         status = ServiceStatus.DOWN
         try:
-            if requests.get("https://dirac.gridpp.ac.uk/DIRAC/",
+            if requests.get("https://dirac.gridpp.ac.uk:8443/DIRAC/",
                             cert=self.cert, verify=self.verify) \
                     .status_code == 200:
                 status = ServiceStatus.UP
