@@ -7,6 +7,28 @@ from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-impor
 import os
 import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
+from datetime import datetime
+
+
+def timestamp():
+    """
+    Return the current timestamp.
+
+    Returns:
+        str: The current timestamp.
+    """
+    return datetime.now().strftime(r"[%Y-%m-%d %H:%M:%S]")
+
+
+class TimeStampLogString(str):
+    """
+    Time stamp log string.
+
+    This is basically a str that adds the timestamp and newline whenever
+    a new log string is concatenated.
+    """
+    def __add__(self, other):
+        return TimeStampLogString(super().__add__("%s %s\n" % (timestamp(), other)))
 
 
 def expand_path(path):
