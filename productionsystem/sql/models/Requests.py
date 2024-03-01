@@ -15,6 +15,8 @@ from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
+from productionsystem.utils import TimeStampLogString
+
 from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
@@ -44,7 +46,7 @@ class Requests(SQLTableBase):
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    log = Column(TEXT, nullable=False, default="")
+    log = Column(TEXT, nullable=False, default=TimeStampLogString())
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship("Users")
     logger = logging.getLogger(__name__).getChild(__qualname__)
@@ -58,6 +60,7 @@ class Requests(SQLTableBase):
         super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
         parametricjobs = kwargs.get('parametricjobs', [])
         if not parametricjobs:
+            self.log += "No parametricjobs associated with new request."
             self.logger.warning("No parametricjobs associated with new request.")
         for job_id, parametricjob in enumerate(parametricjobs):
             parametricjob.pop('requester_id', None)
@@ -68,6 +71,7 @@ class Requests(SQLTableBase):
                                                            requester_id=self.requester_id,
                                                            **parametricjob))
             except ValueError:
+                self.log += "Error creating parametricjob, bad input: %s" % parametricjob
                 self.logger.exception("Error creating parametricjob, bad input: %s", parametricjob)
                 raise
 
@@ -91,12 +95,13 @@ class Requests(SQLTableBase):
 
     def submit(self):
         """Submit Request."""
+        self.log += "Submitting request %s" % self.id
         self.logger.info("Submitting request %s", self.id)
         try:
             for job in self.parametric_jobs:
                 job.submit()
         except BaseException as err:
-            self.log += "Unhandled exception while submitting request\n%s\n" % err
+            self.log += "Unhandled exception while submitting request\n%s" % err
             self.logger.exception("Unhandled exception while submitting request %s", self.id)
             self.status = LocalStatus.FAILED
 
@@ -104,7 +109,7 @@ class Requests(SQLTableBase):
         """Update request status."""
         self.logger.info("Monitoring request %s", self.id)
         if not self.parametric_jobs:
-            self.log += "No parametric jobs present, changing status to Unknown\n"
+            self.log += "No parametric jobs present to monitor, changing status to Unknown"
             self.logger.warning("No parametric jobs associated with request: %d. "
                                 "returning status unknown", self.id)
             self.status = LocalStatus.UNKNOWN
@@ -116,7 +121,7 @@ class Requests(SQLTableBase):
                 job.monitor()
             # get rid of this if parametricjob catches everything. Only when sure as it's complex
             except BaseException as err:
-                self.log += "Unhandled exception monitoring ParametricJob\n%s\n" % err
+                self.log += "Unhandled exception monitoring ParametricJob %s\n%s" % (job.id, err)
                 self.logger.exception("Unhandled exception monitoring ParametricJob %s", job.id)
                 job.status = LocalStatus.UNKNOWN
             status = max(status, job.status)
@@ -231,5 +236,6 @@ def intercept_status_set(target, newvalue, oldvalue, _):
     """Intercept status transitions."""
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached and oldvalue != newvalue:
+        target.log += "Request %d transitioned from status %s to %s" % (target.id, oldvalue.name, newvalue.name)
         target.logger.info("Request %d transitioned from status %s to %s",
                            target.id, oldvalue.name, newvalue.name)
