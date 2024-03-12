@@ -116,6 +116,18 @@ class JSI:
         ret.raise_for_status()
         return ret
 
+    def modify_request_status(self, request_id, status):
+        if not isinstance(status, str):
+            raise TypeError("status parameter should be of type str, received %r" % status)
+        if not isinstance(request_id, int):
+            raise TypeError("request_id parameter should be of type int, received %r" % request_id)
+        path = "api/requests/%d" % request_id
+        url = up.urlunsplit(self._url._replace(path=path))
+        ret = requests.put(url, data={"status": status.capitalize()},
+                           verify=self._verify, cert=self._cert)
+        ret.raise_for_status()
+        return ret        
+
     def approve_request(self, request_id):
         """
         Approve JSI request.
