@@ -24,7 +24,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
-from productionsystem.utils import TemporyFileManagerContext, igroup, TimeStampLogString
+from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
 from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_client,
                                                                  dirac_api_job_client)
 # from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
@@ -65,7 +65,7 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    log = Column(TEXT, nullable=False, default=TimeStampLogString())
+    log = Column(TEXT, nullable=False, default="")
     dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
                               primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
                                           "ParametricJobs.id==DiracJobs.parametricjob_id)")
@@ -91,6 +91,9 @@ class ParametricJobs(SQLTableBase):
         """Update DB with current values."""
         with managed_session() as session:
             session.merge(self)
+
+    def _clientlog(self, log):
+        self.log += "%s %s\n" % (timestamp(), log)
 
     def _remove_dirac_jobs(self):
         """Remove dirac_jobs from the DIRAC system."""
@@ -130,8 +133,8 @@ class ParametricJobs(SQLTableBase):
                                                    tmp_runscript,
                                                    tmp_filemanager)
             except Exception as err:
-                self.log += "Error setting up DIRAC jobs for parametric job %d.%d" \
-                    % (self.request_id, self.id)
+                self._clientlog("Error setting up DIRAC jobs for parametric job %d.%d"
+                                % (self.request_id, self.id))
                 self.logger.exception("Error setting up DIRAC jobs for the parametric job %d.%d: %s",
                                       self.request_id, self.id, err)
                 self.status = LocalStatus.FAILED
@@ -146,15 +149,15 @@ class ParametricJobs(SQLTableBase):
             dirac_job_ids = set()
 
             if not dirac_jobs:
-                self.log += "No DIRAC jobs were created so none to submit."
+                self._clientlog("No DIRAC jobs were created so none to submit.")
                 self.logger.warning("No DIRAC jobs were created so none to submit.")
 
             for dirac_job in dirac_jobs:
                 try:
                     result = dirac.submitJob(dirac_job)
                 except Exception as err:
-                    self.log += "Error submitting parametric job %d.%d using DIRAC API" \
-                        % (self.request_id, self.id)
+                    self._clientlog("Error submitting parametric job %d.%d using DIRAC API"
+                                    % (self.request_id, self.id))
                     self.logger.exception("Error submitting parametric job %d.%d: %s",
                                           self.request_id, self.id, err)
                     self.status = LocalStatus.FAILED
@@ -162,8 +165,8 @@ class ParametricJobs(SQLTableBase):
                     return
 
                 if not result['OK']:
-                    self.log += "DIRAC error submitting parametricjob %d.%d" \
-                        % (self.request_id, self.id)
+                    self._clientlog("DIRAC error submitting parametricjob %d.%d"
+                                    % (self.request_id, self.id))
                     self.logger.error("DIRAC error submitting parametricjob %d.%d: %s",
                                       self.request_id, self.id, result['Message'])
                     self.status = LocalStatus.FAILED
@@ -176,7 +179,7 @@ class ParametricJobs(SQLTableBase):
                 dirac_job_ids.update(created_ids)
 
             if not dirac_job_ids:
-                self.log += "DIRAC job submit API returned not job ids."
+                self._clientlog("DIRAC job submit API returned not job ids.")
                 self.logger.warning("DIRAC job submit API returned not job ids.")
 
             self.dirac_jobs = [DiracJobs(id=i, parametricjob_id=self.id, request_id=self.request_id,
@@ -184,8 +187,8 @@ class ParametricJobs(SQLTableBase):
                                          status=DiracStatus.RECEIVED) for i in dirac_job_ids]
             self.num_jobs = len(self.dirac_jobs)
             if self.num_jobs:
-                self.log += "Successfully submitted %d Dirac jobs for %d.%d" \
-                    % (self.num_jobs, self.request_id, self.id)
+                self._clientlog("Successfully submitted %d Dirac jobs for %d.%d"
+                                % (self.num_jobs, self.request_id, self.id))
                 self.logger.info("Successfully submitted %d Dirac jobs for %d.%d",
                                  self.num_jobs, self.request_id, self.id)
 
@@ -208,7 +211,7 @@ class ParametricJobs(SQLTableBase):
             return
 
         if not self.dirac_jobs:
-            self.log += "No dirac jobs associated with this parametricjob. returning status UNKNOWN"
+            self._clientlog("No dirac jobs associated with this parametricjob. returning status UNKNOWN")
             self.logger.warning("No dirac jobs associated with parametricjob: "
                                 "%d.%d. returning status UNKNOWN",
                                 self.request_id, self.id)
@@ -246,25 +249,25 @@ class ParametricJobs(SQLTableBase):
         # Reschedule jobs
         rescheduled_jobs = set()
         if reschedule_jobs:
-            self.log += "Rescheduling DIRAC jobs: %s" % list(reschedule_jobs)
+            self._clientlog("Rescheduling DIRAC jobs: %s" % list(reschedule_jobs))
             self.logger.info("Rescheduling DIRAC jobs: %s", list(reschedule_jobs))
             with dirac_api_client() as dirac:
                 try:
                     result = dirac.rescheduleJob(reschedule_jobs)
                 except Exception as err:
-                    self.log += "Error calling DIRAC to reschedule jobs: %s" % err
+                    self._clientlog("Error calling DIRAC to reschedule jobs: %s" % err)
                     self.logger.exception("Error calling DIRAC to reschedule jobs: %s", err)
                 else:
                     if not result['OK']:
-                        self.log += "DIRAC failed to reschedule jobs: %s" % result['Message']
+                        self._clientlog("DIRAC failed to reschedule jobs: %s" % result['Message'])
                         self.logger.error("DIRAC failed to reschedule jobs: %s", result['Message'])
                     else:
                         rescheduled_jobs.update(result['Value'])
-                        self.log += "Rescheduled jobs: %s" % list(rescheduled_jobs)
+                        self._clientlog("Rescheduled jobs: %s" % list(rescheduled_jobs))
                         self.logger.info("Rescheduled jobs: %s", list(rescheduled_jobs))
                         skipped_jobs = reschedule_jobs.difference(rescheduled_jobs)
                         if skipped_jobs:
-                            self.log += "Failed to reschedule jobs: %s" % list(skipped_jobs)
+                            self._clientlog("Failed to reschedule jobs: %s" % list(skipped_jobs))
                             self.logger.warning("Failed to reschedule jobs: %s", list(skipped_jobs))
                         monitor_jobs.update(rescheduled_jobs)
 
@@ -276,12 +279,12 @@ class ParametricJobs(SQLTableBase):
                 with dirac_api_client() as dirac:
                     dirac_answer = deepcopy(dirac.getJobStatus(monitor_jobs))
             except Exception as err:
-                self.log += "Error calling DIRAC to monitor jobs: %s" % err
+                self._clientlog("Error calling DIRAC to monitor jobs: %s" % err)
                 self.logger.exception("Error calling DIRAC to monitor jobs: %s", err)
             else:
                 if not dirac_answer['OK']:
-                    self.log += "DIRAC failed to get statuses for jobs belonging to this parametricjob: %s" \
-                                % dirac_answer['Message']
+                    self._clientlog("DIRAC failed to get statuses for jobs belonging to this parametricjob: %s"
+                                    % dirac_answer['Message'])
                     self.logger.error("DIRAC failed to get statuses for jobs belonging to "
                                       "parametricjob id %d.%d: %s",
                                       self.request_id, self.id, dirac_answer['Message'])
@@ -290,7 +293,7 @@ class ParametricJobs(SQLTableBase):
                     monitored_jobs = dirac_answer['Value']
                     skipped_jobs = monitor_jobs.difference(monitored_jobs)
                     if skipped_jobs:
-                        self.log += "Couldn't check the status of jobs: %s" % list(skipped_jobs)
+                        self._clientlog("Couldn't check the status of jobs: %s" % list(skipped_jobs))
                         self.logger.warning("Couldn't check the status of jobs: %s",
                                             list(skipped_jobs))
 
@@ -303,13 +306,14 @@ class ParametricJobs(SQLTableBase):
                     # pylint: disable=unsubscriptable-object
                     job.status = DiracStatus[monitored_jobs[job.id]['Status'].upper()]
                 except KeyError:
-                    self.log += "Unknown DiracStatus: %s. Setting to UNKNOWN" \
-                                % monitored_jobs[job.id]['Status'].upper()
+                    self._clientlog("Unknown DiracStatus: %s. Setting to UNKNOWN"
+                                    % monitored_jobs[job.id]['Status'].upper())
                     self.logger.warning("Unknown DiracStatus: %s. Setting to UNKNOWN",
                                         monitored_jobs[job.id]['Status'].upper())
                     job.status = DiracStatus.UNKNOWN
             if not isinstance(job.status, DiracStatus):
-                self.log += "Dirac job %r status %r is invalid type %r" % (str(job.id), job.status, type(job.status))
+                self._clientlog("Dirac job %r status %r is invalid type %r"
+                                % (str(job.id), job.status, type(job.status)))
                 self.logger.error("Dirac job %r status %r is invalid type %r",
                                   str(job.id), job.status, type(job.status))
                 job.status = DiracStatus.RUNNING
@@ -385,8 +389,8 @@ def intercept_status_set(target, newvalue, oldvalue, _):
     """Intercept status transitions."""
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached and oldvalue != newvalue:
-        target.log += "Parametric job %d.%d transitioned from status %s to %s" \
-            % (target.request_id, target.id, oldvalue.name, newvalue.name)
+        target._clientlog("Parametric job %d.%d transitioned from status %s to %s"
+                          % (target.request_id, target.id, oldvalue.name, newvalue.name))
         target.logger.info("Parametric job %d.%d transitioned from status %s to %s",
                            target.request_id, target.id, oldvalue.name, newvalue.name)
 
