@@ -42,7 +42,7 @@ class Requests(SQLTableBase):
                        'with_polymorphic': '*'}
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     description = SmartColumn(TEXT, nullable=True, allowed=True)
-    requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
+    requester_id = SmartColumn(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False, required=True)
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

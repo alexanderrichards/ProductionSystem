@@ -68,6 +68,7 @@ class HTMLPageServer(object):
                                           extra_jinja2_loader,
                                           loader])
         self._template_env = jinja2.Environment(loader=loader)
+        # self._template_env.add_extension("jinja2.ext.loopcontrols")  # if want to use {% continue %}
         self._logger = logging.getLogger(__name__)
 
     def _render(self, template_name, **kwargs):
