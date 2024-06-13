@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # pylint: disable=invalid-name
 """Script to read users info from VOMS and update locat SQL table."""
 # Py2/3 compatibility layer
