@@ -1,0 +1,19 @@
+name: Docker Image CI
+
+on:
+  push:
+    tags: 
+      - v*
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build the Docker image
+      run: docker build ./build --tag alexanderrichards/productionsystem:$(basename $GITHUB_REF)
+    - name: Publish the Docker image
+      run: docker push docker.pkg.github.com/alexanderrichards/repo/productionsystem:$(basename $GITHUB_REF)
