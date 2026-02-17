@@ -58,7 +58,7 @@ class MonitoringDaemon(Daemonize):
 
         try:
             while True:
-                self.check_services()
+                #self.check_services()
                 self.monitor_requests()
                 time.sleep(self._delay * MINS)
         except KeyboardInterrupt:

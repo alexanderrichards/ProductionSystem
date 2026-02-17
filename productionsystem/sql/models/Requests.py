@@ -11,6 +11,7 @@ from operator import attrgetter
 from future.utils import native
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
+from sqlalchemy.dialects.mysql import LONGTEXT
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -46,7 +47,7 @@ class Requests(SQLTableBase):
     request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    log = Column(TEXT, nullable=False, default="")
+    log = Column(LONGTEXT, nullable=False, default="")
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship("Users")
     logger = logging.getLogger(__name__).getChild(__qualname__)
@@ -58,6 +59,7 @@ class Requests(SQLTableBase):
             raise ValueError("Missing required keyword args: %s" % list(required_args))
         # pylint: disable=no-member
         super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
+        self.log = ""  # Needed for some reason as default not picked up so was None for the _clientlog call
         parametricjobs = kwargs.get('parametricjobs', [])
         if not parametricjobs:
             self._clientlog("No parametricjobs associated with new request.")
@@ -182,8 +184,9 @@ class Requests(SQLTableBase):
                 cls.logger.error("Status: %r should be of type list/tuple", status)
                 raise TypeError
 
+        from sqlalchemy.orm import with_polymorphic
         with managed_session() as session:
-            query = session.query(cls)
+            query = session.query(with_polymorphic(Requests, "*"))
             if load_user:
                 query = query.options(joinedload(cls.requester, innerjoin=True))
             if load_parametricjobs:
@@ -195,6 +198,7 @@ class Requests(SQLTableBase):
                 query = query.filter(cls.status.in_(status))
 
             if request_id is None:
+                print("OUCH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 requests = query.all()
                 session.expunge_all()
                 requests.sort(key=attrgetter('id'))

@@ -19,6 +19,7 @@ from future.utils import native
 import cherrypy
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
                         ForeignKey, Enum, CheckConstraint, event, inspect)
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
@@ -65,7 +66,7 @@ class ParametricJobs(SQLTableBase):
     num_failed = Column(Integer, nullable=False, default=0)
     num_submitted = Column(Integer, nullable=False, default=0)
     num_running = Column(Integer, nullable=False, default=0)
-    log = Column(TEXT, nullable=False, default="")
+    log = Column(LONGTEXT, nullable=False, default="")
     dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
                               primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
                                           "ParametricJobs.id==DiracJobs.parametricjob_id)")
