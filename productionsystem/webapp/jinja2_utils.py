@@ -1,8 +1,5 @@
 """Utilities for Jinja2."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from __future__ import annotations
 
 import jinja2
 

@@ -6,27 +6,24 @@ DB monitoring daemon.
 Daemon that monitors the DB and creates Ganga jobs from new requests. It
 also runs the Ganga monitoring loop to keep Ganga jobs up to date.
 """
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
-from future.utils import viewitems
+from __future__ import annotations
 
 import os
 import sys
 import argparse
 import importlib
+import importlib.metadata as importmeta
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from itertools import chain
 from pprint import pformat
-import pkg_resources
+
 import psutil
 
+from productionsystem.config import ConfigSystem
 from productionsystem.utils import expand_path
 
 
-def stop(args):
+def stop(args, *, logger):
     """Stop the monitoring daemon."""
     pidfile = args.pid_file
     if not os.path.exists(pidfile):
@@ -37,10 +34,10 @@ def stop(args):
         with open(pidfile, 'r') as file_:
             pid = int(file_.read())
     except IOError as err:
-        logger.error("Failed to open pid file: %s", err.message)
+        logger.error("Failed to open pid file: %s", err)
         return
     except ValueError as err:
-        logger.error("Bad pid value in pidfile '%s': %s", pidfile, err.message)
+        logger.error("Bad pid value in pidfile '%s': %s", pidfile, err)
         return
 
     if not psutil.pid_exists(pid):
@@ -63,7 +60,7 @@ def stop(args):
     logging.shutdown()
 
 
-def start(args):
+def start(args, *, logger):
     """Start the monitoring daemon."""
     # Modify the verify arg based on trusted_cas path
     if args.trusted_cas:
@@ -73,7 +70,10 @@ def start(args):
     ###########################################################################
     # Add the python src path to the sys.path for future imports
     # sys.path.append(lzprod_root)
-    MonitoringDaemon = config_instance.entry_point_map['monitoring']['daemon'].load()
+
+    entry_point_map = ConfigSystem.get_instance().entry_point_map
+
+    MonitoringDaemon = entry_point_map['monitoring']['daemon'].load()
 
     # Daemon setup
     ###########################################################################
@@ -84,7 +84,7 @@ def start(args):
                      app=args.app_name,
                      pid=args.pid_file,
                      logger=logger,
-                     keep_fds=[fhandler.stream.fileno()],
+                     keep_fds=[handler.stream.fileno() for handler in logger.handlers],
                      foreground=args.debug_mode).start()
 
 
@@ -146,16 +146,29 @@ if __name__ == '__main__':
     start_parser.add_argument('--debug-mode', action='store_true', default=False,
                               help="Run the daemon in a debug interactive monitoring mode. "
                                    "(debugging only)")
-    projects = set(entry_point.dist.project_name for entry_point in
-                   chain(pkg_resources.iter_entry_points('dbmodels'),
-                         pkg_resources.iter_entry_points('monitoring'),
-                         pkg_resources.iter_entry_points('webapp'),
-                         pkg_resources.iter_entry_points('webapp.services')))
-    projects -= {'productionsystem'}
+    # Entry Point Setup
+    ###########################################################################
+    groups = ('dbmodels', 'monitoring', 'webapp', 'webapp.services')
+    entry_points = {}
+    for entry_point in importmeta.entry_points():
+        if entry_point.group in groups:
+            entry_points.setdefault(entry_point.module.split('.')[0], {})\
+                        .setdefault(entry_point.group, {})[entry_point.name] = entry_point
+
+    projects = set()
+    entry_point_map = entry_points['productionsystem']
+    for project, project_entry_points in entry_points.items():
+        if project != "productionsystem":
+            projects.add(project)
+            entry_point_map.update(project_entry_points)
+
     if projects:
         extensions = start_parser.add_argument_group("Extensions")
         extensions.add_argument('--extension', choices=projects,
                                 help="Activate the chosen extension")
+
+    # Parse CLI Args
+    ###########################################################################
     args = parser.parse_args()
     cli_args = vars(args).copy()
 
@@ -164,8 +177,7 @@ if __name__ == '__main__':
     config_path = expand_path(args.config)
     if not os.path.exists(config_path):
         config_path = None
-    config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(config_path)
+    config_instance = ConfigSystem.setup(config_path)
     if config_path is not None:
         arg_dict = vars(args)
         # Lay the config params on top of default parser ones
@@ -180,6 +192,7 @@ if __name__ == '__main__':
         # directly and cut out the subcommand from the args to parse.
         args = subparser.choices[arg_dict['subcommand']]\
                         .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
+    config_instance.entry_point_map = entry_point_map
 
     # Logging setup
     ###########################################################################
@@ -213,20 +226,8 @@ if __name__ == '__main__':
         logger.warning("Config file '%s' does not exist", cli_args['config'])
     logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
     logger.debug("Runtime args:\n%s", pformat(vars(args)))
-
-    # Entry Point Setup
-    ###########################################################################
-    entry_point_map = pkg_resources.get_entry_map('productionsystem')
-    if args.extension is not None:
-        if args.extension not in projects:
-            logger.critical("Extension '%s' enabled in config file is not valid, "
-                            "expected one of: %s", args.extension, list(projects))
-            sys.exit(1)
-        for group, map in viewitems(entry_point_map):
-            map.update(pkg_resources.get_entry_map(args.extension, group))
-    config_instance.entry_point_map = entry_point_map
     logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))
 
     # Enact the subcommand
     ###########################################################################
-    args.func(args)
+    args.func(args, logger=logger)

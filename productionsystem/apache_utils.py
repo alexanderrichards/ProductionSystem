@@ -5,10 +5,7 @@ Tools for dealing with credential checking from X509 SSL certificates.
 These are useful when using Apache as a reverse proxy to check user
 credentials against a local DB.
 """
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from __future__ import annotations
 
 from functools import wraps
 import cherrypy
