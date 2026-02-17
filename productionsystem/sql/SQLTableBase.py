@@ -1,9 +1,5 @@
 """SQLAlchemy Base Table Module."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
-from future.utils import viewitems, native_str
+from __future__ import annotations
 
 import json
 from enum import Enum
@@ -90,7 +86,7 @@ class IterableBase(Mapping):
 
     def __iter__(self):
         """Get an iterator over instrumented attributes."""
-        for name, type_ in viewitems(vars(self.__class__)):
+        for name, type_ in vars(self.__class__).items():
             if isinstance(type_, (InstrumentedAttribute, property)):
                 try:
                     getattr(self, name, None)
@@ -116,11 +112,11 @@ class IterableBase(Mapping):
     def jsonable_dict(self):
         """Return an easily JSON encodable object."""
         output_obj = {}
-        for column, val in viewitems(self):
+        for column, val in viewitems(self):  # TODO: fix this!
             if isinstance(val, Enum):
                 val = val.name.capitalize()
             elif isinstance(val, datetime):
-                val = val.isoformat(native_str(' '))
+                val = val.isoformat(' ')
             output_obj[column] = val
         return output_obj
 

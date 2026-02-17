@@ -1,8 +1,5 @@
 """Monitoring Daemon."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from __future__ import annotations
 
 import logging
 import time
@@ -50,7 +47,11 @@ class MonitoringDaemon(Daemonize):
             except SQLAlchemyError as err:
                 self.logger.exception("Error updating the status of monitoring daemon: %s",
                                       err)
-        super(MonitoringDaemon, self).exit()
+        try:
+            super(MonitoringDaemon, self).exit()
+        except SystemExit as err:
+            if err.code != 0:
+                raise
 
     def main(self):
         """Daemon main function."""
