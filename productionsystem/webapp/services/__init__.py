@@ -1,5 +1,5 @@
 """Services sub-package."""
-from __future__ import absolute_import
+from __future__ import annotations
 # import pkg_resources
 from productionsystem.config import ConfigSystem
 from .CVMFSListing import CVMFSDirectoryListing

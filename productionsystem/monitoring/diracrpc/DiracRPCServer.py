@@ -1,9 +1,5 @@
 """DIRAC RPC Server."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
-from future.utils import text_to_native_str
+from __future__ import annotations
 
 import logging
 # from types import FunctionType
@@ -43,7 +39,7 @@ class FixedJob(Job):
 
     def setPriority(self, priority):
         """Set the job Priority."""
-        super(FixedJob, self)._setParamValue(text_to_native_str("Priority"), priority)
+        super(FixedJob, self)._setParamValue("Priority", priority)
 
 
 class FixedDirac(Dirac):
@@ -104,6 +100,13 @@ class DiracDaemon(Daemonize):
         """Initialise."""
         self._address = address
         super(DiracDaemon, self).__init__(action=self.main, **kwargs)
+
+    def exit(self):
+        try:
+            return super().exit()
+        except SystemExit as err:
+            if err.code != 0:
+                raise
 
     def main(self):
         """Daemon main."""
