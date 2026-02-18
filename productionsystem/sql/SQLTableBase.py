@@ -112,7 +112,8 @@ class IterableBase(Mapping):
     def jsonable_dict(self):
         """Return an easily JSON encodable object."""
         output_obj = {}
-        for column, val in viewitems(self):  # TODO: fix this!
+        for column in self:
+            val = getattr(self, column)
             if isinstance(val, Enum):
                 val = val.name.capitalize()
             elif isinstance(val, datetime):
