@@ -5,12 +5,9 @@ import json
 from enum import Enum
 from datetime import datetime
 from abc import ABCMeta
-try:
-    from collections import Mapping
-except ImportError:
-    from collections.abc import Mapping
+from collections.abc import Iterable
 from sqlalchemy import Column
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import DetachedInstanceError
 
@@ -25,8 +22,6 @@ class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
     with the ABCMeta giving us the ability to use abstract
     decorators etc.
     """
-
-    pass
 
 
 class SmartColumn(Column):
@@ -69,7 +64,7 @@ class ColumnsDescriptor(object):
         raise AttributeError("Read only attribute!")
 
 
-class IterableBase(Mapping):
+class IterableBase(Iterable):
     """
     Iterable base class.
 
@@ -113,12 +108,15 @@ class IterableBase(Mapping):
         """Return an easily JSON encodable object."""
         output_obj = {}
         for column in self:
-            val = getattr(self, column)
-            if isinstance(val, Enum):
-                val = val.name.capitalize()
-            elif isinstance(val, datetime):
-                val = val.isoformat(' ')
-            output_obj[column] = val
+            value = self[column]
+            if isinstance(value, (str, int, float, bool, type(None))):
+                output_obj[column] = value
+            elif isinstance(value, Enum):
+                output_obj[column] = value.name.capitalize()
+            elif isinstance(value, datetime):
+                output_obj[column] = value.isoformat(' ')
+            else:
+                output_obj[column] = str(value)
         return output_obj
 
     def to_json(self):
@@ -126,5 +124,10 @@ class IterableBase(Mapping):
         return json.dumps(self.jsonable_dict())
 
 
-SQLTableBase = declarative_base(cls=IterableBase,  # pylint: disable=invalid-name
-                                metaclass=DeclarativeABCMeta)
+class SQLTableBase(IterableBase, DeclarativeBase, metaclass=DeclarativeABCMeta):
+    """
+    Modern SQLAlchemy 2.0+ declarative base.
+
+    Combines DeclarativeBase with IterableBase for enhanced functionality.
+    """
+    __abstract__ = True

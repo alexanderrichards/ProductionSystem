@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import logging
-from future.utils import native
 import cherrypy
-from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
-from sqlalchemy import Column, Integer, TEXT, Boolean
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy import Column, Integer, TEXT, Boolean, select
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 
@@ -73,85 +71,83 @@ class Users(SQLTableBase):
         """
         if user_id is not None:
             try:
-                user_id = native(int(user_id))
+                user_id = int(user_id)
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)
                 raise
 
         with managed_session() as session:
-            query = session.query(cls)
             if user_id is None:
-                users = query.all()
-                session.expunge_all()
+                users = session.execute(select(cls)).all()
                 return users
 
             try:
-                user = query.filter_by(id=user_id).one()
+                user = session.execute(
+                    select(cls)
+                    .where(cls.id == user_id)
+                ).one()
             except NoResultFound:
                 cls.logger.warning("No result found for user id: %d", user_id)
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for user id: %d", user_id)
                 raise
-            session.expunge(user)
             return user
 
 
-'''
-    @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
-    def GET(cls, user_id=None):
-        """REST GET method."""
-        cls.logger.debug("In GET: user_id = %r", user_id)
-        with managed_session() as session:
-            query = session.query(cls)
-            if user_id is None:
-                users = query.all()
-                session.expunge_all()
-                return users
+#     @classmethod
+#     @cherrypy.tools.accept(media='application/json')
+#     @cherrypy.tools.json_out()
+#     @dummy_credentials
+# #    @check_credentials
+# #    @admin_only
+#     def GET(cls, user_id=None):
+#         """REST GET method."""
+#         cls.logger.debug("In GET: user_id = %r", user_id)
+#         with managed_session() as session:
+#             query = session.query(cls)
+#             if user_id is None:
+#                 users = query.all()
+#                 session.expunge_all()
+#                 return users
 
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-                user_id = int(user_id)
+#             with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
+#                 user_id = int(user_id)
 
-            try:
-                user = query.filter_by(id=user_id).one()
-            except NoResultFound:
-                message = 'No matching user found.'
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = 'Multiple matching users found.'
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            session.expunge(user)
-            return user
+#             try:
+#                 user = query.filter_by(id=user_id).one()
+#             except NoResultFound:
+#                 message = 'No matching user found.'
+#                 cls.logger.warning(message)
+#                 raise cherrypy.NotFound(message)
+#             except MultipleResultsFound:
+#                 message = 'Multiple matching users found.'
+#                 cls.logger.error(message)
+#                 raise cherrypy.HTTPError(500, message)
+#             session.expunge(user)
+#             return user
 
-    @classmethod
-    @check_credentials
-    @admin_only
-    def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
-        """REST Put method."""
-        cls.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-            user_id = int(user_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
-            admin = bool(strtobool(admin))
+#     @classmethod
+#     @check_credentials
+#     @admin_only
+#     def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
+#         """REST Put method."""
+#         cls.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
+#         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
+#             user_id = int(user_id)
+#         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
+#             admin = bool(strtobool(admin))
 
-        with managed_session() as session:
-            try:
-                user = session.query(cls).filter_by(id=user_id).one()
-            except NoResultFound:
-                message = "No matching user found."
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple matching users found."
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            user.admin = admin
-'''
+#         with managed_session() as session:
+#             try:
+#                 user = session.query(cls).filter_by(id=user_id).one()
+#             except NoResultFound:
+#                 message = "No matching user found."
+#                 cls.logger.warning(message)
+#                 raise cherrypy.NotFound(message)
+#             except MultipleResultsFound:
+#                 message = "Multiple matching users found."
+#                 cls.logger.error(message)
+#                 raise cherrypy.HTTPError(500, message)
+#             user.admin = admin
