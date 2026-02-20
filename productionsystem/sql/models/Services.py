@@ -1,13 +1,12 @@
 """Services Table."""
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime
 from future.utils import native, native_str
 import cherrypy
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session
 from ..enums import ServiceStatus
 from ..SQLTableBase import SQLTableBase
@@ -31,7 +30,6 @@ class Services(SQLTableBase):
             session.add(self)
             session.flush()
             session.refresh(self)
-            session.expunge(self)
 
     def update(self):
         """Update the DB with current values."""
@@ -70,67 +68,62 @@ class Services(SQLTableBase):
                 raise
 
         with managed_session() as session:
-            query = session.query(cls)
             query_id = []
+            stmt = select(cls)
             if service_id is not None:
-                query = query.filter_by(id=service_id)
+                stmt = stmt.where(cls.id == service_id)
                 query_id.append(str(service_id))
             if service_name is not None:
-                query = query.filter_by(name=service_name)
+                stmt = stmt.where(cls.name == service_name)
                 query_id.append(service_name)
 
-            if service_id is None and service_name is None:
-                services = query.all()
-                session.expunge_all()
+            if service_id is None and service_name is None:  # TODO: maybe just service id is unique?
+                services = session.execute(stmt).all()
                 return services
 
             try:
-                service = query.one()
+                service = session.execute(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for service: (%s)", ', '.join(query_id))
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for service: (%s)", ', '.join(query_id))
                 raise
-            session.expunge(service)
             return service
 
+#     @classmethod
+#     @cherrypy.tools.accept(media='application/json')
+#     @cherrypy.tools.json_out()
+#     @dummy_credentials
+# #    @check_credentials
+# #    @admin_only
+#     def GET(cls, service_id=None):  # pylint: disable=invalid-name
+#         """REST Get method."""
+#         cls.logger.debug("In GET: service_id = %r", service_id)
+#         requester = cherrypy.request.verified_user
+#         with managed_session() as session:
+#             query = session.query(cls)
+#             if service_id is None:
+#                 services = query.all()
+#                 session.expunge_all()
+#                 return services
 
-'''
-    @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
-    def GET(cls, service_id=None):  # pylint: disable=invalid-name
-        """REST Get method."""
-        cls.logger.debug("In GET: service_id = %r", service_id)
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls)
-            if service_id is None:
-                services = query.all()
-                session.expunge_all()
-                return services
+#             try:
+#                 service_id = int(service_id)
+#             except ValueError:
+#                 query = query.filter_by(name=service_id)
+#             else:
+#                 query = query.filter_by(id=service_id)
 
-            try:
-                service_id = int(service_id)
-            except ValueError:
-                query = query.filter_by(name=service_id)
-            else:
-                query = query.filter_by(id=service_id)
-
-            try:
-                service = query.one()
-            except NoResultFound:
-                message = 'No matching service found.'
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = 'Multiple matching services found.'
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            session.expunge(service)
-            return service
-'''
+#             try:
+#                 service = query.one()
+#             except NoResultFound:
+#                 message = 'No matching service found.'
+#                 cls.logger.warning(message)
+#                 raise cherrypy.NotFound(message)
+#             except MultipleResultsFound:
+#                 message = 'Multiple matching services found.'
+#                 cls.logger.error(message)
+#                 raise cherrypy.HTTPError(500, message)
+#             session.expunge(service)
+#             return service

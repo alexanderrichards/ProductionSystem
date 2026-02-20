@@ -9,13 +9,12 @@ from collections.abc import Iterable
 from copy import deepcopy
 from operator import attrgetter
 
-from future.utils import native
 import cherrypy
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
-                        ForeignKey, Enum, CheckConstraint, event, inspect)
+                        ForeignKey, Enum, CheckConstraint, event, inspect, select)
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
 from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
@@ -328,7 +327,7 @@ class ParametricJobs(SQLTableBase):
         """Get parametric jobs."""
         if request_id is not None:
             try:
-                request_id = native(int(request_id))
+                request_id = int(request_id)
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
@@ -336,7 +335,7 @@ class ParametricJobs(SQLTableBase):
 
         if parametricjob_id is not None:
             try:
-                parametricjob_id = native(int(parametricjob_id))
+                parametricjob_id = int(parametricjob_id)
             except ValueError:
                 cls.logger.error("Parametric job id: %r should be of type int "
                                  "(or convertable to int)", parametricjob_id)
@@ -344,29 +343,28 @@ class ParametricJobs(SQLTableBase):
 
         if user_id is not None:
             try:
-                user_id = native(int(user_id))
+                user_id = int(user_id)
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)
                 raise
 
         with managed_session() as session:
-            query = session.query(cls)
+            stmt = select(cls)
             if request_id is not None:
-                query = query.filter_by(request_id=request_id)
+                stmt = stmt.where(cls.request_id == request_id)
             if parametricjob_id is not None:
-                query = query.filter_by(id=parametricjob_id)
+                stmt = stmt.where(cls.id == parametricjob_id)
             if user_id is not None:
-                query = query.filter_by(requester_id=user_id)
+                stmt = stmt.where(cls.requester_id == user_id)
 
-            if request_id is None or parametricjob_id is None:
-                parametricjobs = query.all()
-                session.expunge_all()
+            if request_id is None or parametricjob_id is None:  # TODO: Check this is correct, maybe should be just parametricjob_id
+                parametricjobs = session.execute(stmt).all()
                 parametricjobs.sort(key=attrgetter("id"))
                 return parametricjobs
 
             try:
-                parametricjob = query.one()
+                parametricjob = session.execute(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for parametric job id: %d", parametricjob_id)
                 raise
@@ -374,7 +372,6 @@ class ParametricJobs(SQLTableBase):
                 cls.logger.error("Multiple results found for parametric job id: %d",
                                  parametricjob_id)
                 raise
-            session.expunge(parametricjob)
             return parametricjob
 
 

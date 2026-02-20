@@ -7,10 +7,10 @@ from operator import attrgetter
 
 from future.utils import native
 import cherrypy
-from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect
+from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.utils import timestamp
 
@@ -81,7 +81,6 @@ class Requests(SQLTableBase):
             session.add(self)
             session.flush()
             session.refresh(self)
-            session.expunge(self)
 
     def remove(self):
         """Remove self from the DB."""
@@ -141,7 +140,10 @@ class Requests(SQLTableBase):
 
         with managed_session() as session:
             try:
-                request = session.query(cls).filter_by(id=request_id).one()
+                request = session.execute(
+                    select(cls)
+                    .where(cls.id == request_id)
+                    ).one()
             except NoResultFound:
                 cls.logger.warning("No result found for request id: %d", request_id)
                 raise
@@ -180,54 +182,48 @@ class Requests(SQLTableBase):
                 raise TypeError
 
         with managed_session() as session:
-            query = session.query(cls)
+            stmt = select(cls)
             if load_user:
-                query = query.options(joinedload(cls.requester, innerjoin=True))
+                stmt = stmt.options(joinedload(cls.requester, innerjoin=True))
             if load_parametricjobs:
-                query = query.options(joinedload(cls.parametric_jobs)
-                                      .joinedload(ParametricJobs.dirac_jobs))
+                stmt = stmt.options(joinedload(cls.parametric_jobs)
+                                    .joinedload(ParametricJobs.dirac_jobs))
             if user_id is not None:
-                query = query.filter_by(requester_id=user_id)
+                stmt = stmt.where(cls.requester_id == user_id)
             if status is not None:
-                query = query.filter(cls.status.in_(status))
+                stmt = stmt.where(cls.status.in_(status))
 
             if request_id is None:
-                requests = query.all()
-                session.expunge_all()
+                requests = session.execute(stmt).all()
                 requests.sort(key=attrgetter('id'))
                 return requests
 
             if isinstance(request_id, (list, tuple)):
-                requests = query.filter(cls.id.in_(request_id)).all()
-                session.expunge_all()
+                requests = session.execute(stmt.where(cls.id.in_(request_id))).all()
                 requests.sort(key=attrgetter('id'))
                 return requests
 
             try:
-                request = query.filter_by(id=request_id).one()
+                request = session.execute(stmt.where(cls.id == request_id)).one()
             except NoResultFound:
                 cls.logger.warning("No result found for request id: %d", request_id)
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for request id: %d", request_id)
                 raise
-            # Need the all if loading the user db object as well.
-            # If not then doesn't hurt as only one object this session
-            session.expunge_all()
             return request
 
     @classmethod
     def get_reschedules(cls):
         """Get Requests with ParametricJobs to reschedule."""
         with managed_session() as session:
-            requests = session.query(cls)\
-                              .options(joinedload(cls.parametric_jobs)
-                                       .joinedload(ParametricJobs.dirac_jobs))\
-                              .filter_by(status=LocalStatus.FAILED)\
-                              .join(cls.parametric_jobs)\
-                              .filter_by(reschedule=True)\
-                              .all()
-            session.expunge_all()
+            requests = session.execute(
+                select(cls)
+                .options(joinedload(cls.parametric_jobs).joinedload(ParametricJobs.dirac_jobs))
+                .where(cls.status == LocalStatus.FAILED)
+                .join(cls.parametric_jobs)
+                .where(cls.reschedule == True)  # TODO: look into why this class has no reschedules? does this come from lzrequests?
+            ).all()
             return requests
 
 

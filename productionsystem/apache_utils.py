@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from functools import wraps
 import cherrypy
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 import productionsystem.sql as sql
 from productionsystem.sql.models import Users
 
@@ -71,24 +72,24 @@ def check_credentials(func):
 
         with sql.managed_session() as session:
             try:
-                user = session.query(sql.models.Users) \
-                    .filter_by(dn=client_dn, ca=client_ca) \
-                    .one()
-            except MultipleResultsFound:
-                raise cherrypy.HTTPError(500, 'Internal Server Error: Duplicate user detected. '
-                                              'user: (%s, %s)'
-                                         % (client_dn, client_ca))
-            except NoResultFound:
+                user = session.execute(
+                    select(Users)
+                    .where(Users.dn == client_dn)
+                    .where(Users.ca == client_ca)  # can use a single where with two args instead
+                ).one()
+            except MultipleResultsFound as err:
+                raise cherrypy.HTTPError(500, 'Internal Server Error: Duplicate user detected. user: (%s, %s)'
+                                         % (client_dn, client_ca)) from err
+            except NoResultFound as err:
                 raise cherrypy.HTTPError(403, 'Forbidden: Unknown user. user: (%s, %s)'
-                                         % (client_dn, client_ca))
+                                         % (client_dn, client_ca)) from err
             except Exception as err:
                 raise cherrypy.HTTPError(500,
                                          "Internal Server Error: Unknown Exception caught %s-> %s"
-                                         % (type(err), err))
+                                         % (type(err), err)) from err
             if user.suspended:
                 raise cherrypy.HTTPError(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
                                          % (client_dn, client_ca))
-            session.expunge(user)
             cherrypy.request.verified_user = user
         return func(*args, **kwargs)
     return wrapper
