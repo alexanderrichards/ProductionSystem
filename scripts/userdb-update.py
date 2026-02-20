@@ -8,8 +8,9 @@ import logging
 import argparse
 import importlib
 from pprint import pformat
-import pkg_resources
+import pkg_resources  # TODO: remove this as part of the python3 update
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from productionsystem.utils import expand_path
@@ -112,7 +113,7 @@ if __name__ == '__main__':
 
     registry.SessionRegistry.setup(args.dburl)
     with registry.managed_session() as session:
-        db_users = set(session.query(Users).all())
+        db_users = set(session.execute(select(Users)).all())
 
         new_users = voms_users.difference(db_users)
         removed_users = db_users.difference(voms_users)
@@ -124,44 +125,52 @@ if __name__ == '__main__':
             try:
                 session.add(new_user)
             except SQLAlchemyError as err:
-                logger.error("Error Adding user: %s", err.message)
+                logger.error("Error Adding user: %s", err)
 
         # Remove users removed from VOMS
         for removed_user in removed_users:
             logger.info("Removing user: DN='%s', CA='%s'", removed_user.dn, removed_user.ca)
             try:
-                session.query(Users)\
-                       .filter_by(dn=removed_user.dn, ca=removed_user.ca)\
-                       .delete(synchronize_session=False)
+                session.execute(
+                    select(Users)
+                    .where(Users.dn == removed_user.dn)
+                    .where(Users.ca == removed_user.ca)
+                ).delete(synchronize_session=False)
             except SQLAlchemyError as err:
-                logger.error("Error deleting user: %s", err.message)
+                logger.error("Error deleting user: %s", err)
 
         # Users with modified suspended status, update from VOMS
         for common_user in common_users:
             voms_dn, voms_ca = common_user.dn, common_user.ca
             voms_email, voms_suspended = common_user.email, common_user.suspended
-            db_email, db_suspended = session.query(Users.email, Users.suspended)\
-                                            .filter_by(dn=voms_dn, ca=voms_ca)\
-                                            .one()
+            db_email, db_suspended = session.execute(
+                                        select(Users.email, Users.suspended)
+                                        .where(Users.dn == voms_dn)
+                                        .where(Users.ca == voms_ca)
+                                        ).one()
 
             if voms_email != db_email:
                 logger.info("Updating user: DN='%s', CA='%s', Email=%s->%s",
                             voms_dn, voms_ca, db_email, voms_email)
                 try:
-                    session.query(Users)\
-                           .filter_by(dn=voms_dn, ca=voms_ca)\
-                           .update({'email': voms_email})
+                    session.execute(
+                        select(Users)
+                        .where(Users.dn == voms_dn)
+                        .where(Users.ca == voms_ca)
+                        ).update({'email': voms_email})
                 except SQLAlchemyError as err:
-                    logger.error("Error updateing user email: %s", err.message)
+                    logger.error("Error updateing user email: %s", err)
 
             if voms_suspended != db_suspended:
                 logger.info("Updating user: DN='%s', CA='%s', Suspended=%s->%s",
                             voms_dn, voms_ca, db_suspended, voms_suspended)
                 try:
-                    session.query(Users)\
-                           .filter_by(dn=voms_dn, ca=voms_ca)\
-                           .update({'suspended': voms_suspended})
+                    session.execute(
+                        select(Users)
+                        .where(Users.dn == voms_dn)
+                        .where(Users.ca == voms_ca)
+                        ).update({'suspended': voms_suspended})
                 except SQLAlchemyError as err:
-                    logger.error("Error updating user suspended status: %s", err.message)
+                    logger.error("Error updating user suspended status: %s", err)
 
     logging.shutdown()
