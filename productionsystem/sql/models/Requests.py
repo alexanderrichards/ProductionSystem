@@ -5,7 +5,6 @@ import logging
 from datetime import datetime
 from operator import attrgetter
 
-from future.utils import native
 import cherrypy
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
 # from sqlalchemy.exc import SQLAlchemyError
@@ -50,11 +49,10 @@ class Requests(SQLTableBase):
 
     def __init__(self, **kwargs):
         """Initialise."""
-        required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
+        required_args = set(self.required_columns).difference(kwargs)
         if required_args:
             raise ValueError("Missing required keyword args: %s" % list(required_args))
-        # pylint: disable=no-member
-        super(Requests, self).__init__(**subdict(kwargs, self.allowed_columns))
+        super().__init__(**subdict(kwargs, self.allowed_columns))
         parametricjobs = kwargs.get('parametricjobs', [])
         if not parametricjobs:
             self._clientlog("No parametricjobs associated with new request.")
@@ -97,7 +95,7 @@ class Requests(SQLTableBase):
         self._clientlog("Submitting request %s" % self.id)
         self.logger.info("Submitting request %s", self.id)
         try:
-            for job in self.parametric_jobs:
+            for job in self.parametric_jobs:  # pyright: ignore[reportGeneralTypeIssues]
                 job.submit()
         except BaseException as err:
             self._clientlog("Unhandled exception while submitting request\n%s" % err)
@@ -115,7 +113,7 @@ class Requests(SQLTableBase):
             return
 
         status = LocalStatus.UNKNOWN
-        for job in self.parametric_jobs:
+        for job in self.parametric_jobs:  # pyright: ignore[reportGeneralTypeIssues]
             try:
                 job.monitor()
             # get rid of this if parametricjob catches everything. Only when sure as it's complex
@@ -132,7 +130,7 @@ class Requests(SQLTableBase):
     def delete(cls, request_id):
         """Delete a requests from the DB."""
         try:
-            request_id = native(int(request_id))
+            request_id = int(request_id)
         except ValueError:
             cls.logger.error("Request id: %r should be of type int "
                              "(or convertable to int)", request_id)
@@ -160,9 +158,9 @@ class Requests(SQLTableBase):
         if request_id is not None:
             try:
                 if isinstance(request_id, (list, tuple)):
-                    request_id = [native(int(i)) for i in request_id]
+                    request_id = [int(i) for i in request_id]
                 else:
-                    request_id = native(int(request_id))
+                    request_id = int(request_id)
             except ValueError:
                 cls.logger.error("Request id: %r should be of type int "
                                  "(or convertable to int)", request_id)
@@ -170,7 +168,7 @@ class Requests(SQLTableBase):
 
         if user_id is not None:
             try:
-                user_id = native(int(user_id))
+                user_id = int(user_id)
             except ValueError:
                 cls.logger.error("User id: %r should be of type int "
                                  "(or convertable to int)", user_id)
@@ -191,7 +189,7 @@ class Requests(SQLTableBase):
             if user_id is not None:
                 stmt = stmt.where(cls.requester_id == user_id)
             if status is not None:
-                stmt = stmt.where(cls.status.in_(status))
+                stmt = stmt.where(cls.status.in_(status))  # pyright: ignore[reportAttributeAccessIssue]
 
             if request_id is None:
                 requests = session.execute(stmt).all()
@@ -222,7 +220,7 @@ class Requests(SQLTableBase):
                 .options(joinedload(cls.parametric_jobs).joinedload(ParametricJobs.dirac_jobs))
                 .where(cls.status == LocalStatus.FAILED)
                 .join(cls.parametric_jobs)
-                .where(cls.reschedule == True)  # TODO: look into why this class has no reschedules? does this come from lzrequests?
+                .where(ParametricJobs.reschedule is True)  # reschedule comes from joining the parametricjobs table.
             ).all()
             return requests
 

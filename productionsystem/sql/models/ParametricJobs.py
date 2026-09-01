@@ -93,7 +93,7 @@ class ParametricJobs(SQLTableBase):
         if not self.dirac_jobs:
             return
 
-        dirac_ids = [job.id for job in self.dirac_jobs]
+        dirac_ids = [job.id for job in self.dirac_jobs]  # pyright: ignore[reportGeneralTypeIssues]
         for ids in igroup(dirac_ids, 1000):
             try:
                 with dirac_api_client() as dirac:
@@ -218,7 +218,7 @@ class ParametricJobs(SQLTableBase):
 
         num_reschedules = getConfig("parametricjobs").get("reschedules", 2)
         job_types = defaultdict(set)
-        for job in self.dirac_jobs:
+        for job in self.dirac_jobs:  # pyright: ignore[reportGeneralTypeIssues]
             job_types[job.status].add(job.id)
             # add auto-reschedule jobs
             if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and\
@@ -291,7 +291,7 @@ class ParametricJobs(SQLTableBase):
                                             list(skipped_jobs))
 
         statuses = Counter()
-        for job in self.dirac_jobs:
+        for job in self.dirac_jobs:  # pyright: ignore[reportGeneralTypeIssues]
             if job.id in rescheduled_jobs:
                 job.reschedules += 1
             if job.id in monitored_jobs:
@@ -358,7 +358,8 @@ class ParametricJobs(SQLTableBase):
             if user_id is not None:
                 stmt = stmt.where(cls.requester_id == user_id)
 
-            if request_id is None or parametricjob_id is None:  # TODO: Check this is correct, maybe should be just parametricjob_id
+            # TODO: Check this is correct, maybe should be just parametricjob_id
+            if request_id is None or parametricjob_id is None:
                 parametricjobs = session.execute(stmt).all()
                 parametricjobs.sort(key=attrgetter("id"))
                 return parametricjobs
