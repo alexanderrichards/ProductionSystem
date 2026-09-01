@@ -7,7 +7,7 @@ from datetime import datetime
 from abc import ABCMeta
 from collections.abc import Iterable
 from sqlalchemy import Column
-from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta
+from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta  # pyright: ignore[reportAttributeAccessIssue]
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import DetachedInstanceError
 
