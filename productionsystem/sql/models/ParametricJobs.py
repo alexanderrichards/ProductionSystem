@@ -18,9 +18,8 @@ from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
 from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
-from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_client,
-                                                                 dirac_api_job_client)
-# from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
+from productionsystem.monitoring.diracrest.DiracRESTClient import (dirac_api_client,
+                                                                   dirac_api_job_client)
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session, SessionRegistry
 from ..SQLTableBase import SQLTableBase, SmartColumn

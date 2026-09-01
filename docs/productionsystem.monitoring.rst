@@ -11,7 +11,7 @@ Subpackages
 
 .. toctree::
 
-    productionsystem.monitoring.diracrpc
+    productionsystem.monitoring.diracrest
 
 Submodules
 ----------
@@ -19,4 +19,3 @@ Submodules
 .. toctree::
 
    productionsystem.monitoring.MonitoringDaemon
-
