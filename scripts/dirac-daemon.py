@@ -95,12 +95,12 @@ def start(args, *, logger):
     ###########################################################################
     # Add the python src path to the sys.path for future imports
     # sys.path.append(lzprod_root)
-    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrpc.DiracRPCServer')\
+    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrest.DiracRESTDaemon')\
                            .DiracDaemon
 
     # Daemon setup
     ###########################################################################
-    DiracDaemon(address=(args.socket_host, args.socket_port),
+    DiracDaemon(address=(args.api_host, args.api_port),
                 app=app_name,
                 pid=args.pid_file,
                 logger=logger,
@@ -121,9 +121,9 @@ if __name__ == '__main__':
     start_parser.set_defaults(func=start, extension=None)
     stop_parser.set_defaults(func=stop, debug_mode=True, extension=None)
 
-    start_parser.add_argument('--socket-host', default='localhost',
+    start_parser.add_argument('--api-host', default='localhost',
                               help="The dirac environment API host [default: %(default)s]")
-    start_parser.add_argument('--socket-port', default=18861, type=int,
+    start_parser.add_argument('--api-port', default=18861, type=int,
                               help="The dirac environment API port [default: %(default)s]")
     start_parser.add_argument('-p', '--pid-file',
                               default=os.path.join(current_dir, "%s.pid" % app_name),
