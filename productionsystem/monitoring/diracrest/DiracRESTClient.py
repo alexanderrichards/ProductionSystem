@@ -87,6 +87,10 @@ class _RESTClient:
 class DiracAPIClient(_RESTClient):
     """Client for DIRAC job resources."""
 
+    def testConnection(self):
+        """Test the connection to the DIRAC API."""
+        return self._request("GET", "/health", {})
+
     def submitJob(self, job):
         """Submit a recorded DIRAC job."""
         if not isinstance(job, RESTJob):
