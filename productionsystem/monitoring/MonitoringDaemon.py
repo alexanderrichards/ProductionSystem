@@ -10,6 +10,7 @@ from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client
 from productionsystem.sql.registry import SessionRegistry, managed_session
 from productionsystem.sql.models import Requests, Services
 from productionsystem.sql.enums import LocalStatus, ServiceStatus
@@ -27,6 +28,11 @@ class MonitoringDaemon(Daemonize):
         self._delay = delay
         self.cert = cert
         self.verify = verify
+        with dirac_api_client() as client:
+            response = client.testConnection()
+            if not isinstance(response, dict) or response.get("status") != 'ok':
+                self.logger.error("Failed to connect to DIRAC API daemon: %s", response)
+                raise RuntimeError("Failed to connect to DIRAC API daemon.")
 
     def exit(self):
         """Update the monitoringd status on exit."""
