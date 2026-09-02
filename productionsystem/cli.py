@@ -20,7 +20,11 @@ ENTRY_POINT_GROUPS = ('dbmodels', 'monitoring', 'webapp', 'webapp.services')
 def load_entry_points():
     """Load ProductionSystem and extension entry points."""
     discovered = {}
-    for entry_point in importmeta.entry_points():
+    entry_points = importmeta.entry_points()
+    if isinstance(entry_points, dict):  # older Python 3.11 compatible code
+        entry_points = [ep for group in entry_points.values() for ep in group]
+
+    for entry_point in entry_points:
         if entry_point.group in ENTRY_POINT_GROUPS:
             project = entry_point.module.split('.')[0]
             discovered.setdefault(project, {}).setdefault(
