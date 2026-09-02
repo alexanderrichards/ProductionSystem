@@ -7,22 +7,15 @@ from datetime import datetime
 from abc import ABCMeta
 from collections.abc import Iterable
 from sqlalchemy import Column
-from sqlalchemy.orm import DeclarativeBase, DeclarativeMeta  # pyright: ignore[reportAttributeAccessIssue]
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 __all__ = ('SQLTableBase', )
 
 
-class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
-    """
-    Declarative abstract base metaclass.
-
-    Metaclass combining the SQLAlchemy DeclarativeMeta
-    with the ABCMeta giving us the ability to use abstract
-    decorators etc.
-    """
-
+class DeclarativeABCMeta(type(DeclarativeBase), ABCMeta):
+    """Combine SQLAlchemy 2 declarative attributes with abstract bases."""
 
 class SmartColumn(Column):
     def __init__(self, *args, **kwargs):

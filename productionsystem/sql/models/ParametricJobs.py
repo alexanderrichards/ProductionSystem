@@ -13,7 +13,7 @@ import cherrypy
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
                         ForeignKey, Enum, CheckConstraint, event, inspect, select)
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Session
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
@@ -359,12 +359,12 @@ class ParametricJobs(SQLTableBase):
 
             # TODO: Check this is correct, maybe should be just parametricjob_id
             if request_id is None or parametricjob_id is None:
-                parametricjobs = session.execute(stmt).all()
+                parametricjobs = session.scalars(stmt).all()
                 parametricjobs.sort(key=attrgetter("id"))
                 return parametricjobs
 
             try:
-                parametricjob = session.execute(stmt).one()
+                parametricjob = session.scalars(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for parametric job id: %d", parametricjob_id)
                 raise
@@ -386,7 +386,7 @@ def intercept_status_set(target, newvalue, oldvalue, _):
                            target.request_id, target.id, oldvalue.name, newvalue.name)
 
 
-@event.listens_for(SessionRegistry, "persistent_to_deleted")
+@event.listens_for(Session, "persistent_to_deleted")
 def intercept_persistent_to_deleted(session, object_):
     """Intercept deletion of object and remove DIRAC jobs."""
     if isinstance(object_, DiracJobs):

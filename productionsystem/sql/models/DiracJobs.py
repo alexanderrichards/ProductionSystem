@@ -79,11 +79,10 @@ class DiracJobs(SQLTableBase):
                 stmt = stmt.where(cls.requester_id == user_id)
 
             if diracjob_id is None:
-                requests = session.execute(stmt).all()
-                return requests
+                return session.scalars(stmt).all()
 
             try:
-                diracjob = session.execute(stmt).one()
+                diracjob = session.scalars(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for dirac job id: %d", diracjob_id)
                 raise

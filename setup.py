@@ -21,6 +21,7 @@ setup(
                       'suds-py3;python_version>"3"',
                       'gitpython',
                       'psutil',
+                      'typer',
                       'mock'  # can use inbuild mock after 3.X but imports will have to change
                       ],
     extras_require={

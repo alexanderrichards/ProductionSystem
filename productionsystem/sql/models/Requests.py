@@ -16,7 +16,7 @@ from productionsystem.utils import timestamp
 from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import ParametricJobs
+from ..models import ParametricJobs, Users
 
 
 def subdict(dct, keys, **kwargs):
@@ -44,7 +44,7 @@ class Requests(SQLTableBase):
     timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     log = Column(TEXT, nullable=False, default="")
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
-    requester = relationship("Users")
+    requester = relationship(Users)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def __init__(self, **kwargs):
@@ -138,7 +138,7 @@ class Requests(SQLTableBase):
 
         with managed_session() as session:
             try:
-                request = session.execute(
+                request = session.scalars(
                     select(cls)
                     .where(cls.id == request_id)
                     ).one()
@@ -192,17 +192,21 @@ class Requests(SQLTableBase):
                 stmt = stmt.where(cls.status.in_(status))  # pyright: ignore[reportAttributeAccessIssue]
 
             if request_id is None:
-                requests = session.execute(stmt).all()
+                requests = session.execute(stmt).unique().scalars().all()
                 requests.sort(key=attrgetter('id'))
                 return requests
 
             if isinstance(request_id, (list, tuple)):
-                requests = session.execute(stmt.where(cls.id.in_(request_id))).all()
+                requests = session.execute(
+                    stmt.where(cls.id.in_(request_id))
+                ).unique().scalars().all()
                 requests.sort(key=attrgetter('id'))
                 return requests
 
             try:
-                request = session.execute(stmt.where(cls.id == request_id)).one()
+                request = session.execute(
+                    stmt.where(cls.id == request_id)
+                ).unique().scalar_one()
             except NoResultFound:
                 cls.logger.warning("No result found for request id: %d", request_id)
                 raise
@@ -221,7 +225,7 @@ class Requests(SQLTableBase):
                 .where(cls.status == LocalStatus.FAILED)
                 .join(cls.parametric_jobs)
                 .where(ParametricJobs.reschedule is True)  # reschedule comes from joining the parametricjobs table.
-            ).all()
+            ).unique().scalars().all()
             return requests
 
 
