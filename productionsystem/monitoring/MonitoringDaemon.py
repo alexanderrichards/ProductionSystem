@@ -29,9 +29,9 @@ class MonitoringDaemon(Daemonize):
         self.cert = cert
         self.verify = verify
         with dirac_api_client() as client:
-            response = client.testConnection()
-            if not isinstance(response, dict) or response.get("status") != 'ok':
-                self.logger.error("Failed to connect to DIRAC API daemon: %s", response)
+            self.logger.warning("TESTING client")
+            if not client.activeConnection():
+                self.logger.error("Failed to connect to DIRAC API daemon.")
                 raise RuntimeError("Failed to connect to DIRAC API daemon.")
 
     def exit(self):
