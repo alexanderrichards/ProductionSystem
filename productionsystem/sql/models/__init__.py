@@ -1,19 +1,23 @@
 """SQL Models."""
 from __future__ import annotations
-from productionsystem.config import ConfigSystem
-# from .Users import Users
-# from .Services import Services
-# from DiracJobs import DiracJobs
 
-# pylint: disable=no-member
-DiracJobs = ConfigSystem.get_instance().entry_point_map['dbmodels']['diracjobs'].load()
-ParametricJobs = ConfigSystem.get_instance().entry_point_map['dbmodels']['parametricjobs'].load()
-Requests = ConfigSystem.get_instance().entry_point_map['dbmodels']['requests'].load()
-# ParametricJobs = pkg_resources.load_entry_point(getConfig('Plugins').get('parametricjobs',
-#                                                                          'productionsystem'),
-#                                                 'dbmodels', 'parametricjobs')
-# Requests = pkg_resources.load_entry_point(getConfig('Plugins').get('requests',
-#                                                                    'productionsystem'),
-#                                           'dbmodels', 'requests')
-# ParametricJobs.diracjobs = DiracJobs.unsafe_construct()
-# Requests.parametricjobs = ParametricJobs.unsafe_construct()
+from importlib import import_module
+
+from productionsystem.config import ConfigSystem
+
+__all__ = ("DiracJobs", "ParametricJobs", "Requests", "Services", "Users")
+_LOCAL_MODELS = {"Services", "Users"}
+
+
+def __getattr__(name):
+    """Load model classes on demand to avoid recursive entry-point imports."""
+    if name in _LOCAL_MODELS:
+        model = getattr(import_module("%s.%s" % (__name__, name)), name)
+    elif name in __all__:
+        entry_points = ConfigSystem.get_instance().entry_point_map
+        model = entry_points['dbmodels'][name.lower()].load()
+    else:
+        raise AttributeError("module %r has no attribute %r" % (__name__, name))
+
+    globals()[name] = model
+    return model

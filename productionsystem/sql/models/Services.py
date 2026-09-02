@@ -78,11 +78,11 @@ class Services(SQLTableBase):
                 query_id.append(service_name)
 
             if service_id is None and service_name is None:
-                services = session.execute(stmt).all()
+                services = session.scalars(stmt).all()
                 return services
 
             try:
-                service = session.execute(stmt).one()
+                service = session.scalars(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for service: (%s)", ', '.join(query_id))
                 raise

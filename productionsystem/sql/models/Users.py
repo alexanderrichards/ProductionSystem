@@ -79,11 +79,11 @@ class Users(SQLTableBase):
 
         with managed_session() as session:
             if user_id is None:
-                users = session.execute(select(cls)).all()
+                users = session.scalars(select(cls)).all()
                 return users
 
             try:
-                user = session.execute(
+                user = session.scalars(
                     select(cls)
                     .where(cls.id == user_id)
                 ).one()
