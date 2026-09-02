@@ -87,7 +87,7 @@ def _run(ctx, section, values, action):
 @app.command("start")
 def start_command(
         ctx: typer.Context,
-        api_host: str = typer.Option("localhost", help="DIRAC API host."),
+        api_host: str = typer.Option("0.0.0.0", help="DIRAC API host."),
         api_port: int = typer.Option(18861, help="DIRAC API port."),
         pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
         log_dir: str = typer.Option(DEFAULT_LOG_DIR, "-l", "--log-dir"),
