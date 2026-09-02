@@ -30,9 +30,13 @@ class MonitoringDaemon(Daemonize):
         self.verify = verify
         with dirac_api_client() as client:
             self.logger.warning("TESTING client")
-            if not client.activeConnection():
-                self.logger.error("Failed to connect to DIRAC API daemon.")
-                raise RuntimeError("Failed to connect to DIRAC API daemon.")
+            try:
+                if not client.activeConnection():
+                    self.logger.error("Connection to DIRAC API daemon not healthy.")
+                    raise RuntimeError("Connection to DIRAC API daemon not healthy.")
+            except Exception as err:
+                self.logger.exception("Error while testing connection to DIRAC API daemon: %s", err)
+                raise RuntimeError("Failed to connect to DIRAC API daemon.") from err
 
     def exit(self):
         """Update the monitoringd status on exit."""
