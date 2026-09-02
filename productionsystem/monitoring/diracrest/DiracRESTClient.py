@@ -8,7 +8,7 @@ import requests
 
 from productionsystem.config import getConfig
 
-DEFAULT_API_URL = "http://localhost:18861"
+DEFAULT_API_URL = "http://dirac-daemon:18861"
 REQUEST_TIMEOUT = 600
 # _configured_api_url = None
 logger = logging.getLogger(__name__)
