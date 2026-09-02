@@ -87,9 +87,12 @@ class _RESTClient:
 class DiracAPIClient(_RESTClient):
     """Client for DIRAC job resources."""
 
-    def testConnection(self):
+    def activeConnection(self):
         """Test the connection to the DIRAC API."""
-        return self._request("GET", "/health", {})
+        response = self._request("GET", "/health", {})
+        if not isinstance(response, dict) or response.get("status") != 'ok':
+            return False
+        return True
 
     def submitJob(self, job):
         """Submit a recorded DIRAC job."""
