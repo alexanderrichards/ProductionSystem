@@ -12,6 +12,7 @@ import click
 import typer
 
 from productionsystem.config import ConfigSystem
+from productionsystem.singleton import InstantiationError
 from productionsystem.utils import expand_path
 
 ENTRY_POINT_GROUPS = ('dbmodels', 'monitoring', 'webapp', 'webapp.services')
@@ -42,11 +43,16 @@ def prepare_options(ctx, section, values, app_name):
     cli_values = dict(values)
     config_path = expand_path(values['config'])
     existing_config_path = config_path if os.path.exists(config_path) else None
-    config_instance = ConfigSystem.setup(existing_config_path)
+    try:
+        config_instance = ConfigSystem.setup(existing_config_path)
+    except InstantiationError:
+        config_instance = ConfigSystem.get_instance()
+        if existing_config_path is not None:
+            config_instance.read(existing_config_path)
 
     if existing_config_path is not None:
         for name, value in config_instance.get_section(section).items():
-            if name in values and ctx.get_parameter_source(name) == click.core.ParameterSource.DEFAULT:
+            if name in values and _is_default_source(ctx.get_parameter_source(name)):
                 values[name] = value
 
     entry_point_map, projects = load_entry_points()
@@ -60,6 +66,10 @@ def prepare_options(ctx, section, values, app_name):
     config_instance.entry_point_map = entry_point_map
     values['app_name'] = app_name
     return SimpleNamespace(**values), cli_values, config_instance, existing_config_path
+
+
+def _is_default_source(source):
+    return getattr(source, "name", None) == "DEFAULT"
 
 
 def setup_logging(args, cli_values, config_instance, config_path, daemon=False):
