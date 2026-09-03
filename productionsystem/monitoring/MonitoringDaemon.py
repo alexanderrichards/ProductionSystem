@@ -29,7 +29,6 @@ class MonitoringDaemon(Daemonize):
         self.cert = cert
         self.verify = verify
         with dirac_api_client() as client:
-            self.logger.warning("TESTING client")
             try:
                 if not client.activeConnection():
                     self.logger.error("Connection to DIRAC API daemon not healthy.")
