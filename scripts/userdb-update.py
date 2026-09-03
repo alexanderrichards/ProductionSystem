@@ -19,7 +19,7 @@ DEFAULT_CONFIG = "~/.config/productionsystem/productionsystem.conf"
 def update_users(
         ctx: typer.Context,
         voms: str = typer.Option(
-            "https://voms.hep.wisc.edu:8443/voms/lz/services",
+            "https://voms.gridpp.ac.uk:8443/voms/lz/services",
             help="Root URL of the VOMS services."),
         cert: str = typer.Option(os.path.expanduser("~/.globus/usercert.pem")),
         key: str = typer.Option(os.path.expanduser("~/.globus/userkey.pem")),

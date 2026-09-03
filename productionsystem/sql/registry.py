@@ -33,7 +33,7 @@ class SessionRegistry:
                                              class_=Session,
                                              expire_on_commit=False)
         self._logger = logging.getLogger(__name__)
-        self._logger.info("SessionRegistry initialized with (url, engine): (%s, %s)", url, self.engine)
+        self._logger.info("SessionRegistry initialized with engine: %s", self.engine)
 
     def create_session(self):
         """Return a new session instance."""
