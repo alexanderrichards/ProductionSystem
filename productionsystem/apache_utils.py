@@ -72,7 +72,7 @@ def check_credentials(func):
 
         with sql.managed_session() as session:
             try:
-                user = session.execute(
+                user = session.scalars(
                     select(Users)
                     .where(Users.dn == client_dn)
                     .where(Users.ca == client_ca)  # can use a single where with two args instead
