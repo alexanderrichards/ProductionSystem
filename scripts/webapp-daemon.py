@@ -78,6 +78,9 @@ def _run(ctx, values, action):
         ctx, "webapp", values, APP_NAME)
     logger = setup_logging(
         args, cli_values, config_instance, config_path, daemon=True)
+    from pprint import pformat
+    logger.debug("Prepared options: %s", pformat(locals()))
+    logger.info("Starting action: %s with args: %s", action.__name__, args)
     action(args, logger=logger)
 
 
