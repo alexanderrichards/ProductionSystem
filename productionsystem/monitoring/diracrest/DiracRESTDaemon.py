@@ -24,5 +24,5 @@ class DiracDaemon(Daemonize):
     def main(self):
         """Run the HTTP server."""
         host, port = self._address
-        print(f"Starting DIRAC REST daemon on {host}:{port}")
+        self.logger.info(f"Starting DIRAC REST daemon on {host}:{port}")
         uvicorn.run(create_app(), host=host, port=port, log_config=None)
