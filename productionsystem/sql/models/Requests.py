@@ -76,6 +76,8 @@ class Requests(SQLTableBase):
                 raise
 
     def _clientlog(self, log):
+        if self.log is None:
+            self.log = ''  # default NULL sometimes
         self.log += "%s %s\n" % (timestamp(), log)
 
     def add(self):
