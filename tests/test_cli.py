@@ -38,6 +38,58 @@ def test_userdb_help_lists_options():
     assert "--trusted-cas" in result.output
 
 
+def test_config_file_values_override_command_defaults(tmp_path):
+    """Config file values replace Typer defaults."""
+    module = load_script("webapp-daemon.py")
+    config = tmp_path / "productionsystem.conf"
+    config.write_text(
+        '[webapp]\ndburl="sqlite:///from-config.db"\nsocket_port=9999\n',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def fake_start(args, *, logger):
+        seen["dburl"] = args.dburl
+        seen["socket_port"] = args.socket_port
+
+    module.start = fake_start
+    result = CliRunner().invoke(
+        module.app,
+        ["start", "--config", str(config), "--debug-mode"],
+    )
+    assert result.exit_code == 0
+    assert seen == {"dburl": "sqlite:///from-config.db", "socket_port": 9999}
+
+
+def test_command_line_values_override_config_file(tmp_path):
+    """Explicit command-line options keep precedence over config files."""
+    module = load_script("webapp-daemon.py")
+    config = tmp_path / "productionsystem.conf"
+    config.write_text(
+        '[webapp]\ndburl="sqlite:///from-config.db"\n',
+        encoding="utf-8",
+    )
+    seen = {}
+
+    def fake_start(args, *, logger):
+        seen["dburl"] = args.dburl
+
+    module.start = fake_start
+    result = CliRunner().invoke(
+        module.app,
+        [
+            "start",
+            "--config",
+            str(config),
+            "--debug-mode",
+            "--dburl",
+            "sqlite:///from-cli.db",
+        ],
+    )
+    assert result.exit_code == 0
+    assert seen == {"dburl": "sqlite:///from-cli.db"}
+
+
 def test_model_entry_points_load_without_duplicate_mappers():
     """The daemon's real model entry points load with SQLAlchemy 2."""
     from sqlalchemy.orm import configure_mappers
