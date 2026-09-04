@@ -85,6 +85,8 @@ class ParametricJobs(SQLTableBase):
             session.merge(self)
 
     def _clientlog(self, log):
+        if self.log is None:
+            self.log = ''
         self.log += "%s %s\n" % (timestamp(), log)
 
     def _remove_dirac_jobs(self):
