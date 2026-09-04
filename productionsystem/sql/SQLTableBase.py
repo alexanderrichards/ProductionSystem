@@ -97,20 +97,28 @@ class IterableBase(Iterable):
     def __eq__(self, other):
         return id(self) == id(other)
 
+    @staticmethod
+    def _jsonable_value(value):
+        """Convert a single attribute value into a JSON encodable object."""
+        # Enum must be checked before the scalar types as IntEnum/str Enum are
+        # also instances of int/str and would otherwise serialise as their value.
+        if isinstance(value, Enum):
+            return value.name.capitalize()
+        if isinstance(value, datetime):
+            return value.isoformat(' ')
+        if isinstance(value, IterableBase):
+            return value.jsonable_dict()
+        if isinstance(value, (str, int, float, bool, type(None))):
+            return value
+        if isinstance(value, (list, tuple, set, frozenset)):
+            return [IterableBase._jsonable_value(item) for item in value]
+        if isinstance(value, dict):
+            return {key: IterableBase._jsonable_value(item) for key, item in value.items()}
+        return str(value)
+
     def jsonable_dict(self):
         """Return an easily JSON encodable object."""
-        output_obj = {}
-        for column in self:
-            value = self[column]
-            if isinstance(value, (str, int, float, bool, type(None))):
-                output_obj[column] = value
-            elif isinstance(value, Enum):
-                output_obj[column] = value.name.capitalize()
-            elif isinstance(value, datetime):
-                output_obj[column] = value.isoformat(' ')
-            else:
-                output_obj[column] = str(value)
-        return output_obj
+        return {column: self._jsonable_value(self[column]) for column in self}
 
     def to_json(self):
         """Return a JSON representation of the object."""

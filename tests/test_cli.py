@@ -107,17 +107,55 @@ def test_model_entry_points_load_without_duplicate_mappers():
     configure_mappers()
 
 
+def setup_database(url):
+    """Point the session registry singleton at a fresh database."""
+    from productionsystem.sql.registry import SessionRegistry
+
+    if vars(SessionRegistry).get("__instance__") is not None:
+        delattr(SessionRegistry, "__instance__")
+    SessionRegistry.setup(url)
+
+
 def test_service_queries_return_mapped_entities(tmp_path):
     """ORM helpers return model instances rather than SQLAlchemy rows."""
     from productionsystem.sql.enums import ServiceStatus
     from productionsystem.sql.models import Services
-    from productionsystem.sql.registry import SessionRegistry
 
     database = "sqlite:///" + str(tmp_path / "services.db")
-    SessionRegistry.setup(database)
+    setup_database(database)
     service = Services(name="monitoringd", status=ServiceStatus.UP)
     service.add()
 
     services = Services.get_services()
     assert services[0].name == "monitoringd"
     assert Services.get_services(service_name="monitoringd").name == "monitoringd"
+
+
+def test_request_json_keeps_enum_names_and_nested_requester(tmp_path):
+    """Serialised requests expose the requester object and enum names."""
+    import json
+
+    from productionsystem.cli import load_entry_points
+    from productionsystem.config import ConfigSystem
+    from productionsystem.sql.JSONTableEncoder import JSONTableEncoder
+    from productionsystem.sql.registry import managed_session
+    from productionsystem.sql.models import Users
+
+    entry_points, _ = load_entry_points()
+    config = ConfigSystem.get_instance()
+    config._config["Core"]["entry_point_map"] = entry_points  # pylint: disable=protected-access
+    Requests = entry_points["dbmodels"]["requests"].load()
+
+    setup_database("sqlite:///" + str(tmp_path / "requests.db"))
+    with managed_session() as session:
+        user = Users(dn="/C=XX/OU=test/CN=Test User", ca="/C=XX/CN=Test CA",
+                     email="test@example.com", suspended=False, admin=True)
+        session.add(user)
+        session.flush()
+        session.add(Requests(requester_id=user.id, description="a request"))
+
+    request = Requests.get(load_user=True)[0]
+    payload = json.loads(json.dumps(request, cls=JSONTableEncoder))
+
+    assert payload["requester"]["name"] == "Test User"
+    assert payload["status"] == "Requested"
