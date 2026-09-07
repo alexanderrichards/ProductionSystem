@@ -26,11 +26,9 @@ class SmartColumn(Column):
     inherit_cache = True
 
     def __init__(self, *args, **kwargs):
-        required = kwargs.pop('required', False)
-        allowed = kwargs.pop('allowed', False)
-        Column.__init__(self, *args, **kwargs)
-        self._required = required
-        self._allowed = required or allowed
+        self._required = kwargs.pop('required', False)
+        self._allowed = self._required or kwargs.pop('allowed', False)
+        super().__init__(*args, **kwargs)
 
     @property
     def required(self):
