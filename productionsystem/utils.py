@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def timestamp():
@@ -14,7 +14,7 @@ def timestamp():
     Returns:
         str: The current timestamp.
     """
-    return datetime.now().strftime(r"[%Y-%m-%d %H:%M:%S]")
+    return datetime.now(timezone.utc).strftime(r"[%Y-%m-%d %H:%M:%S]")
 
 
 def expand_path(path):
