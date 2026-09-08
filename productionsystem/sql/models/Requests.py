@@ -26,8 +26,6 @@ def subdict(dct, keys, **kwargs):
     return out
 
 
-@cherrypy.expose
-@cherrypy.popargs('request_id')
 class Requests(SQLTableBase):
     """Requests SQL Table."""
 
