@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from future.utils import native, native_str
 import cherrypy
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
@@ -19,7 +19,7 @@ class Services(SQLTableBase):
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     name = Column(String(30), nullable=False, unique=True)
     status = Column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def add(self):
@@ -34,7 +34,7 @@ class Services(SQLTableBase):
         with managed_session() as session:
             # Onupdate doesn't trigger if setting status field to same as current value as it's
             # no-op in some DBs.
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
             session.merge(self)
 
     @classmethod

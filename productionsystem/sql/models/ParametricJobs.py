@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import defaultdict, Counter
 from collections.abc import Iterable
 from copy import deepcopy
@@ -49,7 +49,7 @@ class ParametricJobs(SQLTableBase):
     site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
     reschedule = Column(Boolean, nullable=False, default=False)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     num_jobs = SmartColumn(Integer, nullable=False, default=0)
     num_completed = Column(Integer, nullable=False, default=0)
     num_failed = Column(Integer, nullable=False, default=0)

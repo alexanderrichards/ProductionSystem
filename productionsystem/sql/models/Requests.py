@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from operator import attrgetter
 
 import cherrypy
@@ -37,9 +37,9 @@ class Requests(SQLTableBase):
     id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
     description = SmartColumn(TEXT, nullable=True, allowed=True)
     requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
-    request_date = Column(TIMESTAMP, nullable=False, default=datetime.utcnow)
+    request_date = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc))
     status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     log = Column(TEXT, nullable=False, default="")
     parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
     requester = relationship(Users)
