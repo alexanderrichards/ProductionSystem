@@ -12,8 +12,6 @@ from ..enums import DiracStatus
 from ..SQLTableBase import SQLTableBase
 
 
-@cherrypy.expose
-@cherrypy.popargs('diracjob_id')
 class DiracJobs(SQLTableBase):
     """Dirac Jobs SQL Table."""
 

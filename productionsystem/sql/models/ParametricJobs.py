@@ -33,8 +33,6 @@ def subdict(dct, keys, **kwargs):
     return out
 
 
-@cherrypy.expose
-@cherrypy.popargs('parametricjob_id')
 class ParametricJobs(SQLTableBase):
     """Jobs SQL Table."""
 

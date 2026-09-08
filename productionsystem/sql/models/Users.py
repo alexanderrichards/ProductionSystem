@@ -9,8 +9,6 @@ from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 
 
-@cherrypy.expose
-@cherrypy.popargs('user_id')
 class Users(SQLTableBase):
     """Users SQL Table."""
 
@@ -94,60 +92,3 @@ class Users(SQLTableBase):
                 cls.logger.error("Multiple results found for user id: %d", user_id)
                 raise
             return user
-
-
-#     @classmethod
-#     @cherrypy.tools.accept(media='application/json')
-#     @cherrypy.tools.json_out()
-#     @dummy_credentials
-# #    @check_credentials
-# #    @admin_only
-#     def GET(cls, user_id=None):
-#         """REST GET method."""
-#         cls.logger.debug("In GET: user_id = %r", user_id)
-#         with managed_session() as session:
-#             query = session.query(cls)
-#             if user_id is None:
-#                 users = query.all()
-#                 session.expunge_all()
-#                 return users
-
-#             with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-#                 user_id = int(user_id)
-
-#             try:
-#                 user = query.filter_by(id=user_id).one()
-#             except NoResultFound:
-#                 message = 'No matching user found.'
-#                 cls.logger.warning(message)
-#                 raise cherrypy.NotFound(message)
-#             except MultipleResultsFound:
-#                 message = 'Multiple matching users found.'
-#                 cls.logger.error(message)
-#                 raise cherrypy.HTTPError(500, message)
-#             session.expunge(user)
-#             return user
-
-#     @classmethod
-#     @check_credentials
-#     @admin_only
-#     def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
-#         """REST Put method."""
-#         cls.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
-#         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-#             user_id = int(user_id)
-#         with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
-#             admin = bool(strtobool(admin))
-
-#         with managed_session() as session:
-#             try:
-#                 user = session.query(cls).filter_by(id=user_id).one()
-#             except NoResultFound:
-#                 message = "No matching user found."
-#                 cls.logger.warning(message)
-#                 raise cherrypy.NotFound(message)
-#             except MultipleResultsFound:
-#                 message = "Multiple matching users found."
-#                 cls.logger.error(message)
-#                 raise cherrypy.HTTPError(500, message)
-#             user.admin = admin
