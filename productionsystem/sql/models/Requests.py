@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from operator import attrgetter
 
 import cherrypy
+from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
@@ -16,7 +17,7 @@ from productionsystem.utils import timestamp
 from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import ParametricJobs, Users
+from ..models import ParametricJobs, Users, ParametricJob, User
 
 
 def subdict(dct, keys, **kwargs):
@@ -24,6 +25,18 @@ def subdict(dct, keys, **kwargs):
     out = {k: dct[k] for k in keys if k in dct}
     out.update(kwargs)
     return out
+
+
+class Request(BaseModel):
+    id: int = Field(frozen=True)
+    description: str
+    requester_id: int
+    request_date: datetime
+    status: LocalStatus
+    timestamp: datetime
+    log: str
+    parametric_jobs: list[ParametricJob] = Field(default_factory=list)
+    requester: User
 
 
 class Requests(SQLTableBase):

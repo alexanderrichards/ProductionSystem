@@ -3,10 +3,22 @@ from __future__ import annotations
 
 import logging
 import cherrypy
+from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, TEXT, Boolean, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
+# from sqlmodel import Field, SQLModel
+
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
+
+
+class User(BaseModel):
+    id: int = Field(frozen=True)
+    dn: str = Field(frozen=True)
+    ca: str = Field(frozen=True)
+    email: str
+    suspended: bool
+    admin: bool
 
 
 class Users(SQLTableBase):

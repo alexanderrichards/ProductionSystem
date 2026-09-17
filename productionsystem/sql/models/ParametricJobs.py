@@ -10,6 +10,7 @@ from copy import deepcopy
 from operator import attrgetter
 
 import cherrypy
+from pydantic import BaseModel, Field
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
                         ForeignKey, Enum, CheckConstraint, event, inspect, select)
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -31,6 +32,23 @@ def subdict(dct, keys, **kwargs):
     out = {k: dct[k] for k in keys if k in dct}
     out.update(kwargs)
     return out
+
+
+class ParametricJob(BaseModel):
+    request_id: int = Field(frozen=True)
+    id: int = Field(frozen=True)
+    requester_id: int = Field(frozen=True)
+    priority: int
+    site: str
+    status: LocalStatus
+    reschedule: bool
+    timestamp: datetime
+    num_jobs: int
+    num_completed: int
+    num_failed: int
+    num_submitted: int
+    num_running: int
+    log: str
 
 
 class ParametricJobs(SQLTableBase):
