@@ -5,11 +5,19 @@ import logging
 from datetime import datetime, timezone
 from future.utils import native, native_str
 import cherrypy
+from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session
 from ..enums import ServiceStatus
 from ..SQLTableBase import SQLTableBase
+
+
+class Service(BaseModel):
+    id: int = Field(frozen=True)
+    name: str = Field(frozen=True)
+    status: ServiceStatus
+    timestamp: datetime
 
 
 class Services(SQLTableBase):
