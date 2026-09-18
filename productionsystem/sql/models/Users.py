@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import logging
-import cherrypy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Column, Integer, TEXT, Boolean, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 # from sqlmodel import Field, SQLModel
@@ -13,12 +12,17 @@ from ..SQLTableBase import SQLTableBase
 
 
 class User(BaseModel):
+    """JSON-serialisable schema for a Users row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(frozen=True)
     dn: str = Field(frozen=True)
     ca: str = Field(frozen=True)
     email: str
     suspended: bool
     admin: bool
+    name: str  # mainly used when converting ORM objects to pydantic as all attributes are read. Could have as a pydantic computed field but the code would duplicate that in the ORM model.
 
 
 class Users(SQLTableBase):

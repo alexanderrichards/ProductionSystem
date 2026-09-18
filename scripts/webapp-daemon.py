@@ -3,9 +3,7 @@
 """Script to start the Production web server."""
 from __future__ import annotations
 
-import importlib
 import os
-import unittest.mock as mock
 
 import typer
 
@@ -33,9 +31,6 @@ def start(args, *, logger):
         args.dburl = "sqlite:///" + dbpath
         if os.path.exists(dbpath):
             os.remove(dbpath)
-        apache_utils = importlib.import_module('productionsystem.apache_utils')  # must load after config entrypoints loaded
-        mock.patch.object(apache_utils, "check_credentials",
-                          wraps=apache_utils.dummy_credentials).start()
 
     entry_point_map = ConfigSystem.get_instance().entry_point_map
 

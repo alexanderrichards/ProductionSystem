@@ -5,8 +5,7 @@ import logging
 from datetime import datetime, timezone
 from operator import attrgetter
 
-import cherrypy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
 # from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import relationship, joinedload
@@ -17,7 +16,13 @@ from productionsystem.utils import timestamp
 from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import ParametricJobs, Users, ParametricJob, User
+# Import the sibling model classes directly from their submodules (rather than via
+# ``from ..models import ParametricJobs, Users``) so this always resolves to the class even if
+# something elsewhere has already triggered a bare import of that submodule, which would
+# otherwise leave the ``productionsystem.sql.models`` package attribute of the same name
+# pointing at the raw module instead of the class.
+from .ParametricJobs import ParametricJobs, ParametricJob
+from .Users import Users, User
 
 
 def subdict(dct, keys, **kwargs):
@@ -28,6 +33,10 @@ def subdict(dct, keys, **kwargs):
 
 
 class Request(BaseModel):
+    """JSON-serialisable schema for a Requests row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(frozen=True)
     description: str
     requester_id: int
@@ -37,6 +46,14 @@ class Request(BaseModel):
     log: str
     parametric_jobs: list[ParametricJob] = Field(default_factory=list)
     requester: User
+
+    @field_serializer("status")
+    def _serialize_status(self, value: LocalStatus) -> str:
+        return value.name.capitalize()
+
+    @field_serializer("request_date", "timestamp")
+    def _serialize_datetime(self, value: datetime) -> str:
+        return value.isoformat(' ')
 
 
 class Requests(SQLTableBase):
