@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import cherrypy
 from .SQLTableBase import SQLTableBase
 
 
@@ -15,9 +14,3 @@ class JSONTableEncoder(json.JSONEncoder):
         if isinstance(obj, SQLTableBase):
             return obj.jsonable_dict()
         return json.JSONEncoder.default(self, obj)
-
-
-def json_cherrypy_handler(*args, **kwargs):
-    """Handle JSON encoding of response."""
-    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
-    return json.dumps(value, cls=JSONTableEncoder)

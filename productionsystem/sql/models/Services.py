@@ -4,8 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from future.utils import native, native_str
-import cherrypy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session
@@ -14,10 +13,22 @@ from ..SQLTableBase import SQLTableBase
 
 
 class Service(BaseModel):
+    """JSON-serialisable schema for a Services row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(frozen=True)
     name: str = Field(frozen=True)
     status: ServiceStatus
     timestamp: datetime
+
+    @field_serializer("status")
+    def _serialize_status(self, value: ServiceStatus) -> str:
+        return value.name.capitalize()
+
+    @field_serializer("timestamp")
+    def _serialize_timestamp(self, value: datetime) -> str:
+        return value.isoformat(' ')
 
 
 class Services(SQLTableBase):

@@ -7,11 +7,12 @@ from datetime import datetime
 import jinja2
 import hashlib
 # import pkg_resources
-import cherrypy
+from fastapi import APIRouter, Depends
+from fastapi.responses import HTMLResponse
 # from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 # from productionsystem.config import getConfig
 from productionsystem.sql.enums import ServiceStatus
-from productionsystem.apache_utils import check_credentials, admin_only
+from productionsystem.apache_utils import get_verified_user, admin_only
 from productionsystem.webapp.jinja2_utils import jinja2_filter
 # from productionsystem.sql import managed_session
 from productionsystem.sql.models import Services, Users, Requests
@@ -70,9 +71,7 @@ class HTMLPageServer(object):
         """Wrap the Jinja2 template getting and rendering boilerplate."""
         return self._template_env.get_template(template_name).render(**kwargs)
 
-    @cherrypy.expose
-    @check_credentials
-    def index(self):
+    def index(self, user: Users = Depends(get_verified_user)):
         """Return the index page."""
         services = {service.name: service for service in Services.get_services()}
         monitoring_service = services.get("monitoringd")
@@ -83,45 +82,47 @@ class HTMLPageServer(object):
         elif (datetime.utcnow() - monitoring_service.timestamp).total_seconds() > 1800.:  # 30 mins
             services = {}
 
-        return self._render('dashboard_template.html',
-                            user=cherrypy.request.verified_user,
-                            monitoringd_service=services.get("monitoringd"),
-                            dirac_service=services.get('DIRAC'))
+        return HTMLResponse(self._render('dashboard_template.html',
+                                         user=user,
+                                         monitoringd_service=services.get("monitoringd"),
+                                         dirac_service=services.get('DIRAC')))
 
-    @cherrypy.expose
-    @check_credentials
-    @admin_only
-    def admins(self):
+    def admins(self, user: Users = Depends(admin_only)):
         """Return admin management page."""
         users = Users.get_users()
-        return self._render('admins_template.html', users=users)
+        return HTMLResponse(self._render('admins_template.html', users=users))
 
-    @cherrypy.expose
-    @check_credentials
-    def newrequest(self):
+    def newrequest(self, user: Users = Depends(get_verified_user)):
         """Return new request page."""
-        return self._render("newrequest_template.html")
+        return HTMLResponse(self._render("newrequest_template.html"))
 
-    @cherrypy.expose
-    @check_credentials
-    def info(self, id):
+    def info(self, id: int, requester: Users = Depends(get_verified_user)):
         """Return request info page."""
-        requester = cherrypy.request.verified_user
         user_id = requester.id
         if requester.admin:
             user_id = None
-        return self._render('requestinfo_template.html',
-                            request=Requests.get(id, user_id=user_id,
-                                                 load_user=True, load_parametricjobs=True))
+        return HTMLResponse(self._render('requestinfo_template.html',
+                                         request=Requests.get(id, user_id=user_id,
+                                                              load_user=True,
+                                                              load_parametricjobs=True)))
 
-    @cherrypy.expose
-    @check_credentials
-    def log(self, id):
+    def log(self, id: int, requester: Users = Depends(get_verified_user)):
         """Return request log page."""
-        requester = cherrypy.request.verified_user
         user_id = requester.id
         if requester.admin:
             user_id = None
-        return self._render('log_template.html',
-                            request=Requests.get(id, user_id=user_id,
-                                                 load_user=True, load_parametricjobs=True))
+        return HTMLResponse(self._render('log_template.html',
+                                         request=Requests.get(id, user_id=user_id,
+                                                              load_user=True,
+                                                              load_parametricjobs=True)))
+
+    def router(self) -> APIRouter:
+        """Build the router for this service."""
+        router = APIRouter()
+        router.add_api_route("/", self.index, methods=["GET"], response_class=HTMLResponse)
+        router.add_api_route("/admins", self.admins, methods=["GET"], response_class=HTMLResponse)
+        router.add_api_route("/newrequest", self.newrequest, methods=["GET"],
+                             response_class=HTMLResponse)
+        router.add_api_route("/info/{id}", self.info, methods=["GET"], response_class=HTMLResponse)
+        router.add_api_route("/log/{id}", self.log, methods=["GET"], response_class=HTMLResponse)
+        return router

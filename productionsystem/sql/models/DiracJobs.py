@@ -3,13 +3,30 @@ from __future__ import annotations
 
 import logging
 
-import cherrypy
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.sql.registry import managed_session
 from ..enums import DiracStatus
 from ..SQLTableBase import SQLTableBase
+
+
+class DiracJob(BaseModel):
+    """JSON-serialisable schema for a DiracJobs row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(frozen=True)
+    request_id: int = Field(frozen=True)
+    parametricjob_id: int = Field(frozen=True)
+    requester_id: int = Field(frozen=True)
+    status: DiracStatus
+    reschedules: int
+
+    @field_serializer("status")
+    def _serialize_status(self, value: DiracStatus) -> str:
+        return value.name.capitalize()
 
 
 class DiracJobs(SQLTableBase):

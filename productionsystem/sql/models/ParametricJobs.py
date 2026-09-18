@@ -9,8 +9,7 @@ from collections.abc import Iterable
 from copy import deepcopy
 from operator import attrgetter
 
-import cherrypy
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
                         ForeignKey, Enum, CheckConstraint, event, inspect, select)
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -24,7 +23,9 @@ from productionsystem.monitoring.diracrest.DiracRESTClient import (dirac_api_cli
 from ..enums import LocalStatus, DiracStatus
 from ..registry import managed_session, SessionRegistry
 from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import DiracJobs
+# See the equivalent comment in Requests.py: import the class directly from its submodule
+# rather than via the package attribute, which is fragile against pollution from bare imports.
+from .DiracJobs import DiracJobs
 
 
 def subdict(dct, keys, **kwargs):
@@ -35,6 +36,10 @@ def subdict(dct, keys, **kwargs):
 
 
 class ParametricJob(BaseModel):
+    """JSON-serialisable schema for a ParametricJobs row."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     request_id: int = Field(frozen=True)
     id: int = Field(frozen=True)
     requester_id: int = Field(frozen=True)
@@ -49,6 +54,14 @@ class ParametricJob(BaseModel):
     num_submitted: int
     num_running: int
     log: str
+
+    @field_serializer("status")
+    def _serialize_status(self, value: LocalStatus) -> str:
+        return value.name.capitalize()
+
+    @field_serializer("timestamp")
+    def _serialize_timestamp(self, value: datetime) -> str:
+        return value.isoformat(' ')
 
 
 class ParametricJobs(SQLTableBase):
