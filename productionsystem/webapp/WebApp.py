@@ -1,12 +1,14 @@
 """LZ Production Web Server."""
 from __future__ import annotations
 
-import importlib
+import importlib.resources
 
-import cherrypy
+import uvicorn
 from daemonize import Daemonize
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
-from productionsystem.sql.JSONTableEncoder import json_cherrypy_handler
+from productionsystem.apache_utils import get_verified_user, get_dummy_user
 from productionsystem.sql.registry import SessionRegistry
 
 from .services import (CVMFSDirectoryListing, GitDirectoryListing, GitSchema,
@@ -48,53 +50,29 @@ class WebApp(Daemonize):
             if err.code != 0:
                 raise
 
-    def _global_config(self):
-        with importlib.resources.path('productionsystem.webapp', 'static_resources') as static_resources_path:
-            config = {
-                'global': {
-                    'log.screen': False,
-                    'log.access_file': '',
-                    'log.error_file': '',
-                    'tools.gzip.on': True,
-                    'tools.json_out.handler': json_cherrypy_handler,
-                    'tools.staticdir.root': str(static_resources_path),
-                    'tools.staticdir.on': True,
-                    'tools.staticdir.dir': '',
-                    'server.socket_host': self._socket_host,
-                    'server.socket_port': self._socket_port,
-                    'server.thread_pool': self._thread_pool,
-                    'tools.expires.on': True,
-                    'tools.expires.secs': 3,  # expire in an hour, 3 secs for debug
-                    'tools.encode.text_only': False,
-                    # py2/3 compatibility layer issue, py2 breaks with unicode path dummy.html
-                    'checker.check_static_paths': None
-                }
-            }
-        # Prevent CherryPy from trying to open its log files when the autoreloader kicks in.
-        # This is not strictly required since we do not even let CherryPy open them in the
-        # first place. But, this avoids wasting time on something useless.
-        cherrypy.engine.unsubscribe('graceful', cherrypy.log.reopen_files)
-        return config
+    def _create_app(self, static_resources_path):
+        """Build and return the FastAPI application, mounting all services."""
+        app = FastAPI()
 
-    def _mount_points(self):
-        cherrypy.tree.mount(HTMLPageServer(extra_jinja2_loader=self._extra_jinja2_loader),
-                            '/',
-                            {'/': {'request.dispatch': cherrypy.dispatch.Dispatcher()}})
+        app.include_router(HTMLPageServer(extra_jinja2_loader=self._extra_jinja2_loader).router())
+        app.include_router(CVMFSDirectoryListing().router(), prefix='/cvmfs')
+        app.include_router(GitDirectoryListing(api_base_url=self._git_api_base_url,
+                                               schema=self._git_schema,
+                                               access_token=self._git_token).router(),
+                           prefix='/git')
+        app.include_router(GitTagListing(api_base_url=self._git_api_base_url,
+                                         schema=self._git_schema,
+                                         access_token=self._git_token).router(),
+                           prefix='/gittags')
+        app.include_router(RESTfulAPI.build_router(), prefix='/api')
 
-        cherrypy.tree.mount(CVMFSDirectoryListing(),
-                            '/cvmfs',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-        cherrypy.tree.mount(GitDirectoryListing(api_base_url=self._git_api_base_url,
-                                                schema=self._git_schema,
-                                                access_token=self._git_token),
-                            '/git',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-        cherrypy.tree.mount(GitTagListing(api_base_url=self._git_api_base_url,
-                                          schema=self._git_schema,
-                                          access_token=self._git_token),
-                            '/gittags',
-                            {'/': {'request.dispatch': cherrypy.dispatch.MethodDispatcher()}})
-        RESTfulAPI.mount('/api')
+        if self._mock_mode:
+            app.dependency_overrides[get_verified_user] = get_dummy_user
+
+        # Mounted last so it only acts as a fallback for paths not matched by any of the routers
+        # registered above, mirroring CherryPy's global tools.staticdir behaviour.
+        app.mount('/', StaticFiles(directory=str(static_resources_path)), name='static')
+        return app
 
     def main(self):
         """Daemon main."""
@@ -110,7 +88,8 @@ class WebApp(Daemonize):
             with managed_session() as session:
                 session.add(deepcopy(DUMMY_USER))
 
-        cherrypy.config.update(self._global_config())  # global vars need updating global config
-        self._mount_points()
-        cherrypy.engine.start()
-        cherrypy.engine.block()
+        with importlib.resources.path('productionsystem.webapp',
+                                      'static_resources') as static_resources_path:
+            app = self._create_app(static_resources_path)
+            uvicorn.run(app, host=self._socket_host, port=self._socket_port,
+                       limit_concurrency=self._thread_pool)
