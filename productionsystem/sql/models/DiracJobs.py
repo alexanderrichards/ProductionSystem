@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint, select
@@ -15,7 +16,7 @@ from ..SQLTableBase import SQLTableBase
 class DiracJob(BaseModel):
     """JSON-serialisable schema for a DiracJobs row."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
     request_id: int = Field(frozen=True)
@@ -47,9 +48,62 @@ class DiracJobs(SQLTableBase):
     reschedules = Column(Integer, nullable=False, default=0)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
+
+    @overload
     @classmethod
-    def get(cls, diracjob_id=None, request_id=None, parametricjob_id=None, user_id=None):
-        """Get dirac jobs."""
+    def get(cls) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, diracjob_id: int) -> DiracJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id: int) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, parametricjob_id: int) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, user_id: int) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id: int, parametricjob_id: int) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id: int, parametricjob_id: int, user_id: int) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: int) -> DiracJobs: ...
+    
+
+    @classmethod
+    def get(cls,
+            *,
+            diracjob_id: int | None = None,
+            request_id: int | None = None,
+            parametricjob_id: int | None = None,
+            user_id: int | None = None) -> DiracJobs | list[DiracJobs]:
+        """
+        Get diracjobs from the database.
+
+        Get all diracjobs in the database or explicitly those with a given diracjob_id, request_id, parametricjob_id
+        or user_id.
+
+        Args:
+            diracjob_id (int | None): diracjob id to extract. Defaults to None.
+            request_id (int | None): request id to extract. Defaults to None.
+            parametricjob_id (int | None): parametric job id to extract. Defaults to None.
+            user_id (int | None): user id to extract. Defaults to None.
+
+        Returns:
+            DiracJobs | list[DiracJobs]: diracjob(s) matching the given criteria.
+        """
         if diracjob_id is not None:
             try:
                 diracjob_id = int(diracjob_id)
@@ -103,6 +157,6 @@ class DiracJobs(SQLTableBase):
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for dirac job id: %d",
-                                 parametricjob_id)
+                                 diracjob_id)
                 raise
             return diracjob

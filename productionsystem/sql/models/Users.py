@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import overload
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Column, Integer, TEXT, Boolean, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
@@ -14,7 +15,7 @@ from ..SQLTableBase import SQLTableBase
 class User(BaseModel):
     """JSON-serialisable schema for a Users row."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
     dn: str = Field(frozen=True)
@@ -69,18 +70,26 @@ class Users(SQLTableBase):
         with managed_session() as session:
             session.merge(self)
 
+    @overload
     @classmethod
-    def get_users(cls, user_id=None):
+    def get_users(cls) -> list[Users]: ...
+
+    @overload
+    @classmethod
+    def get_users(cls, *, user_id: int) -> Users: ...
+
+    @classmethod
+    def get_users(cls, user_id: int | None = None) -> Users | list[Users]:
         """
         Get users from database.
 
         Gets all users in database or explicitly those with a given user_id.
 
         Args:
-            user_id (int): User id to extract
+            user_id (int | None): User id to extract. None gives all users (default None)
 
         Returns:
-            list/Users: The users/user pulled from the database
+            Users | list[Users]: The user/users pulled from the database
 
         """
         if user_id is not None:

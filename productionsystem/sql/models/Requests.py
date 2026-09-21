@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from operator import attrgetter
+from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
@@ -35,7 +36,7 @@ def subdict(dct, keys, **kwargs):
 class Request(BaseModel):
     """JSON-serialisable schema for a Requests row."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
     description: str
@@ -157,7 +158,7 @@ class Requests(SQLTableBase):
             self.status = status
 
     @classmethod
-    def delete(cls, request_id):
+    def delete(cls, request_id: int):
         """Delete a requests from the DB."""
         try:
             request_id = int(request_id)
@@ -181,10 +182,81 @@ class Requests(SQLTableBase):
             session.delete(request)
             cls.logger.info("Request %d deleted.", request_id)
 
+
+    @overload
     @classmethod
-    def get(cls, request_id=None, user_id=None,
-            load_user=False, load_parametricjobs=False, status=None):
-        """Get requests."""
+    def get(cls,
+            *,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            request_id: list[int],
+            load_user: bool = False, load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> Requests: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            user_id: int,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            status: list[str],
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            user_id: int,
+            status: list[str],
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int | list[int] | None = None,
+            user_id: int | None = None,
+            status: list[str] | None = None,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> Requests | list[Requests]:
+        """
+        Get requests from the database
+
+        Get all requests from the database or explicitly those with a given request_id, user_id or status.
+        
+        Args:
+            request_id (int | list[int] | None): request id/ids to extract. Defaults to None.
+            user_id (int | None): user id to extract. Defaults to None.
+            status (list[str] | None): status values to filter by. Defaults to None.
+            load_user (bool): whether to load the user information. Defaults to False.
+            load_parametricjobs (bool): whether to load the parametric jobs. Defaults to False.
+
+        Raises:
+            TypeError: if the provided arguments are of incorrect type.
+
+        Returns:
+            Requests | list[Requests]: the retrieved request(s) from the database.
+        """
+
         if request_id is not None:
             try:
                 if isinstance(request_id, (list, tuple)):
