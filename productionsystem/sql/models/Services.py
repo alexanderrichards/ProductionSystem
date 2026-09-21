@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from future.utils import native, native_str
+from typing import overload
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
@@ -15,7 +16,7 @@ from ..SQLTableBase import SQLTableBase
 class Service(BaseModel):
     """JSON-serialisable schema for a Services row."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
     name: str = Field(frozen=True)
@@ -56,32 +57,46 @@ class Services(SQLTableBase):
             self.timestamp = datetime.now(timezone.utc)
             session.merge(self)
 
+
+    @overload
     @classmethod
-    def get_services(cls, service_id=None, service_name=None):
+    def get_services(cls) -> list[Services]: ...
+
+    @overload
+    @classmethod
+    def get_services(cls, *, service_id: int) -> Services: ...
+
+    @overload
+    @classmethod
+    def get_services(cls, *, service_name: str) -> Services: ...
+
+    @classmethod
+    def get_services(cls,
+                     *,
+                     service_id: int | None = None,
+                     service_name: str | None = None) -> Services | list[Services]:
         """
-        Get service from database.
+        Get services from database.
 
         Gets all services in database or explicitly those with a given service_name or service_id.
 
         Args:
-            service_id (int): Service id to extract
-            service_name (string): Service name to extract
+            service_id (int | None): Service id to extract. Defaults to None.
+            service_name (string | None): Service name to extract. Defaults to None.
 
         Returns:
-            list/Services: The services/service pulled from the database
+            Services | list[Services]: The service/services pulled from the database
 
         """
-        if service_name is not None:
-            if not isinstance(service_name, (str, native_str)):
-                cls.logger.error("Service name: %r should be of type str", service_name)
-                raise TypeError
+        if service_name is not None and not isinstance(service_name, str):
+            cls.logger.error("Service name: %r should be of type str", service_name)
+            raise TypeError
 
         if service_id is not None:
             try:
-                service_id = native(int(service_id))
+                service_id = int(service_id)
             except ValueError:
-                cls.logger.error("Service id: %r should be of type int "
-                                 "(or convertable to int)", service_id)
+                cls.logger.error("Service id: %r should be of type int (or convertable to int)", service_id)
                 raise
 
         with managed_session() as session:

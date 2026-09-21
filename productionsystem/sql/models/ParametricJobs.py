@@ -8,6 +8,7 @@ from collections import defaultdict, Counter
 from collections.abc import Iterable
 from copy import deepcopy
 from operator import attrgetter
+from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
@@ -38,7 +39,7 @@ def subdict(dct, keys, **kwargs):
 class ParametricJob(BaseModel):
     """JSON-serialisable schema for a ParametricJobs row."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     request_id: int = Field(frozen=True)
     id: int = Field(frozen=True)
@@ -352,9 +353,57 @@ class ParametricJobs(SQLTableBase):
         self.num_running = statuses[LocalStatus.RUNNING]
         self.reschedule = False
 
+    @overload
     @classmethod
-    def get(cls, request_id=None, parametricjob_id=None, user_id=None):
-        """Get parametric jobs."""
+    def get(cls) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, parametricjob_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int) -> ParametricJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
+
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int | None = None,
+            parametricjob_id: int | None = None,
+            user_id: int | None = None) -> ParametricJobs | list[ParametricJobs]:
+        """
+        Get parametricjobs from the database.
+
+        Gets all parametricjobs in database or explicitly those with a given request_id, parametricjob_id  or user_id.
+
+        Args:
+            request_id (int | None): request id to extract. Defaults to None.
+            parametricjob_id (int | None): parametricjob id to extract. Defaults to None.
+            user_id (int | None): user id to extract. Defaults to None.
+
+        Returns:
+            ParametricJobs | list[ParametricJobs]: The parametricjob/parametricjobs pulled from the database
+        """
         if request_id is not None:
             try:
                 request_id = int(request_id)
