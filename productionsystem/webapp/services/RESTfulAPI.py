@@ -22,12 +22,12 @@ class ServicesAPI(object):
 
     logger = logging.getLogger(__name__).getChild("ServicesAPI")
 
-    def list(self, user: Users = Depends(admin_only)) -> list[Service]:
+    def list(self, user: Users = Depends(admin_only)) -> list[Services]:
         """REST Get method: list all services."""
         self.logger.debug("In GET: service_id = None")
         return Services.get_services()
 
-    def get(self, service_id: int, user: Users = Depends(admin_only)) -> Service:
+    def get(self, service_id: int, user: Users = Depends(admin_only)) -> Services:
         """REST Get method: get a single service."""
         self.logger.debug("In GET: service_id = %s", service_id)
         with http_error_handle(NoResultFound, 404, "No Service with id %s" % service_id), \
@@ -48,12 +48,12 @@ class UsersAPI(object):
 
     logger = logging.getLogger(__name__).getChild("UsersAPI")
 
-    def list(self, user: Users = Depends(admin_only)) -> list[User]:
+    def list(self, user: Users = Depends(admin_only)) -> list[Users]:
         """REST GET method: list all users."""
         self.logger.debug("In GET: user_id = None")
         return Users.get_users()  # This is a list of SQLAlchemy ORM model instances but is converted to Pydantic models by FastAPI when the api route is added as router.add_api_route("", self.list, methods=["GET"], response_model=list[User])
 
-    def get(self, user_id: int, user: Users = Depends(admin_only)) -> User:
+    def get(self, user_id: int, user: Users = Depends(admin_only)) -> Users:
         """REST GET method: get a single user."""
         self.logger.debug("In GET: user_id = %r", user_id)
         with http_error_handle(NoResultFound, 404, "No user with id %s" % user_id), \
@@ -90,7 +90,7 @@ class DiracJobsAPI(object):
     logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
 
     def list(self, request_id: int, parametricjob_id: int,
-            user: Users = Depends(get_verified_user)) -> list[DiracJob]:
+            user: Users = Depends(get_verified_user)) -> list[DiracJobs]:
         """
         REST Get method.
 
@@ -110,7 +110,7 @@ class DiracJobsAPI(object):
                                  request_id=request_id, user_id=user_id)
 
     def get(self, request_id: int, parametricjob_id: int, diracjob_id: int,
-           user: Users = Depends(get_verified_user)) -> DiracJob:
+           user: Users = Depends(get_verified_user)) -> DiracJobs:
         """REST Get method: get a single DiracJob."""
         self.logger.debug("In GET: reqid = %s, parametricjob_id = %s, diracjob_id = %s",
                           request_id, parametricjob_id, diracjob_id)
@@ -143,7 +143,7 @@ class ParametricJobsAPI(object):
         self.diracjobs = DiracJobsAPI()
 
     def list(self, request_id: int,
-            user: Users = Depends(get_verified_user)) -> list[ParametricJob]:
+            user: Users = Depends(get_verified_user)) -> list[ParametricJobs]:
         """
         REST Get method.
 
@@ -161,7 +161,7 @@ class ParametricJobsAPI(object):
             return ParametricJobs.get(request_id=request_id, user_id=user_id)
 
     def get(self, request_id: int, parametricjob_id: int,
-           user: Users = Depends(get_verified_user)) -> ParametricJob:
+           user: Users = Depends(get_verified_user)) -> ParametricJobs:
         """REST Get method: get a single ParametricJob."""
         self.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id,
                           parametricjob_id)
@@ -237,7 +237,7 @@ class RequestsAPI(object):
         """Initialise."""
         self.parametricjobs = ParametricJobsAPI()
 
-    def list(self, user: Users = Depends(get_verified_user)) -> list[Request]:
+    def list(self, user: Users = Depends(get_verified_user)) -> list[Requests]:
         """REST Get method: list all requests."""
         self.logger.debug("In GET: reqid = None")
         user_id = user.id
@@ -248,7 +248,7 @@ class RequestsAPI(object):
                 http_error_handle(MultipleResultsFound, 500, "Multiple requests with id None"):
             return Requests.get(user_id=user_id, load_user=True, load_parametricjobs=True)
 
-    def get(self, request_id: int, user: Users = Depends(get_verified_user)) -> Request:
+    def get(self, request_id: int, user: Users = Depends(get_verified_user)) -> Requests:
         """REST Get method: get a single request."""
         self.logger.debug("In GET: reqid = %r", request_id)
         user_id = user.id
