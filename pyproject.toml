@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "productionsystem"
+version = "0.1"
+description = "Production System"
+authors = [
+    { name = "Alexander Richards", email = "a.richards@imperial.ac.uk" },
+]
+license = { text = "MIT" }
+keywords = ["production"]
+urls = { Homepage = "https://github.com/alexanderrichards/ProductionSystem" }
+dependencies = [
+    "future",
+    "jinja2",
+    "daemonize",
+    "enum34; python_version < '3.4'",
+    "configparser; python_version < '3'",
+    "requests",
+    "SQLAlchemy",
+    "pymysql",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "suds; python_version < '3'",
+    "suds-py3; python_version > '3'",
+    "gitpython",
+    "psutil",
+    "typer",
+    "mock",
+]
+
+[project.optional-dependencies]
+doc = [
+    "Sphinx",
+    "sphinxcontrib-httpdomain",
+]
+dev = [
+    "Sphinx",
+    "sphinxcontrib-httpdomain",
+    "pylint",
+    "pycodestyle",
+    "pydocstyle",
+    "pytest",
+    "httpx",
+    "coverage",
+    "pytest-cov",
+    "sqlalchemy2-stubs",
+]
+
+[project.entry-points.dbmodels]
+diracjobs = "productionsystem.sql.models.DiracJobs:DiracJobs"
+parametricjobs = "productionsystem.sql.models.ParametricJobs:ParametricJobs"
+requests = "productionsystem.sql.models.Requests:Requests"
+
+[project.entry-points.monitoring]
+daemon = "productionsystem.monitoring.MonitoringDaemon:MonitoringDaemon"
+
+[project.entry-points."webapp.services"]
+htmlpageserver = "productionsystem.webapp.services.HTMLService:HTMLPageServer"
+
+[project.entry-points.webapp]
+daemon = "productionsystem.webapp.WebApp:WebApp"
+
+[tool.setuptools]
+script-files = [
+    "scripts/webapp-daemon.py",
+    "scripts/monitoring-daemon.py",
+    "scripts/dirac-daemon.py",
+    "scripts/userdb-update.py",
+    "scripts/service-status.sh",
+    "scripts/stop-services.sh",
+]
+
+[tool.setuptools.package-data]
+productionsystem = [
+    "webapp/static_resources/*",
+    "webapp/templates/*",
+]
