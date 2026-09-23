@@ -110,40 +110,43 @@ class DiracJobs(SQLTableBase):
             parametricjob_id (int | None): parametric job id to extract. Defaults to None.
             user_id (int | None): user id to extract. Defaults to None.
 
+        Raises:
+            TypeError: If any of the provided IDs are not of type int or cannot be converted to int.
+            NoResultFound: If no diracjob matches the given criteria when a single diracjob_id is provided.
+            MultipleResultsFound: If multiple diracjobs match the given criteria when a single diracjob_id is provided.
+
         Returns:
             DiracJobs | list[DiracJobs]: diracjob(s) matching the given criteria.
         """
         if diracjob_id is not None:
             try:
                 diracjob_id = int(diracjob_id)
-            except ValueError:
-                cls.logger.error("Dirac job id: %r should be of type int "
-                                 "(or convertable to int)", diracjob_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("Dirac job id: %r should be of type int (or convertable to int)", diracjob_id)
+                raise TypeError(f"Dirac job id: {diracjob_id!r} should be of type int (or convertable to int)") from err
 
         if parametricjob_id is not None:
             try:
                 parametricjob_id = int(parametricjob_id)
-            except ValueError:
-                cls.logger.error("Parametric job id: %r should be of type int "
-                                 "(or convertable to int)", parametricjob_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("Parametric job id: %r should be of type int (or convertable to int)",
+                                 parametricjob_id)
+                raise TypeError(f"Parametric job id: {parametricjob_id!r} should be of type int "
+                                "(or convertable to int)") from err
 
         if request_id is not None:
             try:
                 request_id = int(request_id)
-            except ValueError:
-                cls.logger.error("Request id: %r should be of type int "
-                                 "(or convertable to int)", request_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("Request id: %r should be of type int (or convertable to int)", request_id)
+                raise TypeError(f"Request id: {request_id!r} should be of type int (or convertable to int)") from err
 
         if user_id is not None:
             try:
                 user_id = int(user_id)
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("User id: %r should be of type int (or convertable to int)", user_id)
+                raise TypeError(f"User id: {user_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
             stmt = select(cls)

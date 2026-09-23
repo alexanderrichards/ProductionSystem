@@ -11,17 +11,10 @@ from sqlalchemy.exc import SQLAlchemyError, NoResultFound, MultipleResultsFound
 from ._http import http_error_handle
 from productionsystem.apache_utils import get_verified_user, admin_only, get_requested_status
 from productionsystem.sql.enums import LocalStatus
-from productionsystem.sql.models import (Services,
-                                         Service,
-                                         Users,
-                                         User,
-                                         Requests,
-                                         Request,
-                                         RequestCreate,
-                                         ParametricJobs,
-                                         ParametricJob,
-                                         DiracJobs,
-                                         DiracJob)
+from productionsystem.sql.models.Services import Services, Service
+from productionsystem.sql.models.Users import Users, User
+from productionsystem.sql.models.DiracJobs import DiracJobs, DiracJob
+from productionsystem.sql.models import Requests, Request, RequestCreate, ParametricJobs, ParametricJob
 
 
 VerifiedUser = Annotated[User, Depends(get_verified_user)]
@@ -42,6 +35,7 @@ class ServicesAPI:
     def get(self, service_id: int, user: AdminUser) -> Services:
         """REST Get method: get a single service."""
         self.logger.debug("In GET: service_id = %s", service_id)
+        # Don't need to handle TypeError here because service_id is already typed as int by FastAPI.
         with (http_error_handle(NoResultFound, 404, f"No Service with id {service_id}"),
               http_error_handle(MultipleResultsFound, 500, f"Multiple services with id {service_id}")):
             return Services.get_services(service_id=service_id)
