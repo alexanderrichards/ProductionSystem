@@ -1,9 +1,9 @@
 """HTML Page Server."""
 from __future__ import annotations
-
 import logging
+from typing import Annotated
 # from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 import jinja2
 import hashlib
 # import pkg_resources
@@ -15,7 +15,11 @@ from productionsystem.sql.enums import ServiceStatus
 from productionsystem.apache_utils import get_verified_user, admin_only
 from productionsystem.webapp.jinja2_utils import jinja2_filter
 # from productionsystem.sql import managed_session
-from productionsystem.sql.models import Services, Users, Requests
+from productionsystem.sql.models import Services, Service, Users, User, Requests, Request
+
+
+VerifiedUser = Annotated[User, Depends(get_verified_user)]
+AdminUser = Annotated[User, Depends(admin_only)]
 
 
 @jinja2_filter
@@ -53,6 +57,25 @@ def log_splitter(log):
     return log.splitlines()
 
 
+@jinja2_filter
+def utc_datetime(value: datetime) -> str:
+    """
+    Convert a datetime to a UTC ISO 8601 string.
+
+    Args:
+        value (datetime): The datetime object to convert
+
+    Returns:
+        str: The UTC ISO 8601 formatted string
+
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat(" ")
+
+
 class HTMLPageServer(object):
     """The Web server."""
 
@@ -71,15 +94,15 @@ class HTMLPageServer(object):
         """Wrap the Jinja2 template getting and rendering boilerplate."""
         return self._template_env.get_template(template_name).render(**kwargs)
 
-    def index(self, user: Users = Depends(get_verified_user)):
+    def index(self, user: VerifiedUser):
         """Return the index page."""
-        services = {service.name: service for service in Services.get_services()}
+        services = {service.name: Service.model_validate(service) for service in Services.get_services()}
         monitoring_service = services.get("monitoringd")
         if monitoring_service is None:
             services = {}
         elif monitoring_service.status != ServiceStatus.UP:
             services = {"monitoringd": monitoring_service}
-        elif (datetime.utcnow() - monitoring_service.timestamp).total_seconds() > 1800.:  # 30 mins
+        elif (datetime.now(timezone.utc) - monitoring_service.timestamp).total_seconds() > 1800.:  # 30 mins
             services = {}
 
         return HTMLResponse(self._render('dashboard_template.html',
@@ -87,30 +110,31 @@ class HTMLPageServer(object):
                                          monitoringd_service=services.get("monitoringd"),
                                          dirac_service=services.get('DIRAC')))
 
-    def admins(self, user: Users = Depends(admin_only)):
+    def admins(self, user: AdminUser):
         """Return admin management page."""
-        users = Users.get_users()
+        users = [User.model_validate(user) for user in Users.get_users()]
         return HTMLResponse(self._render('admins_template.html', users=users))
 
-    def newrequest(self, user: Users = Depends(get_verified_user)):
+    def newrequest(self, user: VerifiedUser):
         """Return new request page."""
         return HTMLResponse(self._render("newrequest_template.html"))
 
-    def info(self, id: int, requester: Users = Depends(get_verified_user)):
+    def info(self, id: int, requester: VerifiedUser):
         """Return request info page."""
-        return HTMLResponse(self._render('requestinfo_template.html',
-                                         request=Requests.get(request_id=id,
-                                                              user_id=None if requester.admin else requester.id,
-                                                              load_user=True,
-                                                              load_parametricjobs=True)))
+        selected_request = Request.model_validate(Requests.get(request_id=id,
+                                                               user_id=None if requester.admin else requester.id,
+                                                               load_user=True,
+                                                               load_parametricjobs=True))
+        return HTMLResponse(self._render('requestinfo_template.html', request=selected_request))
 
-    def log(self, id: int, requester: Users = Depends(get_verified_user)):
+    def log(self, id: int, requester: VerifiedUser):
         """Return request log page."""
-        return HTMLResponse(self._render('log_template.html',
-                                         request=Requests.get(request_id=id,
-                                                              user_id=None if requester.admin else requester.id,
-                                                              load_user=True,
-                                                              load_parametricjobs=True)))
+        selected_request = Request.model_validate(Requests.get(request_id=id,
+                                                               user_id=None if requester.admin else requester.id,
+                                                               load_user=True,
+                                                               load_parametricjobs=True))
+        # could remove the HTMLResponse as the response_class is already specified in the router
+        return HTMLResponse(self._render('log_template.html', request=selected_request))
 
     def router(self) -> APIRouter:
         """Build the router for this service."""
