@@ -11,10 +11,10 @@ from operator import attrgetter
 from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
+from sqlalchemy import (SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
                         ForeignKey, Enum, CheckConstraint, event, inspect, select)
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, Session
+from sqlalchemy.orm import relationship, Session, Mapped, mapped_column
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.config import getConfig
@@ -22,10 +22,8 @@ from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
 from productionsystem.monitoring.diracrest.DiracRESTClient import (dirac_api_client,
                                                                    dirac_api_job_client)
 from ..enums import LocalStatus, DiracStatus
-from ..registry import managed_session, SessionRegistry
-from ..SQLTableBase import SQLTableBase, SmartColumn
-# See the equivalent comment in Requests.py: import the class directly from its submodule
-# rather than via the package attribute, which is fragile against pollution from bare imports.
+from ..registry import managed_session
+from ..SQLTableBase import SQLTableBase
 from .DiracJobs import DiracJobs
 
 
@@ -65,32 +63,39 @@ class ParametricJob(BaseModel):
         return value.isoformat(' ')
 
 
+class ParametricJobCreate(BaseModel):
+    """Input schema for creating a parametric job with a request."""
+
+    priority: int = 3
+    site: str = "ANY"
+
+
 class ParametricJobs(SQLTableBase):
     """Jobs SQL Table."""
 
     __tablename__ = 'parametricjobs'
-    classtype = Column(TEXT)
+    classtype: Mapped[str] = mapped_column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'parametricjobs',
                        'with_polymorphic': '*'}
-    request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
-    id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
-    requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)
-    priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'),
-                           nullable=False, default=3, allowed=True)
-    site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
-    status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
-    reschedule = Column(Boolean, nullable=False, default=False)
-    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    num_jobs = SmartColumn(Integer, nullable=False, default=0)
-    num_completed = Column(Integer, nullable=False, default=0)
-    num_failed = Column(Integer, nullable=False, default=0)
-    num_submitted = Column(Integer, nullable=False, default=0)
-    num_running = Column(Integer, nullable=False, default=0)
-    log = Column(TEXT, nullable=False, default="")
-    dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
-                              primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
-                                          "ParametricJobs.id==DiracJobs.parametricjob_id)")
+    request_id: Mapped[int] = mapped_column(Integer, ForeignKey('requests.id'), primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    requester_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    priority: Mapped[int] = mapped_column(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'),
+                           nullable=False, default=3)
+    site: Mapped[str] = mapped_column(TEXT, nullable=False, default='ANY')
+    status: Mapped[LocalStatus] = mapped_column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
+    reschedule: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    num_jobs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_submitted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_running: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    log: Mapped[str] = mapped_column(TEXT, nullable=False, default="")
+    dirac_jobs: Mapped[list["DiracJobs"]] = relationship("DiracJobs", cascade="all, delete-orphan",
+                                                         primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
+                                                                     "ParametricJobs.id==DiracJobs.parametricjob_id)")
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @hybrid_property
@@ -100,14 +105,6 @@ class ParametricJobs(SQLTableBase):
                                 self.num_running +
                                 self.num_failed +
                                 self.num_completed)
-
-    def __init__(self, **kwargs):
-        """Initialise."""
-        required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
-        if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
-        # pylint: disable=no-member
-        super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
 
     def update(self):
         """Update DB with current values."""
@@ -375,6 +372,10 @@ class ParametricJobs(SQLTableBase):
 
     @overload
     @classmethod
+    def get(cls, *, request_id:int, user_id: None) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
     def get(cls, *, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
 
     @overload
@@ -383,7 +384,11 @@ class ParametricJobs(SQLTableBase):
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> ParametricJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id: None) -> ParametricJobs: ...
 
     @classmethod
     def get(cls,
