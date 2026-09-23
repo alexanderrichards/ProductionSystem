@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from productionsystem.monitoring.diracrest.DiracRESTClient import (
     DiracAPIClient,
-    RESTJob,
+    DiracAPIJob,
 )
 from productionsystem.monitoring.diracrest.DiracRESTServer import create_app
 
@@ -124,7 +124,7 @@ def test_client_serializes_jobs_and_restores_integer_status_keys():
     }
     client.session.request = Mock(return_value=response)
 
-    job = RESTJob()
+    job = DiracAPIJob()
     job.setName("job-name")
     job.setInputSandbox(("first", "second"))
     client.submitJob(job)

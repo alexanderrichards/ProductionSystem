@@ -34,6 +34,7 @@ class DiracStatus(IntEnum):
     CHECKING = 12
     MATCHED = 13
     COMPLETING = 14
+    RESCHEDULED = 15
 
     @property
     def local_status(self):
@@ -74,4 +75,5 @@ STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.QUEUED: LocalStatus.SUBMITTED,
               DiracStatus.WAITING: LocalStatus.SUBMITTED,
               DiracStatus.CHECKING: LocalStatus.SUBMITTED,
-              DiracStatus.MATCHED: LocalStatus.SUBMITTED}
+              DiracStatus.MATCHED: LocalStatus.SUBMITTED,
+              DiracStatus.RESCHEDULED: LocalStatus.SUBMITTING}
