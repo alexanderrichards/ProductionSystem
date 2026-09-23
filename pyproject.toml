@@ -30,6 +30,7 @@ dependencies = [
     "psutil",
     "typer",
     "mock",
+    "packaging",
 ]
 
 [project.optional-dependencies]

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import re
 import logging
-from distutils.version import StrictVersion  # pylint: disable=import-error, no-name-in-module
+from packaging.version import Version
 import requests
 from enum import Enum
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -27,7 +27,7 @@ class GitSchema(Enum):
 
 
 SORT_TYPE_MAPPING = {None: None,
-                     'versions': StrictVersion}
+                     'versions': Version}
 
 
 class GitListingBase(object):
