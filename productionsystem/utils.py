@@ -36,7 +36,7 @@ def igroup(sequence, nentries):
 
 
 # This can derive from ExitStack in Python3
-class TemporyFileManagerContext(object):
+class TemporaryFileManagerContext(object):
     """Temporary file/dir manager context."""
 
     def __init__(self):

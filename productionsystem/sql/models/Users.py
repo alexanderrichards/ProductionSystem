@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import overload
+from typing import Self, overload
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import TEXT, Boolean, Integer, select
@@ -41,7 +41,7 @@ class Users(SQLTableBase):
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Human-readable name from DN.
 
@@ -63,7 +63,7 @@ class Users(SQLTableBase):
         """hash."""
         return hash((self.dn, self.ca))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Self) -> bool:
         """Equality check."""
         return (self.dn, self.ca) == (other.dn, other.ca)
 
