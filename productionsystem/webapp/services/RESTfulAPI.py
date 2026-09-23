@@ -230,7 +230,7 @@ class RequestsAPI:
               http_error_handle(MultipleResultsFound, 500, f"Multiple requests with id {request_id}")):
             request = Requests.get(request_id=request_id)
 
-        if request.status is LocalStatus.REMOVING:
+        if request.status == LocalStatus.REMOVING:
             raise HTTPException(400, f"Request {request_id} is already marked for deletion")
 
         request.status = LocalStatus.REMOVING
