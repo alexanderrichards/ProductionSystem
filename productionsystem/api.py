@@ -2,6 +2,7 @@
 import logging
 import urllib.parse as up
 
+# TODO: move from requests to httpx
 import requests
 
 
@@ -99,7 +100,7 @@ class JSI:
                             inlcuding all necessary parameters.
                             e.g. {
                                   "description": "Hello world",
-                                  "parametricjobs": [
+                                  "parametric_jobs": [
                                                      {"site": "ANY", "priority": 3},
                                                      {"site": "ANY", "priority": 2}
                                                     ]
@@ -237,12 +238,13 @@ if __name__ == "__main__":
     # print(jsi.get_requests())
     # print(jsi.get_requests(1))
     # jsi.create_request({"description": "Hello world",
-    #                     "parametricjobs": [{"site": "ANY", "priority": 3},
+    #                     "parametric_jobs": [{"site": "ANY", "priority": 3},
     #                                        {"site": "LCG.UKI-LT2-IC-HEP.uk", "priority": 2}]})
     # jsi.approve_request(4)
     # jsi.delete_request(3)
 
-    jsi = JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443", verify=False,
+    jsi = JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443",
+              verify=False,
               cert=(r"C:\Users\infer\.globus\usercert.pem", r"C:\Users\infer\.globus\userkey-unenc.pem"))
     print(jsi.get_requests())
     # print(jsi.get_requests(777))
