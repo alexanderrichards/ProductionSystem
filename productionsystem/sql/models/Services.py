@@ -21,8 +21,8 @@ class Service(BaseModel):
 
     id: int = Field(frozen=True)
     name: str = Field(frozen=True)
-    status: ServiceStatus
-    timestamp: datetime
+    status: ServiceStatus = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
 
     @field_serializer("status")
     def _serialize_status(self, value: ServiceStatus) -> str:
