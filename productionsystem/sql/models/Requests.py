@@ -41,7 +41,13 @@ class Request(BaseModel):
 
     @field_serializer("request_date", "timestamp")
     def _serialize_datetime(self, value: datetime) -> str:
-        return value.isoformat(' ')
+        if value.tzinfo is None:
+            # Database returned a naive value as not all are timezone-aware; this assumes it was stored as UTC.
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+
+        return value.isoformat(" ")
 
 
 class RequestCreate(BaseModel):
