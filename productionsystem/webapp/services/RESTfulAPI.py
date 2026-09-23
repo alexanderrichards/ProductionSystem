@@ -274,11 +274,11 @@ class RequestsAPI:
             request = Requests.get(request_id=request_id)
 
         if status == LocalStatus.APPROVED and request.status != LocalStatus.REQUESTED:
-            raise HTTPException(410, "Only requests in state Requested can transition to Approved.")
+            raise HTTPException(409, "Only requests in state Requested can transition to Approved.")
         if status == LocalStatus.CHECKED and request.status not in (LocalStatus.COMPLETED, LocalStatus.FAILED):
-            raise HTTPException(411, "Only requests in state Completed/Failed can transition to Checked.")
+            raise HTTPException(409, "Only requests in state Completed/Failed can transition to Checked.")
         if status == LocalStatus.CLOSED and request.status != LocalStatus.CHECKED:
-            raise HTTPException(412, "Only requests in state Checked can transition to Closed.")
+            raise HTTPException(409, "Only requests in state Checked can transition to Closed.")
 
         request.status = status
         with http_error_handle(SQLAlchemyError, 500, "Error updating request with id %d" % request_id):
