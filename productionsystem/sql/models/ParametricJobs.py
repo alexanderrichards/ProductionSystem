@@ -8,7 +8,9 @@ from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime, timezone
 from operator import attrgetter
-from typing import overload
+from typing import TYPE_CHECKING, overload
+if TYPE_CHECKING:
+    from io import TextIOWrapper
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import (TEXT,
@@ -27,11 +29,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from productionsystem.config import getConfig
-from productionsystem.monitoring.diracrest.DiracRESTClient import (
-    dirac_api_client,
-    dirac_api_job_client,
-)
-from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
+from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client,dirac_api_job_client
+from productionsystem.utils import TemporaryFileManagerContext, igroup, timestamp
+if TYPE_CHECKING:
+    from productionsystem.monitoring.diracrest.DiracRESTClient import DiracAPIJobClass
+
 from ..enums import DiracStatus, LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
@@ -102,13 +104,13 @@ class ParametricJobs(SQLTableBase):
     num_submitted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     num_running: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     log: Mapped[str] = mapped_column(TEXT, nullable=False, default="")
-    dirac_jobs: Mapped[list["DiracJobs"]] = relationship("DiracJobs", cascade="all, delete-orphan",
+    dirac_jobs: Mapped[list[DiracJobs]] = relationship("DiracJobs", cascade="all, delete-orphan",
                                                          primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
                                                                      "ParametricJobs.id==DiracJobs.parametricjob_id)")
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @hybrid_property
-    def num_other(self):
+    def num_other(self) -> int:
         """Return the number of jobs in states other than the known ones."""
         return self.num_jobs - (self.num_submitted +
                                 self.num_running +
@@ -120,7 +122,7 @@ class ParametricJobs(SQLTableBase):
         with managed_session() as session:
             session.merge(self)
 
-    def _clientlog(self, log):
+    def _clientlog(self, log: str):
         if self.log is None:
             self.log = ''
         self.log += "%s %s\n" % (timestamp(), log)
@@ -130,7 +132,7 @@ class ParametricJobs(SQLTableBase):
         if not self.dirac_jobs:
             return
 
-        dirac_ids = [job.id for job in self.dirac_jobs]  # pyright: ignore[reportGeneralTypeIssues]
+        dirac_ids = {job.id for job in self.dirac_jobs}
         for ids in igroup(dirac_ids, 1000):
             try:
                 with dirac_api_client() as dirac:
@@ -143,20 +145,24 @@ class ParametricJobs(SQLTableBase):
                                       "on DIRAC system", len(ids))
 
 #    @abstractmethod
-    def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
+    def _setup_dirac_job(self,
+                         DiracJobClass: DiracAPIJobClass,
+                         tmp_runscript: TextIOWrapper,
+                         tmp_filemanager: TemporaryFileManagerContext):
         """Define the DIRAC parametric job."""
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
-        job = DiracJob()
+        job = DiracJobClass()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return [job]
 
+    # TODO: Document all methods in Google style.
     def submit(self):
         """Submit parametric job."""
-        with dirac_api_job_client() as (dirac, dirac_job_class), \
-                TemporyFileManagerContext() as tmp_filemanager, \
-                open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript:
+        with (dirac_api_job_client() as (dirac, dirac_job_class),
+              TemporaryFileManagerContext() as tmp_filemanager,
+              open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript):
             os.chmod(tmp_runscript.name, 0o755)
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
@@ -254,24 +260,24 @@ class ParametricJobs(SQLTableBase):
             return
 
         num_reschedules = getConfig("parametricjobs").get("reschedules", 2)
-        job_types = defaultdict(set)
-        for job in self.dirac_jobs:  # pyright: ignore[reportGeneralTypeIssues]
+        job_types: defaultdict[DiracStatus, set[int]] = defaultdict(set)
+        for job in self.dirac_jobs:
             job_types[job.status].add(job.id)
             # add auto-reschedule jobs
-            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and\
-                    job.reschedules < num_reschedules:
-                job_types['Reschedule'].add(job.id)
+            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and job.reschedules < num_reschedules:
+                # Note: RESCHEDULED status is used for counting only and is never applied to the actual job status
+                job_types[DiracStatus.RESCHEDULED].add(job.id)
 
-        reschedule_jobs = job_types['Reschedule'] if job_types[DiracStatus.DONE] else set()
-        monitor_jobs = job_types[DiracStatus.RUNNING] | \
-            job_types[DiracStatus.RECEIVED] | \
-            job_types[DiracStatus.QUEUED] | \
-            job_types[DiracStatus.WAITING] | \
-            job_types[DiracStatus.CHECKING] | \
-            job_types[DiracStatus.MATCHED] | \
-            job_types[DiracStatus.UNKNOWN] | \
-            job_types[DiracStatus.COMPLETED] | \
-            job_types[DiracStatus.COMPLETING]
+        reschedule_jobs: set[int] = job_types[DiracStatus.RESCHEDULED] if job_types[DiracStatus.DONE] else set()
+        monitor_jobs: set[int] = (job_types[DiracStatus.RUNNING]
+                                  | job_types[DiracStatus.RECEIVED]
+                                  | job_types[DiracStatus.QUEUED]
+                                  | job_types[DiracStatus.WAITING]
+                                  | job_types[DiracStatus.CHECKING]
+                                  | job_types[DiracStatus.MATCHED]
+                                  | job_types[DiracStatus.UNKNOWN]
+                                  | job_types[DiracStatus.COMPLETED]
+                                  | job_types[DiracStatus.COMPLETING])
 
         if self.reschedule:  # Manually triggered reschedule of all failed/stalled from Web app
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]

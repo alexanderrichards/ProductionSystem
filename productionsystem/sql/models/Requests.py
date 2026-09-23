@@ -76,7 +76,7 @@ class Requests(SQLTableBase):
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
 
-    def _clientlog(self, log):
+    def _clientlog(self, log: str):
         if self.log is None:
             self.log = ''
         self.log += "%s %s\n" % (timestamp(), log)
@@ -160,6 +160,7 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
 
+    # TODO: make sure pydantic model validation errors propagate to client.
     @classmethod
     def create(cls, *, requester_id: int, validated_request_data: RequestCreate) -> Requests:
         """

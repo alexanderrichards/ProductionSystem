@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Generator
 from contextlib import contextmanager
 
 import requests
@@ -36,7 +37,7 @@ def _json_value(value):
     return value
 
 
-class RESTJob:
+class DiracAPIJob:
     """Record DIRAC Job method calls for execution by the DIRAC daemon."""
 
     def __init__(self):
@@ -59,6 +60,9 @@ class RESTJob:
     def as_payload(self):
         """Return the JSON representation consumed by the REST API."""
         return {"calls": self.calls}
+
+
+type DiracAPIJobClass = type[DiracAPIJob]
 
 
 class _RESTClient:
@@ -94,28 +98,28 @@ class DiracAPIClient(_RESTClient):
             return False
         return True
 
-    def submitJob(self, job):
+    def submitJob(self, job: DiracAPIJob):
         """Submit a recorded DIRAC job."""
-        if not isinstance(job, RESTJob):
-            raise TypeError("job must be an instance of RESTJob")
+        if not isinstance(job, DiracAPIJob):
+            raise TypeError("job must be an instance of DiracAPIJob")
         return self._request("POST", "/jobs", job.as_payload())
 
-    def getJobStatus(self, job_ids):
+    def getJobStatus(self, job_ids: set[int]):
         """Return statuses for the supplied DIRAC job IDs."""
         result = self._request("POST", "/jobs/status", {"job_ids": list(job_ids)})
         if result.get("OK") and isinstance(result.get("Value"), dict):
             result["Value"] = {int(key): value for key, value in result["Value"].items()}
         return result
 
-    def rescheduleJob(self, job_ids):
+    def rescheduleJob(self, job_ids: set[int]):
         """Reschedule the supplied DIRAC jobs."""
         return self._request("POST", "/jobs/reschedule", {"job_ids": list(job_ids)})
 
-    def killJob(self, job_ids):
+    def killJob(self, job_ids: set[int]):
         """Kill the supplied DIRAC jobs."""
         return self._request("POST", "/jobs/kill", {"job_ids": list(job_ids)})
 
-    def deleteJob(self, job_ids):
+    def deleteJob(self, job_ids: set[int]):
         """Delete the supplied DIRAC jobs."""
         return self._request("DELETE", "/jobs", {"job_ids": list(job_ids)})
 
@@ -123,7 +127,7 @@ class DiracAPIClient(_RESTClient):
 class DiracCatalogueClient(_RESTClient):
     """Client for DIRAC catalogue resources."""
 
-    def __init__(self, rpc_endpoint):
+    def __init__(self, rpc_endpoint: str):
         super().__init__()
         self.rpc_endpoint = rpc_endpoint
 
@@ -137,7 +141,7 @@ class DiracCatalogueClient(_RESTClient):
 
 
 @contextmanager
-def dirac_rpc_client(rpc_endpoint):
+def dirac_rpc_client(rpc_endpoint: str) -> Generator[DiracCatalogueClient]:
     """Yield a DIRAC catalogue REST client."""
     client = DiracCatalogueClient(rpc_endpoint)
     try:
@@ -147,7 +151,7 @@ def dirac_rpc_client(rpc_endpoint):
 
 
 @contextmanager
-def dirac_api_client():
+def dirac_api_client() -> Generator[DiracAPIClient]:
     """Yield a DIRAC job REST client."""
     client = DiracAPIClient()
     try:
@@ -157,10 +161,10 @@ def dirac_api_client():
 
 
 @contextmanager
-def dirac_api_job_client():
+def dirac_api_job_client() -> Generator[tuple[DiracAPIClient, DiracAPIJobClass]]:
     """Yield a DIRAC job REST client and a job definition class."""
     client = DiracAPIClient()
     try:
-        yield client, RESTJob
+        yield client, DiracAPIJob
     finally:
         client.close()
