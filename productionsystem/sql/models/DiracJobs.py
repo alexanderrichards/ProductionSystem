@@ -5,9 +5,9 @@ import logging
 from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint, select
+from sqlalchemy import TEXT, Column, Enum, ForeignKey, ForeignKeyConstraint, Integer, select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.sql.registry import managed_session
 from ..enums import DiracStatus

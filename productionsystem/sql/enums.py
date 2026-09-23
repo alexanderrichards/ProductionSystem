@@ -1,8 +1,7 @@
 """Status enums for use in SQL tables."""
 from __future__ import annotations
 
-from enum import unique, Enum, IntEnum
-
+from enum import Enum, IntEnum, unique
 
 __all__ = ('ServiceStatus', 'DiracStatus', 'LocalStatus', 'STATUS_MAP')
 

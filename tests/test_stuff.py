@@ -1,8 +1,5 @@
 """Test Stuff."""
 from unittest import TestCase
-import pkg_resources
-from productionsystem.config import ConfigSystem
-
 
 # def setup_module(module):
 #     """ setup any state specific to the execution of the given module."""

@@ -3,8 +3,8 @@
 """Script to read users info from VOMS and update locat SQL table."""
 from __future__ import annotations
 
-import os
 import importlib
+import os
 
 import typer
 

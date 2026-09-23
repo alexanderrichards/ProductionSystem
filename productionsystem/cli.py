@@ -8,7 +8,6 @@ from logging.handlers import TimedRotatingFileHandler
 from pprint import pformat
 from types import SimpleNamespace
 
-import click
 import typer
 
 from productionsystem.config import ConfigSystem

@@ -1,16 +1,19 @@
 """Github/lab Directory/Tag Listing Service."""
 from __future__ import annotations
 
+import logging
 import os
 import re
-import logging
-from packaging.version import Version
-import requests
 from enum import Enum
+
+import requests
 from fastapi import APIRouter, Body, Depends, HTTPException
-from git import Repo, NoSuchPathError, InvalidGitRepositoryError
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
+from packaging.version import Version
+
 from productionsystem.apache_utils import get_verified_user
 from ._http import http_error_handle
+
 # gitlab base url: https://lz-git.ua.edu/api/v4
 
 

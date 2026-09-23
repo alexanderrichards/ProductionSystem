@@ -6,16 +6,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Form, HTTPException
 from pydantic import ValidationError
-from sqlalchemy.exc import SQLAlchemyError, NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound, SQLAlchemyError
 
-from ._http import http_error_handle
-from productionsystem.apache_utils import get_verified_user, admin_only, get_requested_status
+from productionsystem.apache_utils import admin_only, get_requested_status, get_verified_user
 from productionsystem.sql.enums import LocalStatus
-from productionsystem.sql.models.Services import Services, Service
-from productionsystem.sql.models.Users import Users, User
-from productionsystem.sql.models.DiracJobs import DiracJobs, DiracJob
-from productionsystem.sql.models import Requests, Request, RequestCreate, ParametricJobs, ParametricJob
-
+from productionsystem.sql.models import ParametricJob, ParametricJobs, Request, RequestCreate, Requests
+from productionsystem.sql.models.DiracJobs import DiracJob, DiracJobs
+from productionsystem.sql.models.Services import Service, Services
+from productionsystem.sql.models.Users import User, Users
+from ._http import http_error_handle
 
 VerifiedUser = Annotated[User, Depends(get_verified_user)]
 AdminUser = Annotated[User, Depends(admin_only)]

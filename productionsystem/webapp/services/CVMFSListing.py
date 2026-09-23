@@ -4,8 +4,8 @@ from __future__ import annotations
 import os
 import re
 
-from packaging.version import Version
 from fastapi import APIRouter, Body, Depends, HTTPException
+from packaging.version import Version
 
 from productionsystem.apache_utils import get_verified_user
 from ._http import http_error_handle

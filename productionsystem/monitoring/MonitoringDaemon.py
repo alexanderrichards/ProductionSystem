@@ -1,19 +1,17 @@
 """Monitoring Daemon."""
 from __future__ import annotations
 
-import logging
 import time
-from datetime import datetime
 
 import requests
 from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+
 from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client
-from productionsystem.sql.registry import SessionRegistry, managed_session
-from productionsystem.sql.models import Requests, Services
 from productionsystem.sql.enums import LocalStatus, ServiceStatus
+from productionsystem.sql.models import Requests, Services
+from productionsystem.sql.registry import SessionRegistry
 
 MINS = 60
 

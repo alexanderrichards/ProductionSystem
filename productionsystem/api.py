@@ -1,6 +1,7 @@
 """Client side Python wrapped REST API."""
 import logging
 import urllib.parse as up
+
 import requests
 
 

@@ -21,8 +21,8 @@ def app_and_db(tmp_path):
     from sqlalchemy.orm import make_transient
 
     from productionsystem.apache_utils import DUMMY_USER, get_dummy_user, get_verified_user
+    from productionsystem.sql.models import Requests
     from productionsystem.sql.registry import managed_session
-    from productionsystem.sql.models import Users, Requests
     from productionsystem.webapp.services import HTMLPageServer
     from productionsystem.webapp.services.RESTfulAPI import build_router
 

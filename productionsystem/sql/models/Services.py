@@ -3,14 +3,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from future.utils import native, native_str
 from typing import overload
+
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
+from sqlalchemy import TIMESTAMP, Enum, Integer, String, select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
-from ..registry import managed_session
+
 from ..enums import ServiceStatus
+from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 
 
