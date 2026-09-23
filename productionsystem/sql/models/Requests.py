@@ -303,6 +303,8 @@ class Requests(SQLTableBase):
 
         Raises:
             TypeError: if the provided arguments are of incorrect type.
+            NoResultFound: If no request matches the given criteria when integer request_id is provided.
+            MultipleResultsFound: If multiple requests match the given criteria when integer request_id is provided.
 
         Returns:
             Requests | list[Requests]: the retrieved request(s) from the database.

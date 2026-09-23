@@ -89,6 +89,11 @@ class Users(SQLTableBase):
         Args:
             user_id (int | None): User id to extract. None gives all users (default None)
 
+        Raises:
+            TypeError: If user_id is not an int (or convertable to int).
+            NoResultFound: If no user matches the given criteria when a single user_id is provided.
+            MultipleResultsFound: If multiple users match the given criteria when a single user_id is provided.
+
         Returns:
             Users | list[Users]: The user/users pulled from the database
 
@@ -96,10 +101,9 @@ class Users(SQLTableBase):
         if user_id is not None:
             try:
                 user_id = int(user_id)
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("User id: %r should be of type int (or convertable to int)", user_id)
+                raise TypeError(f"User id: {user_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
             if user_id is None:
