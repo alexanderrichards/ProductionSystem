@@ -12,10 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 import productionsystem.sql as sql
 from productionsystem.sql.enums import LocalStatus
-if TYPE_CHECKING:
-    from productionsystem.sql.models.Users import Users, User
-else:
-    from productionsystem.sql.models import Users
+from productionsystem.sql.models import Users, User
 
 __all__ = ('apache_client_convert', 'get_requested_status', 'get_verified_user', 'admin_only',
            'get_dummy_user', 'DUMMY_USER')
