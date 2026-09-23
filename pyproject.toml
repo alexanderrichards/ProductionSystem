@@ -52,7 +52,6 @@ dev = [
 ]
 
 [project.entry-points.dbmodels]
-# diracjobs = "productionsystem.sql.models.DiracJobs:DiracJobs"
 parametricjobs = "productionsystem.sql.models.ParametricJobs:ParametricJobs"
 requests = "productionsystem.sql.models.Requests:Requests"
 
