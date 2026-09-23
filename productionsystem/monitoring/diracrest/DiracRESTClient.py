@@ -5,6 +5,7 @@ import logging
 from typing import Generator
 from contextlib import contextmanager
 
+# TODO: move from requests to httpx
 import requests
 
 from productionsystem.config import getConfig
