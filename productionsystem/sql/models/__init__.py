@@ -6,7 +6,7 @@ from importlib import import_module
 
 from productionsystem.config import ConfigSystem
 
-_NON_OVERRIDABLE_MODELS = {"Services", "Service", "Users", "User"}
+_NON_OVERRIDABLE_MODELS = {"Services", "Service", "Users", "User", "DiracJobs", "DiracJob"}
 # Dependency order: DiracJobs/Services/Users have no dependencies on the others below; but
 # ParametricJobs relies on DiracJobs, and Requests relies on ParametricJobs and Users, so those
 # must already be resolved to their classes (not raw modules) by the time they're imported.
@@ -31,9 +31,9 @@ _MODELS = OrderedDict({"Services": "Services",
 
 def _load_one(name, module):
     """Import and return the model class for ``name`` from the specified ``module``."""
-    if name in _NON_OVERRIDABLE_MODELS:
-        return getattr(import_module(f"{__name__}.{module}"), name)
     entry_points = ConfigSystem.get_instance().entry_point_map
+    if name in _NON_OVERRIDABLE_MODELS or name.lower() not in entry_points['dbmodels']:
+        return getattr(import_module(f"{__name__}.{module}"), name)
     return entry_points['dbmodels'][name.lower()].load()
 
 
