@@ -81,7 +81,7 @@
 <script>
 function create_request(form_data){
     {% block create_request %}
-    form_data["parametricjobs"] = [{num_jobs: 3}, {num_jobs: 5}];
+    form_data["parametric_jobs"] = [{num_jobs: 3}, {num_jobs: 5}];
     return form_data;
     {% endblock%}
 }

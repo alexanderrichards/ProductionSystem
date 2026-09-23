@@ -6,14 +6,18 @@ These are useful when using Apache as a reverse proxy to check user
 credentials against a local DB.
 """
 from __future__ import annotations
-
-from fastapi import Depends, HTTPException, Request
+from typing import TYPE_CHECKING
+from fastapi import Depends, Form, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 import productionsystem.sql as sql
-from productionsystem.sql.models import Users
+from productionsystem.sql.enums import LocalStatus
+if TYPE_CHECKING:
+    from productionsystem.sql.models.Users import Users, User
+else:
+    from productionsystem.sql.models import Users
 
-__all__ = ('apache_client_convert', 'get_verified_user', 'admin_only',
+__all__ = ('apache_client_convert', 'get_requested_status', 'get_verified_user', 'admin_only',
            'get_dummy_user', 'DUMMY_USER')
 
 
@@ -39,7 +43,22 @@ def apache_client_convert(client_dn, client_ca=None):
     return client_dn, client_ca
 
 
-def get_verified_user(request: Request) -> Users:
+def get_requested_status(status: str = Form(...)) -> LocalStatus:
+    """
+    FastAPI dependency: parse the requested status from the form data.
+    
+    This would usually be in the form of a string like "APPROVED" or "RUNNING" so
+    convert to a LocalStatus enum member. Since LocalStatus is an IntEnum, the default FastAPI
+    conversion would only work if the client passed an integer value corresponding to the enum member
+    e.g. 1 for LocalStatus.APPROVED. This is not as user friendly as passing a string like "APPROVED" directly.
+    """
+    try:
+        return LocalStatus[status.upper()]
+    except KeyError as err:
+        raise HTTPException(400, f"Invalid status: {status!r}") from err
+
+
+def get_verified_user(request: Request) -> User:
     """FastAPI dependency: verify the client's certificate headers and return the DB user."""
     required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
     missing_headers = required_headers.difference(request.headers)
@@ -74,10 +93,10 @@ def get_verified_user(request: Request) -> Users:
         if user.suspended:
             raise HTTPException(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
                                      % (client_dn, client_ca))
-    return user
+    return User.model_validate(user)
 
 
-def admin_only(user: Users = Depends(get_verified_user)) -> Users:
+def admin_only(user: User = Depends(get_verified_user)) -> User:
     """FastAPI dependency: enforce that the verified user is an admin."""
     if not user.admin:
         raise HTTPException(403, 'Forbidden: Admin users only')
@@ -88,6 +107,6 @@ DUMMY_USER = Users(id=17, dn='/test/CN=dummy user/testdn', ca='ca', email='test@
                    suspended=False, admin=True)
 
 
-def get_dummy_user() -> Users:
+def get_dummy_user() -> User:
     """Dependency override providing dummy credentials for testing/mock mode."""
-    return DUMMY_USER
+    return User.model_validate(DUMMY_USER)

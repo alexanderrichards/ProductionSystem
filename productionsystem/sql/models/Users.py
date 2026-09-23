@@ -5,6 +5,7 @@ import logging
 from typing import overload
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Column, Integer, TEXT, Boolean, select
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 # from sqlmodel import Field, SQLModel
 
@@ -30,12 +31,12 @@ class Users(SQLTableBase):
     """Users SQL Table."""
 
     __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    dn = Column(TEXT, nullable=False)  # pylint: disable=invalid-name
-    ca = Column(TEXT, nullable=False)  # pylint: disable=invalid-name
-    email = Column(TEXT, nullable=False)
-    suspended = Column(Boolean, nullable=False)
-    admin = Column(Boolean, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    dn: Mapped[str] = mapped_column(TEXT, nullable=False)  # pylint: disable=invalid-name
+    ca: Mapped[str] = mapped_column(TEXT, nullable=False)  # pylint: disable=invalid-name
+    email: Mapped[str] = mapped_column(TEXT, nullable=False)
+    suspended: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    admin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @property
