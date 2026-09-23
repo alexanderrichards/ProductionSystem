@@ -1,9 +1,10 @@
 """DIRAC RPC Client utilities."""
 from __future__ import annotations
 
+import copy
 import logging
 from contextlib import contextmanager
-import copy
+
 import rpyc
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name

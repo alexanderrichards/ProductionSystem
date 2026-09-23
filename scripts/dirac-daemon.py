@@ -3,13 +3,13 @@
 """Dirac daemon run script."""
 from __future__ import annotations
 
-import os
-import sys
 import importlib
+import os
 import random
+import sys
+import unittest.mock as mock
 
 import typer
-import unittest.mock as mock
 
 from productionsystem.cli import prepare_options, setup_logging, stop_daemon
 

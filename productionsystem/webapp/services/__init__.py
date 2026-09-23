@@ -1,9 +1,18 @@
 """Services sub-package."""
 from __future__ import annotations
+
 # import pkg_resources
 from productionsystem.config import ConfigSystem
 from .CVMFSListing import CVMFSDirectoryListing
-from .GitListing import GitDirectoryListing, GitTagListing, GitSchema
+from .GitListing import GitDirectoryListing, GitSchema, GitTagListing
+
+__all__ = (
+    "CVMFSDirectoryListing",
+    "GitDirectoryListing",
+    "GitSchema",
+    "GitTagListing",
+    "HTMLPageServer",
+)
 
 # pylint: disable=no-member
 HTMLPageServer = ConfigSystem.get_instance()\

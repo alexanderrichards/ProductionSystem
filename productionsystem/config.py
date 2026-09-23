@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import ast
-import logging
-from os.path import abspath, realpath, expanduser, expandvars
-from copy import deepcopy
-from collections import defaultdict
-
 import configparser
+import logging
+from collections import defaultdict
+from copy import deepcopy
+from os.path import abspath, expanduser, expandvars, realpath
+
 from .singleton import singleton
 
 

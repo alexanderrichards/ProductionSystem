@@ -6,13 +6,14 @@ These are useful when using Apache as a reverse proxy to check user
 credentials against a local DB.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 from fastapi import Depends, Form, HTTPException, Request
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+
 import productionsystem.sql as sql
 from productionsystem.sql.enums import LocalStatus
-from productionsystem.sql.models import Users, User
+from productionsystem.sql.models import User, Users
 
 __all__ = ('apache_client_convert', 'get_requested_status', 'get_verified_user', 'admin_only',
            'get_dummy_user', 'DUMMY_USER')

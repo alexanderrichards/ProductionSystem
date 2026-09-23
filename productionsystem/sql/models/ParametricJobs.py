@@ -1,27 +1,38 @@
 """ParametricJobs Table."""
 from __future__ import annotations
 
-import os
 import logging
-from datetime import datetime, timezone
-from collections import defaultdict, Counter
+import os
+from collections import Counter, defaultdict
 from collections.abc import Iterable
 from copy import deepcopy
+from datetime import datetime, timezone
 from operator import attrgetter
 from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import (SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
-                        ForeignKey, Enum, CheckConstraint, event, inspect, select)
+from sqlalchemy import (TEXT,
+                        TIMESTAMP,
+                        Boolean,
+                        CheckConstraint,
+                        Enum,
+                        ForeignKey,
+                        Integer,
+                        SmallInteger,
+                        event,
+                        inspect,
+                        select)
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, Session, Mapped, mapped_column
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from productionsystem.config import getConfig
+from productionsystem.monitoring.diracrest.DiracRESTClient import (
+    dirac_api_client,
+    dirac_api_job_client,
+)
 from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
-from productionsystem.monitoring.diracrest.DiracRESTClient import (dirac_api_client,
-                                                                   dirac_api_job_client)
-from ..enums import LocalStatus, DiracStatus
+from ..enums import DiracStatus, LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 from .DiracJobs import DiracJobs

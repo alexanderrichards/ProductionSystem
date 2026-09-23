@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
-from enum import Enum
-from datetime import datetime
 from abc import ABCMeta
 from collections.abc import Iterable
+from datetime import datetime
+from enum import Enum
+
 from sqlalchemy import Column
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm.attributes import InstrumentedAttribute

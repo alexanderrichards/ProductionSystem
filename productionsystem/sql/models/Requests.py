@@ -5,19 +5,18 @@ import logging
 from datetime import datetime, timezone
 from operator import attrgetter
 from typing import overload
-from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
-from sqlalchemy.orm import relationship, joinedload, Mapped, mapped_column
-from sqlalchemy.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy import TEXT, TIMESTAMP, Enum, ForeignKey, Integer, event, inspect, select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from productionsystem.utils import timestamp
 from ..enums import LocalStatus
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
-from . import ParametricJobs, ParametricJob, ParametricJobCreate
-from .Users import Users, User
+from . import ParametricJob, ParametricJobCreate, ParametricJobs
+from .Users import User, Users
 
 
 class Request(BaseModel):

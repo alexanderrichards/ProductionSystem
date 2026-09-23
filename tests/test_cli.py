@@ -138,8 +138,8 @@ def test_request_json_keeps_enum_names_and_nested_requester(tmp_path):
     from productionsystem.cli import load_entry_points
     from productionsystem.config import ConfigSystem
     from productionsystem.sql.JSONTableEncoder import JSONTableEncoder
-    from productionsystem.sql.registry import managed_session
     from productionsystem.sql.models import Users
+    from productionsystem.sql.registry import managed_session
 
     entry_points, _ = load_entry_points()
     config = ConfigSystem.get_instance()

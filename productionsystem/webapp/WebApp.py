@@ -8,11 +8,9 @@ from daemonize import Daemonize
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from productionsystem.apache_utils import get_verified_user, get_dummy_user
+from productionsystem.apache_utils import get_dummy_user, get_verified_user
 from productionsystem.sql.registry import SessionRegistry
-
-from .services import (CVMFSDirectoryListing, GitDirectoryListing, GitSchema,
-                       GitTagListing, HTMLPageServer, RESTfulAPI)
+from .services import CVMFSDirectoryListing, GitDirectoryListing, GitSchema, GitTagListing, HTMLPageServer, RESTfulAPI
 
 
 class WebApp(Daemonize):

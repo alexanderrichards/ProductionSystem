@@ -7,7 +7,6 @@ authentication in suds.
 from __future__ import annotations
 
 import requests
-
 from suds.client import Client
 from suds.transport import Reply
 from suds.transport.https import HttpAuthenticated

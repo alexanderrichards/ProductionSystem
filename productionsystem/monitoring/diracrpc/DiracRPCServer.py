@@ -1,15 +1,15 @@
 """DIRAC RPC Server."""
 from __future__ import annotations
 
-import logging
 # from types import FunctionType
 import rpyc
-from rpyc.utils.server import ThreadedServer
 from daemonize import Daemonize
+from DIRAC.Core.DISET.RPCClient import RPCClient
+from DIRAC.Interfaces.API.Dirac import Dirac
+
 # pylint: disable=import-error
 from DIRAC.Interfaces.API.Job import Job
-from DIRAC.Interfaces.API.Dirac import Dirac
-from DIRAC.Core.DISET.RPCClient import RPCClient
+from rpyc.utils.server import ThreadedServer
 
 # logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
