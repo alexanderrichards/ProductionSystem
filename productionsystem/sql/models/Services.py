@@ -85,6 +85,13 @@ class Services(SQLTableBase):
             service_id (int | None): Service id to extract. Defaults to None.
             service_name (string | None): Service name to extract. Defaults to None.
 
+        Raises:
+            TypeError: If service_id is not an int (or convertable to int) or service_name is not a str.
+            NoResultFound: If no service matches the given criteria when a single service_id or service_name
+                           is provided.
+            MultipleResultsFound: If multiple services match the given criteria when a single service_id or
+                                  service_name is provided.
+
         Returns:
             Services | list[Services]: The service/services pulled from the database
 
@@ -96,9 +103,9 @@ class Services(SQLTableBase):
         if service_id is not None:
             try:
                 service_id = int(service_id)
-            except ValueError:
+            except ValueError as err:
                 cls.logger.error("Service id: %r should be of type int (or convertable to int)", service_id)
-                raise
+                raise TypeError(f"Service id: {service_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
             query_id = []
