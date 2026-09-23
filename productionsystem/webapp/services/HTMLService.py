@@ -98,21 +98,17 @@ class HTMLPageServer(object):
 
     def info(self, id: int, requester: Users = Depends(get_verified_user)):
         """Return request info page."""
-        user_id = requester.id
-        if requester.admin:
-            user_id = None
         return HTMLResponse(self._render('requestinfo_template.html',
-                                         request=Requests.get(id, user_id=user_id,
+                                         request=Requests.get(request_id=id,
+                                                              user_id=None if requester.admin else requester.id,
                                                               load_user=True,
                                                               load_parametricjobs=True)))
 
     def log(self, id: int, requester: Users = Depends(get_verified_user)):
         """Return request log page."""
-        user_id = requester.id
-        if requester.admin:
-            user_id = None
         return HTMLResponse(self._render('log_template.html',
-                                         request=Requests.get(id, user_id=user_id,
+                                         request=Requests.get(request_id=id,
+                                                              user_id=None if requester.admin else requester.id,
                                                               load_user=True,
                                                               load_parametricjobs=True)))
 
@@ -121,8 +117,7 @@ class HTMLPageServer(object):
         router = APIRouter()
         router.add_api_route("/", self.index, methods=["GET"], response_class=HTMLResponse)
         router.add_api_route("/admins", self.admins, methods=["GET"], response_class=HTMLResponse)
-        router.add_api_route("/newrequest", self.newrequest, methods=["GET"],
-                             response_class=HTMLResponse)
+        router.add_api_route("/newrequest", self.newrequest, methods=["GET"], response_class=HTMLResponse)
         router.add_api_route("/info/{id}", self.info, methods=["GET"], response_class=HTMLResponse)
         router.add_api_route("/log/{id}", self.log, methods=["GET"], response_class=HTMLResponse)
         return router
