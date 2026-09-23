@@ -1,5 +1,6 @@
 """Define necessary setup fixtures."""
 import pytest
+
 from productionsystem.cli import load_entry_points
 from productionsystem.config import ConfigSystem
 

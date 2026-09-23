@@ -4,11 +4,11 @@
 # cannot evaluate that logic for type checking, so we provide explicit bindings here.
 # Note: only the .py file is used at runtime by python interpreter; this .pyi file is for static analysis only.
 
-from .Services import Services, Service
-from .Users import Users, User
-from .DiracJobs import DiracJobs, DiracJob
-from .ParametricJobs import ParametricJobs, ParametricJob, ParametricJobCreate
-from .Requests import Requests, Request, RequestCreate
+from .DiracJobs import DiracJob, DiracJobs
+from .ParametricJobs import ParametricJob, ParametricJobCreate, ParametricJobs
+from .Requests import Request, RequestCreate, Requests
+from .Services import Service, Services
+from .Users import User, Users
 
 __all__ = [
     "Services",

@@ -1,5 +1,6 @@
 """Test utils.py."""
 from unittest import TestCase
+
 import productionsystem.utils as utils
 
 
