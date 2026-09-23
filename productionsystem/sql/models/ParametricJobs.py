@@ -27,13 +27,6 @@ from ..SQLTableBase import SQLTableBase
 from .DiracJobs import DiracJobs
 
 
-def subdict(dct, keys, **kwargs):
-    """Create a sub dictionary."""
-    out = {k: dct[k] for k in keys if k in dct}
-    out.update(kwargs)
-    return out
-
-
 class ParametricJob(BaseModel):
     """JSON-serialisable schema for a ParametricJobs row."""
 
@@ -43,7 +36,7 @@ class ParametricJob(BaseModel):
     id: int = Field(frozen=True)
     requester_id: int = Field(frozen=True)
     priority: int
-    site: str
+    site: str  # should these all be frozen for output only as create is below
     status: LocalStatus
     reschedule: bool
     timestamp: datetime
@@ -60,8 +53,13 @@ class ParametricJob(BaseModel):
 
     @field_serializer("timestamp")
     def _serialize_timestamp(self, value: datetime) -> str:
-        return value.isoformat(' ')
+        if value.tzinfo is None:
+            # Database returned a naive value as not all are timezone-aware; this assumes it was stored as UTC.
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
 
+        return value.isoformat(" ")
 
 class ParametricJobCreate(BaseModel):
     """Input schema for creating a parametric job with a request."""
