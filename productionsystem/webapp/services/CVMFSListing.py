@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import os
 import re
-from distutils.version import StrictVersion  # pylint: disable=import-error, no-name-in-module
 
+from packaging.version import Version
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from productionsystem.apache_utils import get_verified_user
@@ -15,7 +15,7 @@ class CVMFSDirectoryListing(object):
     """CVMFS Directory listing service."""
 
     sort_type_map = {None: None,
-                     'versions': StrictVersion}
+                     'versions': Version}
 
     def post(self, path: str, data: dict = Body(...), user=Depends(get_verified_user)):
         """HTTP POST request handler."""
