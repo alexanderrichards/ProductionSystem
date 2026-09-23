@@ -451,8 +451,8 @@ $(document).ready(function(){
             console.error(`Error approving request ${id}.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
           },
           statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
-            400: function(){
-              console.warn("Only jobs in Requested may transition to Approved.");
+            409: function(){
+              console.warn("Only requests in Requested may transition to Approved.");
             },
             401: function(){
               console.warn("Unauthorised approve request.");
@@ -502,14 +502,8 @@ $(document).ready(function(){
             console.error(`Error marking request ${id} as checked.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
           },
           statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
-            410: function(){
-              console.warn("Only jobs in Requested may transition to Approved.");
-            },
-            411: function(){
+            409: function(){
               console.warn("Only requests in state Completed/Failed may transition to Checked.");
-            },
-            412: function(){
-              console.warn("Only requests in state Checked can transition to Closed.");
             },
             401: function(){
               console.warn("Unauthorised checked request.");
@@ -559,13 +553,7 @@ $(document).ready(function(){
             console.error(`Error marking request ${id} as closed.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
           },
           statusCode: {  // Since these menu items should only be available when jinja renders the admin page, 401 and 403 should not happen.
-            410: function(){
-              console.warn("Only jobs in Requested may transition to Approved.");
-            },
-            411: function(){
-              console.warn("Only requests in state Completed/Failed may transition to Checked.");
-            },
-            412: function(){
+            409: function(){
               console.warn("Only requests in state Checked can transition to Closed.");
             },
             401: function(){
