@@ -26,14 +26,14 @@ class Request(BaseModel):
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
-    description: str
-    requester_id: int
-    request_date: datetime
-    status: LocalStatus
-    timestamp: datetime
-    log: str
-    parametric_jobs: list[ParametricJob] = Field(default_factory=list)
-    requester: User
+    description: str = Field(frozen=True)
+    requester_id: int = Field(frozen=True)
+    request_date: datetime = Field(frozen=True)
+    status: LocalStatus = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
+    log: str = Field(frozen=True)
+    parametric_jobs: list[ParametricJob] = Field(default_factory=list, frozen=True)
+    requester: User = Field(frozen=True)
 
     @field_serializer("status")
     def _serialize_status(self, value: LocalStatus) -> str:
@@ -163,7 +163,19 @@ class Requests(SQLTableBase):
 
     @classmethod
     def create(cls, *, requester_id: int, validated_request_data: RequestCreate) -> Requests:
-        """Create a request and its parametric jobs."""
+        """
+        Create new request in DB.
+
+        Args:
+            requester_id (int): The id of the requester.
+            validated_request_data (RequestCreate): New request data.
+
+        Raises:
+            ValueError: If there is an error creating parametric jobs due to bad input.
+
+        Returns:
+            Requests: The newly created request object.
+        """
         try:
             parametricjobs = [
                 ParametricJobs(
@@ -173,8 +185,10 @@ class Requests(SQLTableBase):
                 )
                 for job_id, job_values in enumerate(validated_request_data.parametric_jobs, start=1)
             ]
-        except Exception as err:  # missing the client log
-            cls.logger.exception("Error creating parametric jobs, bad input: %s\n%s", err, validated_request_data.model_dump())
+        except Exception as err:
+            cls.logger.exception("Error creating parametric jobs, bad input: %s\n%s",
+                                 err,
+                                 validated_request_data.model_dump())
             raise ValueError("Error creating parametric jobs, bad input") from err 
 
         request = cls(
@@ -300,23 +314,20 @@ class Requests(SQLTableBase):
                     request_id = [int(i) for i in request_id]
                 else:
                     request_id = int(request_id)
-            except ValueError:
-                cls.logger.error("Request id: %r should be of type int "
-                                 "(or convertable to int)", request_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("Request id: %r should be of type int (or convertable to int)", request_id)
+                raise TypeError(f"Request id: {request_id!r} should be of type int (or convertable to int).") from err
 
         if user_id is not None:
             try:
                 user_id = int(user_id)
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
+            except ValueError as err:
+                cls.logger.error("User id: %r should be of type int (or convertable to int)", user_id)
+                raise TypeError(f"User id: {user_id!r} should be of type int (or convertable to int).") from err
 
-        if status is not None:
-            if not isinstance(status, (list, tuple)):
-                cls.logger.error("Status: %r should be of type list/tuple", status)
-                raise TypeError
+        if status is not None and not isinstance(status, (list, tuple)):
+            cls.logger.error("Status: %r should be of type list/tuple", status)
+            raise TypeError(f"Status: {status!r} should be of type list/tuple.")
 
         with managed_session() as session:
             stmt = select(cls)

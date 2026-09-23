@@ -35,17 +35,17 @@ class ParametricJob(BaseModel):
     request_id: int = Field(frozen=True)
     id: int = Field(frozen=True)
     requester_id: int = Field(frozen=True)
-    priority: int
-    site: str  # should these all be frozen for output only as create is below
-    status: LocalStatus
-    reschedule: bool
-    timestamp: datetime
-    num_jobs: int
-    num_completed: int
-    num_failed: int
-    num_submitted: int
-    num_running: int
-    log: str
+    priority: int = Field(frozen=True)
+    site: str = Field(frozen=True)
+    status: LocalStatus = Field(frozen=True)
+    reschedule: bool = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
+    num_jobs: int = Field(frozen=True)
+    num_completed: int = Field(frozen=True)
+    num_failed: int = Field(frozen=True)
+    num_submitted: int = Field(frozen=True)
+    num_running: int = Field(frozen=True)
+    log: str = Field(frozen=True)
 
     @field_serializer("status")
     def _serialize_status(self, value: LocalStatus) -> str:

@@ -23,8 +23,8 @@ class DiracJob(BaseModel):
     request_id: int = Field(frozen=True)
     parametricjob_id: int = Field(frozen=True)
     requester_id: int = Field(frozen=True)
-    status: DiracStatus
-    reschedules: int
+    status: DiracStatus = Field(frozen=True)
+    reschedules: int = Field(frozen=True)
 
     @field_serializer("status")
     def _serialize_status(self, value: DiracStatus) -> str:

@@ -21,10 +21,10 @@ class User(BaseModel):
     id: int = Field(frozen=True)
     dn: str = Field(frozen=True)
     ca: str = Field(frozen=True)
-    email: str
-    suspended: bool
-    admin: bool
-    name: str  # mainly used when converting ORM objects to pydantic as all attributes are read. Could have as a pydantic computed field but the code would duplicate that in the ORM model.
+    email: str = Field(frozen=True)
+    suspended: bool = Field(frozen=True)
+    admin: bool = Field(frozen=True)
+    name: str = Field(frozen=True)  # mainly used when converting ORM objects to pydantic as all attributes are read. Could have as a pydantic computed field but the code would duplicate that in the ORM model.
 
 
 class Users(SQLTableBase):
