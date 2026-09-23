@@ -5,32 +5,19 @@ import logging
 from datetime import datetime, timezone
 from operator import attrgetter
 from typing import overload
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
-from sqlalchemy import Column, Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
-# from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import relationship, joinedload
+from sqlalchemy import Integer, TIMESTAMP, TEXT, ForeignKey, Enum, event, inspect, select
+from sqlalchemy.orm import relationship, joinedload, Mapped, mapped_column
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.utils import timestamp
-
 from ..enums import LocalStatus
 from ..registry import managed_session
-from ..SQLTableBase import SQLTableBase, SmartColumn
-# Import the sibling model classes directly from their submodules (rather than via
-# ``from ..models import ParametricJobs, Users``) so this always resolves to the class even if
-# something elsewhere has already triggered a bare import of that submodule, which would
-# otherwise leave the ``productionsystem.sql.models`` package attribute of the same name
-# pointing at the raw module instead of the class.
-from .ParametricJobs import ParametricJobs, ParametricJob
+from ..SQLTableBase import SQLTableBase
+from . import ParametricJobs, ParametricJob, ParametricJobCreate
 from .Users import Users, User
-
-
-def subdict(dct, keys, **kwargs):
-    """Create a sub dictionary."""
-    out = {k: dct[k] for k in keys if k in dct}
-    out.update(kwargs)
-    return out
 
 
 class Request(BaseModel):
@@ -57,47 +44,32 @@ class Request(BaseModel):
         return value.isoformat(' ')
 
 
+class RequestCreate(BaseModel):
+    """Input schema for creating a request and its parametric jobs."""
+
+    description: str = ""
+    parametric_jobs: list[ParametricJobCreate] = Field(default_factory=list)
+
+
 class Requests(SQLTableBase):
     """Requests SQL Table."""
 
     __tablename__ = 'requests'
-    classtype = Column(TEXT)
+    classtype: Mapped[str] = mapped_column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'requests',
                        'with_polymorphic': '*'}
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    description = SmartColumn(TEXT, nullable=True, allowed=True)
-    requester_id = SmartColumn(Integer, ForeignKey('users.id'), nullable=False, required=True)
-    request_date = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc))
-    status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
-    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    log = Column(TEXT, nullable=False, default="")
-    parametric_jobs = relationship("ParametricJobs", cascade="all, delete-orphan")
-    requester = relationship(Users)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    description: Mapped[str] = mapped_column(TEXT, nullable=True)
+    requester_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    request_date: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc))
+    status: Mapped[LocalStatus] = mapped_column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    log: Mapped[str] = mapped_column(TEXT, nullable=False, default="")
+    parametric_jobs: Mapped[list[ParametricJobs]] = relationship("ParametricJobs", cascade="all, delete-orphan")
+    requester: Mapped[Users] = relationship(Users)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
-    def __init__(self, **kwargs):
-        """Initialise."""
-        required_args = set(self.required_columns).difference(kwargs)
-        if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
-        super().__init__(**subdict(kwargs, self.allowed_columns))
-        parametricjobs = kwargs.get('parametricjobs', [])
-        if not parametricjobs:
-            self._clientlog("No parametricjobs associated with new request.")
-            self.logger.warning("No parametricjobs associated with new request.")
-        for job_id, parametricjob in enumerate(parametricjobs):
-            parametricjob.pop('requester_id', None)
-            parametricjob.pop('request_id', None)
-            parametricjob.pop('id', None)
-            try:
-                self.parametric_jobs.append(ParametricJobs(request_id=self.id, id=job_id + 1,
-                                                           requester_id=self.requester_id,
-                                                           **parametricjob))
-            except ValueError:
-                self._clientlog("Error creating parametricjob, bad input: %s" % parametricjob)
-                self.logger.exception("Error creating parametricjob, bad input: %s", parametricjob)
-                raise
 
     def _clientlog(self, log):
         if self.log is None:
@@ -183,6 +155,39 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
 
+    @classmethod
+    def create(cls, *, requester_id: int, validated_request_data: RequestCreate) -> Requests:
+        """Create a request and its parametric jobs."""
+        try:
+            parametricjobs = [
+                ParametricJobs(
+                    id=job_id,
+                    requester_id=requester_id,
+                    **job_values.model_dump(),
+                )
+                for job_id, job_values in enumerate(validated_request_data.parametric_jobs, start=1)
+            ]
+        except Exception as err:  # missing the client log
+            cls.logger.exception("Error creating parametric jobs, bad input: %s\n%s", err, validated_request_data.model_dump())
+            raise ValueError("Error creating parametric jobs, bad input") from err 
+
+        request = cls(
+            requester_id=requester_id,
+            **(validated_request_data.model_dump() | {"parametric_jobs": parametricjobs}),
+        )
+
+        if not parametricjobs:
+            request._clientlog("No parametricjobs associated with new request.")
+            cls.logger.warning("No parametricjobs associated with new request.")
+
+        with managed_session() as session:
+            session.add(request)
+            session.flush()
+            session.refresh(request)
+
+        return request
+
+
     @overload
     @classmethod
     def get(cls,
@@ -217,9 +222,35 @@ class Requests(SQLTableBase):
     @classmethod
     def get(cls,
             *,
+            user_id: None,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
             status: list[str],
             load_user: bool = False,
             load_parametricjobs: bool = False) -> list[Requests]: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int,
+            user_id: int,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> Requests: ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int,
+            user_id: None,
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> Requests: ...
 
     @overload
     @classmethod
@@ -326,7 +357,7 @@ class Requests(SQLTableBase):
                 .options(joinedload(cls.parametric_jobs).joinedload(ParametricJobs.dirac_jobs))
                 .where(cls.status == LocalStatus.FAILED)
                 .join(cls.parametric_jobs)
-                .where(ParametricJobs.reschedule is True)  # reschedule comes from joining the parametricjobs table.
+                .where(ParametricJobs.reschedule == True)  # reschedule comes from joining the parametricjobs table.
             ).unique().scalars().all()
             return requests
 

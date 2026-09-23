@@ -1,22 +1,38 @@
 """SQL Models."""
 from __future__ import annotations
 
+from collections import OrderedDict
 from importlib import import_module
 
 from productionsystem.config import ConfigSystem
 
-__all__ = ("DiracJobs", "ParametricJobs", "Requests", "Services", "Users")
-_LOCAL_MODELS = {"Services", "Users"}
+_NON_OVERRIDABLE_MODELS = {"Services", "Service", "Users", "User"}
 # Dependency order: DiracJobs/Services/Users have no dependencies on the others below; but
 # ParametricJobs relies on DiracJobs, and Requests relies on ParametricJobs and Users, so those
 # must already be resolved to their classes (not raw modules) by the time they're imported.
-_LOAD_ORDER = ("Services", "Users", "DiracJobs", "ParametricJobs", "Requests")
+#_LOAD_ORDER = ("Services", "Service", "Users", "User", "DiracJobs", "DiracJob", "ParametricJobs", "ParametricJob", "Requests", "Request")
+
+# model to module mapping
+_MODELS = OrderedDict({"Services": "Services",
+                       "Service": "Services",
+                       "Users": "Users",
+                       "User": "Users",
+                       "DiracJobs": "DiracJobs",
+                       "DiracJob": "DiracJobs",
+                       "ParametricJobs": "ParametricJobs",
+                       "ParametricJob": "ParametricJobs",
+                       "ParametricJobCreate": "ParametricJobs",
+                       "Requests": "Requests",
+                       "Request": "Requests",
+                       "RequestCreate": "Requests"})
 
 
-def _load_one(name):
-    """Import and return the model class for ``name``."""
-    if name in _LOCAL_MODELS:
-        return getattr(import_module("%s.%s" % (__name__, name)), name)
+
+
+def _load_one(name, module):
+    """Import and return the model class for ``name`` from the specified ``module``."""
+    if name in _NON_OVERRIDABLE_MODELS:
+        return getattr(import_module(f"{__name__}.{module}"), name)
     entry_points = ConfigSystem.get_instance().entry_point_map
     return entry_points['dbmodels'][name.lower()].load()
 
@@ -39,7 +55,10 @@ def __getattr__(name):
     if name not in __all__:
         raise AttributeError("module %r has no attribute %r" % (__name__, name))
 
-    for model_name in _LOAD_ORDER:
-        globals()[model_name] = _load_one(model_name)
+    for model_name, module in _MODELS.items():
+        globals()[model_name] = _load_one(model_name, module)
 
     return globals()[name]
+
+__all__ = tuple(_MODELS.keys())  # pyright: ignore[reportUnsupportedDunderAll]
+

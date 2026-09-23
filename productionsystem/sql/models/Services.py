@@ -7,6 +7,7 @@ from future.utils import native, native_str
 from typing import overload
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum, select
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 from ..registry import managed_session
 from ..enums import ServiceStatus
@@ -36,10 +37,10 @@ class Services(SQLTableBase):
     """Services SQL Table."""
 
     __tablename__ = 'services'
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    name = Column(String(30), nullable=False, unique=True)
-    status = Column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
-    timestamp = Column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    name: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
+    status: Mapped[ServiceStatus] = mapped_column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def add(self):

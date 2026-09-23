@@ -6,6 +6,7 @@ from typing import overload
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import Column, TEXT, Integer, Enum, ForeignKey, ForeignKeyConstraint, select
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.exc import NoResultFound, MultipleResultsFound
 
 from productionsystem.sql.registry import managed_session
@@ -40,12 +41,12 @@ class DiracJobs(SQLTableBase):
                        'with_polymorphic': '*'}
     __table_args__ = (ForeignKeyConstraint(['request_id', 'parametricjob_id'],
                                            ['parametricjobs.request_id', 'parametricjobs.id']),)
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    requester_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    request_id = Column(Integer, nullable=False)
-    parametricjob_id = Column(Integer, nullable=False)
-    status = Column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
-    reschedules = Column(Integer, nullable=False, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    requester_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    request_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    parametricjob_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[DiracStatus] = mapped_column(Enum(DiracStatus), nullable=False, default=DiracStatus.UNKNOWN)
+    reschedules: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
 
@@ -79,7 +80,15 @@ class DiracJobs(SQLTableBase):
 
     @overload
     @classmethod
+    def get(cls, *, request_id: int, parametricjob_id: int, user_id: None) -> list[DiracJobs]: ...
+
+    @overload
+    @classmethod
     def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: int) -> DiracJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: None) -> DiracJobs: ...
     
 
     @classmethod
