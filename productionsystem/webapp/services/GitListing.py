@@ -9,11 +9,11 @@ import re
 from enum import Enum
 
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from packaging.version import Version
 
-from productionsystem.apache_utils import get_verified_user
+from productionsystem.apache_utils import VerifiedUser
 from ._http import http_error_handle
 
 # gitlab base url: https://lz-git.ua.edu/api/v4
@@ -90,21 +90,20 @@ class GitListingBase(object):
                                 % (self._schema.name, status_code))
         return result.json()
 
-# TODO: Add the VerifiedUser and Admin user imports here
+
 class GitTagListing(GitListingBase):
     """
     Github/lab Tag listing service.
     """
-    def post(self, owner: str, repo: str, data: dict = Body(...),
-             user=Depends(get_verified_user)):
+    def post(self, owner: str, repo: str, user: VerifiedUser, data: dict = Body(...)):
         """
         HTTP POST request handler.
 
         Args:
             owner: Repository owner or namespace.
             repo: Repository name.
-            data: JSON body containing sort options for tag names.
             user: Verified user dependency required to access the endpoint.
+            data: JSON body containing sort options for tag names.
 
         Returns:
             list[str]: Tag names, optionally sorted.
@@ -189,8 +188,7 @@ class GitDirectoryListing(GitListingBase):
     """
     Github/lab Directory listing service.
     """
-    def post(self, owner: str, repo: str, path: str = '/', data: dict = Body(...),
-             user=Depends(get_verified_user)):
+    def post(self, owner: str, repo: str, user: VerifiedUser, path: str = '/', data: dict = Body(...)):
         """
         HTTP POST request handler.
 
@@ -198,9 +196,9 @@ class GitDirectoryListing(GitListingBase):
             owner: Repository owner or namespace.
             repo: Repository name.
             path: Repository directory path to list.
-            data: JSON body containing regex, type, ref/tag, and optional sort controls.
             user: Verified user dependency required to access the endpoint.
-
+            data: JSON body containing regex, type, ref/tag, and optional sort controls.
+        
         Returns:
             list[str]: Matching repository directory and/or file names.
         """
