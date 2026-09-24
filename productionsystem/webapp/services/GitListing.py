@@ -6,7 +6,7 @@ import os
 import re
 from enum import Enum
 
-import requests
+import httpx
 from fastapi import APIRouter, Body, Depends, HTTPException
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from packaging.version import Version
@@ -70,7 +70,7 @@ class GitListingBase(object):
         # self._logger.debug("->and headers: %s", headers)  # maybe dont disclose token in log.
         with http_error_handle(Exception, 500,
                                "Git API (%s) call failed" % self._schema.name):
-            result = requests.get(url, params=params, headers=headers)
+            result = httpx.get(url, params=params, headers=headers)
 
         status_code = result.status_code
         if status_code != 200:
