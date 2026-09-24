@@ -208,7 +208,6 @@ class ParametricJobs(SQLTableBase):
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return [job]
 
-    # TODO: Document all methods in Google style.
     def submit(self):
         """
         Submit parametric job.
