@@ -521,7 +521,7 @@ class ParametricJobs(SQLTableBase):
             if user_id is not None:
                 stmt = stmt.where(cls.requester_id == user_id)
 
-            # TODO: Check this is correct, maybe should be just parametricjob_id
+            # TODO: Check this is correct, maybe should be just parametricjob_id...checked and it's correct
             if request_id is None or parametricjob_id is None:
                 parametricjobs = session.scalars(stmt).all()
                 parametricjobs.sort(key=attrgetter("id"))
