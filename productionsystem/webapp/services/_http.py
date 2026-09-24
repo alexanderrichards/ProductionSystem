@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 
 @contextmanager
-def http_error_handle(exc_type, status_code, detail):
+def http_error_handle(exc_type, status_code, detail, *, logger=None):
     """
     Convert a caught exception into an HTTPException.
 
@@ -19,9 +19,12 @@ def http_error_handle(exc_type, status_code, detail):
         exc_type (Exception or tuple): The exception type(s) to catch.
         status_code (int): The HTTP status code to respond with.
         detail (str): The error detail message.
+        logger (logging.Logger | None): Logger to use for logging the exception. Defaults to None.
 
     """
     try:
         yield
     except exc_type as err:
+        if logger:
+            logger.exception("Error occurred : %s : issuing HTTP code %d", detail, status_code)
         raise HTTPException(status_code=status_code, detail=detail) from err
