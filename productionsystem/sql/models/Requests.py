@@ -212,7 +212,7 @@ class Requests(SQLTableBase):
             cls.logger.info("Request %d deleted.", request_id)
 
 
-    # TODO: make sure pydantic model validation errors propagate to client.
+    # TODO: make sure pydantic model validation errors propagate to client...should be done in RESTfulAPI
     @classmethod
     def create(cls, *, requester_id: int, validated_request_data: RequestCreate) -> Requests:
         """
