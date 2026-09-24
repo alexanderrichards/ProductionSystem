@@ -2,8 +2,7 @@
 import logging
 import urllib.parse as up
 
-# TODO: move from requests to httpx
-import requests
+import httpx
 
 
 class JSI:
@@ -61,27 +60,27 @@ class JSI:
             list: List of requests (represented as dictionaries).
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request_id, (int, type(None))):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests"
         if request_id is None:
             url = up.urlunsplit(self._url._replace(path=path))
-            ret = requests.get(url, verify=self._verify, cert=self._cert)
+            ret = httpx.get(url, verify=self._verify, cert=self._cert)
             ret.raise_for_status()
             return ret.json()
 
         path += "/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.get(url, verify=self._verify, cert=self._cert)
+        ret = httpx.get(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         request = ret.json()
 
         path += "/parametricjobs"
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.get(url, verify=self._verify, cert=self._cert)
+        ret = httpx.get(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return [dict(request, parametricjobs=ret.json())]
 
@@ -107,14 +106,13 @@ class JSI:
                                  }
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request, dict):
             raise TypeError("request parameter should be of type dict, received %r" % request)
         url = up.urlunsplit(self._url._replace(path="api/requests"))
-        ret = requests.post(url, json={"request": request},
-                            verify=self._verify, cert=self._cert)
+        ret = httpx.post(url, json={"request": request}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -125,8 +123,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": status.capitalize()},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": status.capitalize()}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret        
 
@@ -144,15 +141,14 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Approved"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Approved"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -169,15 +165,14 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Checked"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Checked"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -194,15 +189,14 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Closed"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Closed"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -228,7 +222,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.delete(url, verify=self._verify, cert=self._cert)
+        ret = httpx.delete(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
