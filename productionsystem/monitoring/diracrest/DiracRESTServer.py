@@ -11,10 +11,10 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 try:
-    # TODO: Need to fix this.
-    from DIRAC.Core.DISET.RPCClient import RPCClient
-    from DIRAC.Interfaces.API.Dirac import Dirac
-    from DIRAC.Interfaces.API.Job import Job
+    # imports from the DIRAC environment. Note: these are not dependencies for the core application so may be missing.
+    from DIRAC.Core.DISET.RPCClient import RPCClient  # type: ignore[import-not-found]
+    from DIRAC.Interfaces.API.Dirac import Dirac  # type: ignore[import-not-found]
+    from DIRAC.Interfaces.API.Job import Job  # type: ignore[import-not-found]
 except ImportError as err:
     logger.error("Failed to import DIRAC modules: %s", err)
     raise ImportError("Failed to import DIRAC modules") from err

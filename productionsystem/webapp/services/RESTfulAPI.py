@@ -245,13 +245,11 @@ class RequestsAPI:
         if not isinstance(request_data, dict):
             raise HTTPException(400, "Request 'request' subobject must be a JSON object.")
 
-        try:
+        with http_error_handle(ValidationError, 400, "Error validating request data.", logger=self.logger):
             validated_request_data = RequestCreate.model_validate(request_data)
-        except ValidationError as e:
-            raise HTTPException(400, f"Error creating request, validation failed: {e}")
 
-        with (http_error_handle(ValueError, 400, "Error creating request, bad input."),
-              http_error_handle(SQLAlchemyError, 500, "Error adding request to DB.")):
+        with (http_error_handle(ValueError, 400, "Error creating request, bad input.", logger=self.logger),
+              http_error_handle(SQLAlchemyError, 500, "Error adding request to DB.", logger=self.logger)):
             request = Requests.create(requester_id=user.id, validated_request_data=validated_request_data)
 
         self.logger.info("New request %d created", request.id)
