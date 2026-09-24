@@ -16,7 +16,7 @@ import jinja2
 from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 
-from productionsystem.apache_utils import admin_only, get_verified_user
+from productionsystem.apache_utils import AdminUser, VerifiedUser
 
 # from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 # from productionsystem.config import getConfig
@@ -25,9 +25,6 @@ from productionsystem.sql.enums import ServiceStatus
 # from productionsystem.sql import managed_session
 from productionsystem.sql.models import Request, Requests, Service, Services, User, Users
 from productionsystem.webapp.jinja2_utils import jinja2_filter
-
-VerifiedUser = Annotated[User, Depends(get_verified_user)]
-AdminUser = Annotated[User, Depends(admin_only)]
 
 
 @jinja2_filter
