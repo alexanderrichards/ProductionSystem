@@ -136,4 +136,25 @@ def get_dummy_user() -> User:
     Returns:
         User: Pydantic representation of the configured dummy user.
     """
-    return User.model_validate(DUMMY_USER)
+    with sql.managed_session() as session:
+        try:
+            user = session.scalars(
+                select(Users)
+                .where(Users.id == DUMMY_USER.id)
+                .where(Users.dn == DUMMY_USER.dn)
+                .where(Users.ca == DUMMY_USER.ca)
+            ).one()
+        except MultipleResultsFound as err:
+            raise HTTPException(500, 'Internal Server Error: Duplicate user detected. user: (%s, %s)'
+                                     % (DUMMY_USER.dn, DUMMY_USER.ca)) from err
+        except NoResultFound as err:
+            raise HTTPException(403, 'Forbidden: Unknown user. user: (%s, %s)'
+                                     % (DUMMY_USER.dn, DUMMY_USER.ca)) from err
+        except Exception as err:
+            raise HTTPException(500,
+                                "Internal Server Error: Unknown Exception caught %s-> %s"
+                                % (type(err), err)) from err
+        if user.suspended:
+            raise HTTPException(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
+                                     % (DUMMY_USER.dn, DUMMY_USER.ca))
+        return User.model_validate(user)
