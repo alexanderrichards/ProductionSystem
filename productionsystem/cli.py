@@ -1,4 +1,6 @@
-"""Shared helpers for ProductionSystem command-line applications."""
+"""
+Shared helpers for ProductionSystem command-line applications.
+"""
 from __future__ import annotations
 
 import importlib.metadata as importmeta
@@ -18,7 +20,12 @@ ENTRY_POINT_GROUPS = ('dbmodels', 'monitoring', 'webapp', 'webapp.services')
 
 
 def load_entry_points():
-    """Load ProductionSystem and extension entry points."""
+    """
+    Load ProductionSystem and extension entry points.
+
+    Returns:
+        tuple[dict, set[str]]: Entry-point mapping and names of installed extension projects.
+    """
     discovered = {}
     entry_points = importmeta.entry_points()
     if isinstance(entry_points, dict):  # older Python 3.11 compatible code
@@ -38,7 +45,18 @@ def load_entry_points():
 
 
 def prepare_options(ctx, section, values, app_name):
-    """Apply config-file defaults and initialize extension entry points."""
+    """
+    Apply config-file defaults and initialize extension entry points.
+
+    Args:
+        ctx: Typer context used to identify whether options came from defaults.
+        section: Config section whose values may override default CLI options.
+        values: Mutable dictionary of parsed CLI option values.
+        app_name: Application name added to the prepared runtime namespace.
+
+    Returns:
+        tuple: Prepared args namespace, original CLI values, config singleton, and loaded config path.
+    """
     cli_values = dict(values)
     config_path = expand_path(values['config'])
     existing_config_path = config_path if os.path.exists(config_path) else None
@@ -68,11 +86,29 @@ def prepare_options(ctx, section, values, app_name):
 
 
 def _is_default_source(source):
+    """
+    Return whether a Typer parameter source represents its default value.
+    
+    Returns:
+        bool: True when Typer reports the parameter value came from its default.
+    """
     return getattr(source, "name", None) == "DEFAULT"
 
 
 def setup_logging(args, cli_values, config_instance, config_path, daemon=False):
-    """Configure logging and return the application logger."""
+    """
+    Configure logging and return the application logger.
+
+    Args:
+        args: Prepared runtime options namespace.
+        cli_values: Raw CLI option values before config-file overrides.
+        config_instance: Active configuration singleton used for diagnostic logging.
+        config_path: Loaded configuration file path, or None when no file exists.
+        daemon: If True, configure daemon file/stream logging instead of basic logging.
+
+    Returns:
+        logging.Logger: Logger named for the running application.
+    """
     if daemon:
         handler = logging.StreamHandler()
         if not args.debug_mode:
@@ -111,7 +147,16 @@ def setup_logging(args, cli_values, config_instance, config_path, daemon=False):
 
 
 def stop_daemon(pid_file, logger):
-    """Stop a daemon identified by a PID file."""
+    """
+    Stop a daemon identified by a PID file.
+
+    Args:
+        pid_file: Path containing the daemon process ID to stop.
+        logger: Logger used to report stop progress and errors.
+
+    Returns:
+        None. Terminates the daemon process when a valid PID file is present.
+    """
     import psutil  # pylint: disable=import-outside-toplevel
 
     if not os.path.exists(pid_file):

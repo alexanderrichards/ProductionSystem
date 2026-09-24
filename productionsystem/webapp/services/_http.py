@@ -1,4 +1,6 @@
-"""Shared FastAPI HTTP helpers for the webapp services."""
+"""
+Shared FastAPI HTTP helpers for the webapp services.
+"""
 from __future__ import annotations
 
 from contextlib import contextmanager

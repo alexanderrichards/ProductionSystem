@@ -1,1 +1,3 @@
-"""REST interface for the DIRAC environment daemon."""
+"""
+REST interface for the DIRAC environment daemon.
+"""

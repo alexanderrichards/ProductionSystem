@@ -1,4 +1,6 @@
-"""Services sub-package."""
+"""
+Services sub-package.
+"""
 from __future__ import annotations
 
 # import pkg_resources

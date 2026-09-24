@@ -1,4 +1,6 @@
-"""RESTful API."""
+"""
+RESTful API.
+"""
 from __future__ import annotations
 
 import logging
@@ -22,17 +24,35 @@ RequestedStatus = Annotated[LocalStatus, Depends(get_requested_status)]
 
 
 class ServicesAPI:
-    """Services RESTful API."""
-
+    """
+    Services RESTful API.
+    """
     logger = logging.getLogger(__name__).getChild("ServicesAPI")
 
     def list(self, user: AdminUser) -> list[Services]:
-        """REST Get method: list all services."""
+        """
+        REST Get method: list all services.
+
+        Args:
+            user: Admin user dependency required to list services.
+
+        Returns:
+            list[Services]: All service rows.
+        """
         self.logger.debug("In GET: service_id = None")
         return Services.get_services()
 
     def get(self, service_id: int, user: AdminUser) -> Services:
-        """REST Get method: get a single service."""
+        """
+        REST Get method: get a single service.
+
+        Args:
+            service_id: Service ID to retrieve.
+            user: Admin user dependency required to read services.
+
+        Returns:
+            Services: Service row matching ``service_id``.
+        """
         self.logger.debug("In GET: service_id = %s", service_id)
         # Don't need to handle TypeError here because service_id is already typed as int by FastAPI.
         with (http_error_handle(NoResultFound, 404, f"No Service with id {service_id}"),
@@ -40,7 +60,12 @@ class ServicesAPI:
             return Services.get_services(service_id=service_id)
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing service API endpoints.
+        """
         router = APIRouter()
         router.add_api_route("", self.list, methods=["GET"], response_model=list[Service])
         router.add_api_route("/{service_id}", self.get, methods=["GET"], response_model=Service)
@@ -48,26 +73,51 @@ class ServicesAPI:
 
 
 class UsersAPI:
-    """Users RESTful API."""
-
+    """
+    Users RESTful API.
+    """
     logger = logging.getLogger(__name__).getChild("UsersAPI")
 
     def list(self, user: AdminUser) -> list[Users]:
-        """REST GET method: list all users."""
+        """
+        REST GET method: list all users.
+
+        Args:
+            user: Admin user dependency required to list users.
+
+        Returns:
+            list[Users]: All user rows.
+        """
         self.logger.debug("In GET: user_id = None")
         # This is a list of SQLAlchemy ORM model instances but is converted to Pydantic models by FastAPI when the api
         # route is added as router.add_api_route("", self.list, methods=["GET"], response_model=list[User])
         return Users.get_users()
 
     def get(self, user_id: int, user: AdminUser) -> Users:
-        """REST GET method: get a single user."""
+        """
+        REST GET method: get a single user.
+
+        Args:
+            user_id: User ID to retrieve or update.
+            user: Admin user dependency required to read users.
+
+        Returns:
+            Users: User row matching ``user_id``.
+        """
         self.logger.debug("In GET: user_id = %r", user_id)
         with (http_error_handle(NoResultFound, 404, f"No user with id {user_id}"),
               http_error_handle(MultipleResultsFound, 500, f"Multiple users with id {user_id}")):
             return Users.get_users(user_id=user_id)
 
     def put(self, user: AdminUser, user_id: int, admin: bool = Form(...)):
-        """REST Put method."""
+        """
+        REST Put method.
+
+        Args:
+            user: Admin user dependency required to change admin flags.
+            user_id: User ID whose admin flag should change.
+            admin: New admin flag submitted as form data.
+        """
         self.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
 
         with (http_error_handle(NoResultFound, 404, f"No user with id {user_id}"),
@@ -79,7 +129,12 @@ class UsersAPI:
             target_user.update()
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing user API endpoints.
+        """
         router = APIRouter()
         router.add_api_route("", self.list, methods=["GET"], response_model=list[User])
         router.add_api_route("/{user_id}", self.get, methods=["GET"], response_model=User)
@@ -88,8 +143,9 @@ class UsersAPI:
 
 
 class DiracJobsAPI:
-    """Dirac Jobs RESTful API."""
-
+    """
+    Dirac Jobs RESTful API.
+    """
     logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
 
     def list(self, request_id: int, parametricjob_id: int, user: VerifiedUser) -> list[DiracJobs]:
@@ -97,6 +153,14 @@ class DiracJobsAPI:
         REST Get method.
 
         Returns all DiracJobs for a given request and parametricjob id.
+
+        Args:
+            request_id: Parent request ID containing the DIRAC jobs.
+            parametricjob_id: Parent parametric job ID containing the DIRAC jobs.
+            user: Verified user whose permissions constrain job visibility.
+
+        Returns:
+            list[DiracJobs]: DIRAC jobs visible to the user for the parametric job.
         """
         self.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id, parametricjob_id)
         return DiracJobs.get(parametricjob_id=parametricjob_id,
@@ -104,7 +168,18 @@ class DiracJobsAPI:
                              user_id=None if user.admin else user.id)
 
     def get(self, request_id: int, parametricjob_id: int, diracjob_id: int, user: VerifiedUser) -> DiracJobs:
-        """REST Get method: get a single DiracJob."""
+        """
+        REST Get method: get a single DiracJob.
+
+        Args:
+            request_id: Parent request ID containing the DIRAC job.
+            parametricjob_id: Parent parametric job ID containing the DIRAC job.
+            diracjob_id: DIRAC job ID to retrieve.
+            user: Verified user whose permissions constrain job visibility.
+
+        Returns:
+            DiracJobs: DIRAC job visible to the user matching the composite ID.
+        """
         self.logger.debug("In GET: reqid = %s, parametricjob_id = %s, diracjob_id = %s",
                           request_id, parametricjob_id, diracjob_id)
         with (http_error_handle(NoResultFound, 404,
@@ -117,7 +192,12 @@ class DiracJobsAPI:
                                  user_id=None if user.admin else user.id)
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing DIRAC job API endpoints.
+        """
         router = APIRouter()
         router.add_api_route("", self.list, methods=["GET"], response_model=list[DiracJob])
         router.add_api_route("/{diracjob_id}", self.get, methods=["GET"], response_model=DiracJob)
@@ -125,12 +205,15 @@ class DiracJobsAPI:
 
 
 class ParametricJobsAPI:
-    """Parametric Jobs RESTful API."""
-
+    """
+    Parametric Jobs RESTful API.
+    """
     logger = logging.getLogger(__name__).getChild("ParametricJobsAPI")
 
     def __init__(self):
-        """Initialise."""
+        """
+        Initialise.
+        """
         self.diracjobs = DiracJobsAPI()
 
     def list(self, request_id: int, user: VerifiedUser) -> list[ParametricJobs]:
@@ -138,12 +221,29 @@ class ParametricJobsAPI:
         REST Get method.
 
         Returns all ParametricJobs for a given request id.
+
+        Args:
+            request_id: Parent request ID containing the parametric jobs.
+            user: Verified user whose permissions constrain parametric job visibility.
+
+        Returns:
+            list[ParametricJobs]: Parametric jobs visible to the user for the request.
         """
         self.logger.debug("In GET: reqid = %s", request_id)
         return ParametricJobs.get(request_id=request_id, user_id=None if user.admin else user.id)
 
     def get(self, request_id: int, parametricjob_id: int, user: VerifiedUser) -> ParametricJobs:
-        """REST Get method: get a single ParametricJob."""
+        """
+        REST Get method: get a single ParametricJob.
+
+        Args:
+            request_id: Parent request ID containing the parametric job.
+            parametricjob_id: Parametric job ID to retrieve.
+            user: Verified user whose permissions constrain parametric job visibility.
+
+        Returns:
+            ParametricJobs: Parametric job visible to the user matching the composite ID.
+        """
         self.logger.debug("In GET: reqid = %s, parametricjob_id = %s", request_id, parametricjob_id)
         with (http_error_handle(NoResultFound, 404, f"No parametric job with id {request_id}.{parametricjob_id}"),
               http_error_handle(MultipleResultsFound, 500,
@@ -153,7 +253,15 @@ class ParametricJobsAPI:
                                       user_id=None if user.admin else user.id)
 
     def put(self, request_id: int, parametricjob_id: int, user: VerifiedUser, reschedule: bool = Form(...)):
-        """REST Put method."""
+        """
+        REST Put method.
+
+        Args:
+            request_id: Parent request ID containing the parametric job.
+            parametricjob_id: Parametric job ID to update.
+            user: Verified user whose permissions constrain parametric job updates.
+            reschedule: Form flag requesting resubmission of failed/stalled DIRAC jobs.
+        """
         self.logger.debug("In PUT: request_id = %s, jobid = %s, reschedule = %s",
                           request_id, parametricjob_id, reschedule)
 
@@ -182,7 +290,12 @@ class ParametricJobsAPI:
                 request.update()
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing parametric job API endpoints.
+        """
         router = APIRouter()
         router.add_api_route("", self.list, methods=["GET"], response_model=list[ParametricJob])
         router.add_api_route("/{parametricjob_id}", self.get, methods=["GET"], response_model=ParametricJob)
@@ -192,21 +305,41 @@ class ParametricJobsAPI:
 
 
 class RequestsAPI:
-    """Requests RESTful API."""
-
+    """
+    Requests RESTful API.
+    """
     logger = logging.getLogger(__name__).getChild("RequestsAPI")
 
     def __init__(self):
-        """Initialise."""
+        """
+        Initialise.
+        """
         self.parametricjobs = ParametricJobsAPI()
 
     def list(self, user: VerifiedUser) -> list[Requests]:
-        """REST Get method: list all requests."""
+        """
+        REST Get method: list all requests.
+
+        Args:
+            user: Verified user whose permissions constrain request visibility.
+
+        Returns:
+            list[Requests]: Requests visible to the user with requester and parametric jobs loaded.
+        """
         self.logger.debug("In GET: reqid = None")
         return Requests.get(user_id=None if user.admin else user.id, load_user=True, load_parametricjobs=True)
 
     def get(self, request_id: int, user: VerifiedUser) -> Requests:
-        """REST Get method: get a single request."""
+        """
+        REST Get method: get a single request.
+
+        Args:
+            request_id: Request ID to retrieve.
+            user: Verified user whose permissions constrain request visibility.
+
+        Returns:
+            Requests: Request visible to the user with requester and parametric jobs loaded.
+        """
         self.logger.debug("In GET: reqid = %r", request_id)
         with (http_error_handle(NoResultFound, 404, f"No request with id {request_id}"),
               http_error_handle(MultipleResultsFound, 500, f"Multiple requests with id {request_id}")):
@@ -216,7 +349,13 @@ class RequestsAPI:
                                 load_parametricjobs=True)
 
     def delete(self, request_id: int, user: AdminUser):
-        """REST Delete method."""
+        """
+        REST Delete method.
+
+        Args:
+            request_id: Request ID to mark for removal by the monitoring daemon.
+            user: Admin user dependency required to delete requests.
+        """
         self.logger.info("Deleting Request id: %s", request_id)
 
         with (http_error_handle(NoResultFound, 404, f"No request with id {request_id}"),
@@ -232,7 +371,13 @@ class RequestsAPI:
         self.logger.info("Request %d changed to status REMOVING", request_id)
 
     def post(self, user: VerifiedUser, data: dict = Body(...)):
-        """REST Post method."""
+        """
+        REST Post method.
+
+        Args:
+            user: Verified user creating the request.
+            data: JSON body containing a ``request`` object.
+        """
         self.logger.debug("In POST: data = %s", data)
         if not isinstance(data, dict):
             raise HTTPException(400, "Request data is expected to be JSON object.")
@@ -257,7 +402,14 @@ class RequestsAPI:
     # Coercing status to a LocalStatus enum would be done by value
     # i.e. int value but form provides string. We therefore use a fastAPI dependency to handle the conversion.
     def put(self, user: AdminUser, request_id: int, status: RequestedStatus):
-        """REST Put method."""
+        """
+        REST Put method.
+
+        Args:
+            user: Admin user dependency required to update request status.
+            request_id: Request ID whose status should change.
+            status: Parsed target local status from form data.
+        """
         self.logger.debug("In PUT: reqid = %s, status = %s", request_id, status)
 
         with (http_error_handle(NoResultFound, 404, "No request with id %d" % request_id),
@@ -277,7 +429,12 @@ class RequestsAPI:
             self.logger.info("Request %d changed to status %s", request_id, status.name)
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing request API endpoints.
+        """
         router = APIRouter()
         router.add_api_route("", self.list, methods=["GET"], response_model=list[Request])
         router.add_api_route("/{request_id}", self.get, methods=["GET"], response_model=Request)
@@ -289,7 +446,12 @@ class RequestsAPI:
 
 
 def build_router() -> APIRouter:
-    """Build the combined RESTful API router, mirroring the old CherryPy mount points."""
+    """
+    Build the combined RESTful API router, mirroring the old CherryPy mount points.
+
+    Returns:
+        APIRouter: Combined API router for services, users, and requests.
+    """
     router = APIRouter()
     router.include_router(ServicesAPI().router(), prefix="/services", tags=["services"])
     router.include_router(UsersAPI().router(), prefix="/users", tags=["users"])

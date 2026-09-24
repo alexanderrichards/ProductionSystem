@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Script to read users info from VOMS and update locat SQL table."""
+"""
+Script to read users info from VOMS and update locat SQL table.
+"""
 from __future__ import annotations
 
 import importlib
@@ -30,7 +32,20 @@ def update_users(
         config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
         trusted_cas: str = typer.Option("", help="Trusted CA bundle or directory."),
 ):
-    """Synchronize the user database with VOMS."""
+    """
+    Synchronize the user database with VOMS.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        voms: Root URL of the VOMS SOAP services.
+        cert: Client certificate path for VOMS requests.
+        key: Client private-key path paired with ``cert``.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        dburl: SQLAlchemy database URL for the user table.
+        verify: Whether to verify the VOMS server certificate.
+        config: Path to the ProductionSystem configuration file.
+        trusted_cas: CA bundle or directory overriding ``verify`` when provided.
+    """
     from sqlalchemy import select  # pylint: disable=import-outside-toplevel
     from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
 

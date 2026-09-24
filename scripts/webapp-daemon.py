@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Script to start the Production web server."""
+"""
+Script to start the Production web server.
+"""
 from __future__ import annotations
 
 import os
@@ -18,12 +20,24 @@ DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "log")
 
 
 def stop(args, *, logger):
-    """Stop the webapp."""
+    """
+    Stop the webapp.
+
+    Args:
+        args: Prepared CLI options containing PID file and web server settings.
+        logger: Logger used for daemon lifecycle messages.
+    """
     stop_daemon(args.pid_file, logger)
 
 
 def start(args, *, logger):
-    """Start the webapp."""
+    """
+    Start the webapp.
+
+    Args:
+        args: Prepared CLI options used to configure and start the web app.
+        logger: Logger passed to the web app daemon.
+    """
     # Force clean local DB for mock-mode
     ###########################################################################
     if args.mock_mode:
@@ -68,6 +82,14 @@ def start(args, *, logger):
 
 
 def _run(ctx, values, action):
+    """
+    Run a web application daemon lifecycle action with parsed CLI values.
+    
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        values: Parsed command option values.
+        action: Lifecycle function to execute after setup.
+    """
     values.pop("ctx", None)
     args, cli_values, config_instance, config_path = prepare_options(
         ctx, "webapp", values, APP_NAME)
@@ -99,7 +121,26 @@ def start_command(
         mock_mode: bool = typer.Option(False, help="Run with mock credentials and data."),
         extension: str | None = typer.Option(None, help="Activate an installed extension."),
 ):
-    """Start the web server."""
+    """
+    Start the web server.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        log_dir: Directory for daemon log files.
+        dburl: SQLAlchemy database URL used by the web app.
+        socket_host: Host interface for the Uvicorn server.
+        socket_port: TCP port for the Uvicorn server.
+        thread_pool: Maximum concurrent Uvicorn connections.
+        git_schema: Git provider schema name.
+        git_api_base_url: Base URL or local root used by git listing services.
+        git_token: Access token used by GitHub/GitLab listing services.
+        pid_file: Path to the daemon PID file.
+        config: Path to the ProductionSystem configuration file.
+        debug_mode: If True, run in the foreground.
+        mock_mode: If True, reset and seed a local mock database.
+        extension: Optional installed extension name to activate.
+    """
     _run(ctx, locals(), start)
 
 
@@ -110,7 +151,15 @@ def stop_command(
         pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
         config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
 ):
-    """Stop the web server."""
+    """
+    Stop the web server.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        pid_file: Path to the daemon PID file.
+        config: Path to the ProductionSystem configuration file.
+    """
     _run(ctx, locals() | {
         "debug_mode": True,
         "mock_mode": False,

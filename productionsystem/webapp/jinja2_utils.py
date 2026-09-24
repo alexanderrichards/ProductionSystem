@@ -1,4 +1,6 @@
-"""Utilities for Jinja2."""
+"""
+Utilities for Jinja2.
+"""
 from __future__ import annotations
 
 import jinja2

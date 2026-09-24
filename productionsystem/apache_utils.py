@@ -44,11 +44,14 @@ def apache_client_convert(client_dn, client_ca=None):
 def get_requested_status(status: str = Form(...)) -> LocalStatus:
     """
     FastAPI dependency: parse the requested status from the form data.
-    
+   
     This would usually be in the form of a string like "APPROVED" or "RUNNING" so
     convert to a LocalStatus enum member. Since LocalStatus is an IntEnum, the default FastAPI
     conversion would only work if the client passed an integer value corresponding to the enum member
     e.g. 1 for LocalStatus.APPROVED. This is not as user friendly as passing a string like "APPROVED" directly.
+
+    Returns:
+        LocalStatus: Status enum member named by the submitted form value.
     """
     try:
         return LocalStatus[status.upper()]
@@ -57,7 +60,12 @@ def get_requested_status(status: str = Form(...)) -> LocalStatus:
 
 
 def get_verified_user(request: Request) -> User:
-    """FastAPI dependency: verify the client's certificate headers and return the DB user."""
+    """
+    FastAPI dependency: verify the client's certificate headers and return the DB user.
+
+    Returns:
+        User: Validated database user matching the verified client certificate.
+    """
     required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
     missing_headers = required_headers.difference(request.headers)
     if missing_headers:
@@ -94,8 +102,14 @@ def get_verified_user(request: Request) -> User:
     return User.model_validate(user)
 
 
+#TODO: add the VerifiedUser and AdminUser to this module
 def admin_only(user: User = Depends(get_verified_user)) -> User:
-    """FastAPI dependency: enforce that the verified user is an admin."""
+    """
+    FastAPI dependency: enforce that the verified user is an admin.
+
+    Returns:
+        User: The verified admin user.
+    """
     if not user.admin:
         raise HTTPException(403, 'Forbidden: Admin users only')
     return user
@@ -106,5 +120,10 @@ DUMMY_USER = Users(id=17, dn='/test/CN=dummy user/testdn', ca='ca', email='test@
 
 
 def get_dummy_user() -> User:
-    """Dependency override providing dummy credentials for testing/mock mode."""
+    """
+    Dependency override providing dummy credentials for testing/mock mode.
+
+    Returns:
+        User: Pydantic representation of the configured dummy user.
+    """
     return User.model_validate(DUMMY_USER)

@@ -1,4 +1,6 @@
-"""Tests for the DIRAC REST transport."""
+"""
+Tests for the DIRAC REST transport.
+"""
 from unittest.mock import Mock
 
 import pytest
@@ -12,50 +14,93 @@ from productionsystem.monitoring.diracrest.DiracRESTServer import create_app
 
 
 class FakeJob:
-    """Minimal DIRAC Job replacement."""
-
+    """
+    Minimal DIRAC Job replacement.
+    """
     def __init__(self):
+        """
+        Initialize a fake job with empty test state.
+       
+        """
         self.name = None
         self.sandbox = None
 
     def setName(self, name):
+        """
+        Record the job name supplied by the API.
+       
+        """
         self.name = name
 
     def setInputSandbox(self, files):
+        """
+        Record the input sandbox supplied by the API.
+       
+        """
         self.sandbox = files
 
 
 class FakeDirac:
-    """Minimal DIRAC API replacement."""
-
+    """
+    Minimal DIRAC API replacement.
+    """
     submitted_job = None
 
     def submitJob(self, job):
+        """
+        Record and accept a submitted fake job.
+       
+        """
         type(self).submitted_job = job
         return {"OK": True, "Value": 42}
 
     def getJobStatus(self, job_ids):
+        """
+        Return a successful status response for each requested job.
+       
+        """
         return {"OK": True, "Value": {
             job_id: {"Status": "Done"} for job_id in job_ids
         }}
 
     def rescheduleJob(self, job_ids):
+        """
+        Return a successful rescheduling response.
+       
+        """
         return {"OK": True, "Value": job_ids}
 
     def killJob(self, job_ids):
+        """
+        Return a successful kill response.
+       
+        """
         return {"OK": True, "Value": job_ids}
 
     def deleteJob(self, job_ids):
+        """
+        Return a successful deletion response.
+       
+        """
         return {"OK": True, "Value": job_ids}
 
 
 class FakeRPCClient:
-    """Minimal DIRAC catalogue client replacement."""
-
+    """
+    Minimal DIRAC catalogue client replacement.
+    """
     def __init__(self, endpoint):
+        """
+        Initialize the fake catalogue client.
+       
+        """
         self.endpoint = endpoint
 
     def listDirectory(self, path, verbose):
+        """
+        Return the supplied directory arguments for assertions.
+       
+        """
         return {"OK": True, "Value": {
             "endpoint": self.endpoint,
             "path": path,
@@ -64,7 +109,9 @@ class FakeRPCClient:
 
 
 def test_server_exposes_job_and_catalogue_resources():
-    """The FastAPI resources execute the corresponding DIRAC operations."""
+    """
+    The FastAPI resources execute the corresponding DIRAC operations.
+    """
     client = TestClient(create_app(FakeJob, FakeDirac, FakeRPCClient))
 
     response = client.post("/jobs", json={"calls": [
@@ -91,7 +138,9 @@ def test_server_exposes_job_and_catalogue_resources():
 
 
 def test_server_rejects_unknown_job_methods():
-    """Job definitions cannot invoke methods outside the Job API."""
+    """
+    Job definitions cannot invoke methods outside the Job API.
+    """
     client = TestClient(create_app(FakeJob, FakeDirac, FakeRPCClient))
     response = client.post("/jobs", json={"calls": [{"method": "_private"}]})
     assert response.status_code == 400
@@ -106,7 +155,9 @@ def test_server_rejects_unknown_job_methods():
     ),
 )
 def test_server_exposes_job_lifecycle_resources(method, path):
-    """Lifecycle resources pass integer job IDs to DIRAC."""
+    """
+    Lifecycle resources pass integer job IDs to DIRAC.
+    """
     client = TestClient(create_app(FakeJob, FakeDirac, FakeRPCClient))
     response = client.request(method.upper(), path, json={"job_ids": [41, 42]})
     assert response.status_code == 200
@@ -114,7 +165,9 @@ def test_server_exposes_job_lifecycle_resources(method, path):
 
 
 def test_client_serializes_jobs_and_restores_integer_status_keys():
-    """The HTTP client preserves the data shapes expected by monitoring."""
+    """
+    The HTTP client preserves the data shapes expected by monitoring.
+    """
     client = DiracAPIClient("http://dirac-api")
     response = Mock()
     response.raise_for_status.return_value = None
