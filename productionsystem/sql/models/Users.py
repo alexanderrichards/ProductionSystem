@@ -1,4 +1,6 @@
-"""Users Table."""
+"""
+Users Table.
+"""
 from __future__ import annotations
 
 import logging
@@ -15,8 +17,9 @@ from ..SQLTableBase import SQLTableBase
 
 
 class User(BaseModel):
-    """JSON-serialisable schema for a Users row."""
-
+    """
+    JSON-serialisable schema for a Users row.
+    """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
@@ -29,8 +32,9 @@ class User(BaseModel):
 
 
 class Users(SQLTableBase):
-    """Users SQL Table."""
-
+    """
+    Users SQL Table.
+    """
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
     dn: Mapped[str] = mapped_column(TEXT, nullable=False)  # pylint: disable=invalid-name
@@ -60,15 +64,30 @@ class Users(SQLTableBase):
         return sorted(cns, key=len)[-1]
 
     def __hash__(self):
-        """hash."""
+        """
+        hash.
+
+        Returns:
+            int: Hash of the user certificate DN and CA pair.
+        """
         return hash((self.dn, self.ca))
 
     def __eq__(self, other: Self) -> bool:
-        """Equality check."""
+        """
+        Equality check.
+
+        Args:
+            other: User record to compare by certificate DN and CA.
+
+        Returns:
+            bool: True when both users have the same DN and CA.
+        """
         return (self.dn, self.ca) == (other.dn, other.ca)
 
     def update(self):
-        """Update the DB record from this Users object."""
+        """
+        Update the DB record from this Users object.
+        """
         with managed_session() as session:
             session.merge(self)
 

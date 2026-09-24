@@ -1,12 +1,21 @@
-"""Singleton Utility Module."""
+"""
+Singleton Utility Module.
+"""
 from __future__ import annotations
 
 
 class InstantiationError(RuntimeError):
-    """Instantiation exception."""
-
+    """
+    Instantiation exception.
+    """
     def __init__(self, *args, **kwargs):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            *args: Positional arguments forwarded to ``RuntimeError``.
+            **kwargs: Keyword arguments forwarded to ``RuntimeError``.
+        """
         super(InstantiationError, self).__init__(*args, **kwargs)
 
 
@@ -24,20 +33,44 @@ class SingletonMeta(type):
     """
 
     def __call__(cls, *args, **kwargs):
-        """Construct a new instance."""
+        """
+        Construct a new instance.
+
+        Args:
+            *args: Positional construction arguments that are rejected for singleton classes.
+            **kwargs: Keyword construction arguments that are rejected for singleton classes.
+        """
         raise InstantiationError("Singleton class '%s' can not be instantiated "
                                  "in the normal way. Call %s.get_instance() instead "
                                  "to get the current instance." % (cls.__name__, cls.__name__))
 
     def get_instance(cls, *args, **kwargs):
-        """Get instance."""
+        """
+        Get instance.
+
+        Args:
+            *args: Positional arguments used when lazily creating the singleton.
+            **kwargs: Keyword arguments used when lazily creating the singleton.
+
+        Returns:
+            object: Existing singleton instance, or a newly setup instance.
+        """
         instance = vars(cls).get('__instance__')
         if instance is None:
             instance = cls.setup(*args, **kwargs)
         return instance
 
     def setup(cls, *args, **kwargs):
-        """Initialise the instance."""
+        """
+        Initialise the instance.
+
+        Args:
+            *args: Positional arguments passed to the class initializer.
+            **kwargs: Keyword arguments passed to the class initializer.
+
+        Returns:
+            object: Newly created singleton instance.
+        """
         instance = vars(cls).get('__instance__')
         if instance is not None:
             raise InstantiationError("Singleton class '%s' can not be setup again. Call "
@@ -60,6 +93,8 @@ def singleton(cls):
         >>> class test(object):
         >>>     pass
 
+    Returns:
+        type: Replacement class using ``SingletonMeta``.
     """
     # It's hard to dynamically change meta so rebind new class
     # based on old one.

@@ -1,4 +1,6 @@
-"""Package utility module."""
+"""
+Package utility module.
+"""
 from __future__ import annotations
 
 import os
@@ -18,7 +20,12 @@ def timestamp():
 
 
 def expand_path(path):
-    """Expand filesystem path."""
+    """
+    Expand filesystem path.
+
+    Returns:
+        str: Absolute path with user, environment, and symlink components resolved.
+    """
     return os.path.abspath(os.path.realpath(os.path.expandvars(os.path.expanduser(path))))
 
 
@@ -35,17 +42,25 @@ def igroup(sequence, nentries):
         yield sequence[i:i + nentries]
 
 
-# This can derive from ExitStack in Python3
+# TODO: This can derive from ExitStack in Python3
 class TemporaryFileManagerContext(object):
-    """Temporary file/dir manager context."""
-
+    """
+    Temporary file/dir manager context.
+    """
     def __init__(self):
-        """Initialise."""
+        """
+        Initialise.
+        """
         self._files = []
         self._dirs = []
 
     def __enter__(self):
-        """Enter context."""
+        """
+        Enter context.
+
+        Returns:
+            TemporaryFileManagerContext: Context manager that owns created temp files and directories.
+        """
         return self
 
     def __exit__(self, *_):
@@ -53,6 +68,9 @@ class TemporaryFileManagerContext(object):
         Exit context.
 
         This automatically cleans up all temporary files/dirs.
+
+        Args:
+            *_: Exception details supplied by the context manager protocol.
         """
         for file_ in self._files:
             file_.close()
@@ -62,7 +80,16 @@ class TemporaryFileManagerContext(object):
         self._dirs = []
 
     def new_file(self, permissions=None, **kwargs):
-        """Create a new temporary file."""
+        """
+        Create a new temporary file.
+
+        Args:
+            permissions: Optional filesystem mode to apply to the created file.
+            **kwargs: Options forwarded to ``NamedTemporaryFile`` except ``delete``.
+
+        Returns:
+            file object: Open temporary file registered for cleanup on context exit.
+        """
         kwargs.pop("delete", None)  # We want to handle deletion.
         file_ = NamedTemporaryFile(**kwargs)
         if permissions is not None:
@@ -71,7 +98,15 @@ class TemporaryFileManagerContext(object):
         return file_
 
     def new_dir(self, **kwargs):
-        """Create a new temporary dir."""
+        """
+        Create a new temporary dir.
+
+        Args:
+            **kwargs: Options forwarded to ``mkdtemp``.
+
+        Returns:
+            str: Path to a temporary directory registered for cleanup on context exit.
+        """
         dir_ = mkdtemp(**kwargs)
         self._dirs.append(dir_)
         return dir_

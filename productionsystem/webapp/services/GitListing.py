@@ -1,4 +1,6 @@
-"""Github/lab Directory/Tag Listing Service."""
+"""
+Github/lab Directory/Tag Listing Service.
+"""
 from __future__ import annotations
 
 import logging
@@ -34,8 +36,9 @@ SORT_TYPE_MAPPING = {None: None,
 
 
 class GitListingBase(object):
-    """Base Git Listing Service."""
-
+    """
+    Base Git Listing Service.
+    """
     def __init__(self,
                  api_base_url="https://api.github.com/repos",
                  schema=GitSchema.GITHUB,
@@ -58,7 +61,16 @@ class GitListingBase(object):
         self._token = access_token
 
     def _call_api(self, url, params=None):
-        """Call to the Git API."""
+        """
+        Call to the Git API.
+
+        Args:
+            url: Fully-qualified git provider API URL to request.
+            params: Optional query parameters for the provider request.
+
+        Returns:
+            object: Decoded JSON response from the configured git provider.
+        """
         headers = {}
         if self._token and self._schema == GitSchema.GITHUB:
             headers.update({"Authorization": "token %s" % self._token})
@@ -78,13 +90,25 @@ class GitListingBase(object):
                                 % (self._schema.name, status_code))
         return result.json()
 
-
+# TODO: Add the VerifiedUser and Admin user imports here
 class GitTagListing(GitListingBase):
-    """Github/lab Tag listing service."""
-
+    """
+    Github/lab Tag listing service.
+    """
     def post(self, owner: str, repo: str, data: dict = Body(...),
              user=Depends(get_verified_user)):
-        """HTTP POST request handler."""
+        """
+        HTTP POST request handler.
+
+        Args:
+            owner: Repository owner or namespace.
+            repo: Repository name.
+            data: JSON body containing sort options for tag names.
+            user: Verified user dependency required to access the endpoint.
+
+        Returns:
+            list[str]: Tag names, optionally sorted.
+        """
         self._logger.debug("IN POST: owner=%r, repo=%r, data=%r" %
                            (owner, repo, data))
         sort = data.get("sort", False)
@@ -149,7 +173,12 @@ class GitTagListing(GitListingBase):
         return output
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing the git tag listing endpoint.
+        """
         router = APIRouter()
         router.add_api_route("/{owner}/{repo}", self.post, methods=["POST"])
         return router
@@ -157,11 +186,24 @@ class GitTagListing(GitListingBase):
 
 
 class GitDirectoryListing(GitListingBase):
-    """Github/lab Directory listing service."""
-
+    """
+    Github/lab Directory listing service.
+    """
     def post(self, owner: str, repo: str, path: str = '/', data: dict = Body(...),
              user=Depends(get_verified_user)):
-        """HTTP POST request handler."""
+        """
+        HTTP POST request handler.
+
+        Args:
+            owner: Repository owner or namespace.
+            repo: Repository name.
+            path: Repository directory path to list.
+            data: JSON body containing regex, type, ref/tag, and optional sort controls.
+            user: Verified user dependency required to access the endpoint.
+
+        Returns:
+            list[str]: Matching repository directory and/or file names.
+        """
         self._logger.debug("IN POST: owner=%r, repo=%r, path=%r, data=%r" %
                            (owner, repo, path, data))
 
@@ -269,7 +311,12 @@ class GitDirectoryListing(GitListingBase):
         return output
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing the git directory listing endpoints.
+        """
         router = APIRouter()
         router.add_api_route("/{owner}/{repo}", self.post, methods=["POST"])
         router.add_api_route("/{owner}/{repo}/{path:path}", self.post, methods=["POST"])

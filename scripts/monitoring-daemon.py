@@ -23,12 +23,24 @@ DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "log")
 
 
 def stop(args, *, logger):
-    """Stop the monitoring daemon."""
+    """
+    Stop the monitoring daemon.
+
+    Args:
+        args: Prepared CLI options containing PID file and monitoring settings.
+        logger: Logger used for daemon lifecycle messages.
+    """
     stop_daemon(args.pid_file, logger)
 
 
 def start(args, *, logger):
-    """Start the monitoring daemon."""
+    """
+    Start the monitoring daemon.
+
+    Args:
+        args: Prepared CLI options used to configure and start monitoring.
+        logger: Logger passed to the monitoring daemon.
+    """
     # Modify the verify arg based on trusted_cas path
     if args.trusted_cas:
         args.verify = args.trusted_cas
@@ -56,6 +68,14 @@ def start(args, *, logger):
 
 
 def _run(ctx, values, action):
+    """
+    Run a monitoring daemon lifecycle action with parsed CLI values.
+    
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        values: Parsed command option values.
+        action: Lifecycle function to execute after setup.
+    """
     values.pop("ctx", None)
     args, cli_values, config_instance, config_path = prepare_options(
         ctx, "monitoring", values, APP_NAME)
@@ -81,7 +101,24 @@ def start_command(
         debug_mode: bool = typer.Option(False, help="Run in the foreground."),
         extension: str | None = typer.Option(None, help="Activate an installed extension."),
 ):
-    """Start the monitoring daemon."""
+    """
+    Start the monitoring daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        frequency: Monitoring polling interval in minutes.
+        pid_file: Path to the daemon PID file.
+        log_dir: Directory for daemon log files.
+        config: Path to the ProductionSystem configuration file.
+        cert: Client certificate path for DIRAC/VOMS HTTP calls.
+        key: Client private-key path paired with ``cert``.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        dburl: SQLAlchemy database URL monitored by the daemon.
+        verify: Whether to verify remote TLS certificates.
+        trusted_cas: CA bundle or directory overriding ``verify`` when provided.
+        debug_mode: If True, run in the foreground.
+        extension: Optional installed extension name to activate.
+    """
     _run(ctx, locals(), start)
 
 
@@ -92,7 +129,15 @@ def stop_command(
         verbose: int = typer.Option(0, "-v", "--verbose", count=True),
         config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
 ):
-    """Stop the monitoring daemon."""
+    """
+    Stop the monitoring daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        pid_file: Path to the daemon PID file.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        config: Path to the ProductionSystem configuration file.
+    """
     _run(ctx, locals() | {"debug_mode": True, "log_dir": ""}, stop)
 
 

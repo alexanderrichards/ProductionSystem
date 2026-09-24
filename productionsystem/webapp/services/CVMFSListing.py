@@ -1,4 +1,6 @@
-"""CVMFS Directory Listing Service."""
+"""
+CVMFS Directory Listing Service.
+"""
 from __future__ import annotations
 
 import os
@@ -12,13 +14,24 @@ from ._http import http_error_handle
 
 
 class CVMFSDirectoryListing(object):
-    """CVMFS Directory listing service."""
-
+    """
+    CVMFS Directory listing service.
+    """
     sort_type_map = {None: None,
                      'versions': Version}
 
     def post(self, path: str, data: dict = Body(...), user=Depends(get_verified_user)):
-        """HTTP POST request handler."""
+        """
+        HTTP POST request handler.
+
+        Args:
+            path: CVMFS path suffix below ``/cvmfs`` to list.
+            data: JSON body containing regex, type, and optional sort controls.
+            user: Verified user dependency required to access the endpoint.
+
+        Returns:
+            list[str]: Matching directory and/or file names from the CVMFS path.
+        """
         with http_error_handle(KeyError, 400, "No regex key"):
             regex = data['regex']
         with http_error_handle(Exception, 400, "Bad RegEx"):
@@ -74,7 +87,12 @@ class CVMFSDirectoryListing(object):
         return output
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing the CVMFS directory listing endpoint.
+        """
         router = APIRouter()
         router.add_api_route("/{path:path}", self.post, methods=["POST"])
         return router

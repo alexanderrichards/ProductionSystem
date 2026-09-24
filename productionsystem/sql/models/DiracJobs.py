@@ -1,4 +1,6 @@
-"""Dirac Jobs Table."""
+"""
+Dirac Jobs Table.
+"""
 from __future__ import annotations
 
 import logging
@@ -15,8 +17,9 @@ from ..SQLTableBase import SQLTableBase
 
 
 class DiracJob(BaseModel):
-    """JSON-serialisable schema for a DiracJobs row."""
-
+    """
+    JSON-serialisable schema for a DiracJobs row.
+    """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
@@ -28,12 +31,22 @@ class DiracJob(BaseModel):
 
     @field_serializer("status")
     def _serialize_status(self, value: DiracStatus) -> str:
+        """
+        Serialize a DIRAC status enum using its display name.
+        
+        Args:
+            value: DIRAC status enum value from the model field.
+
+        Returns:
+            str: Capitalized DIRAC status name for API responses.
+        """
         return value.name.capitalize()
 
 
 class DiracJobs(SQLTableBase):
-    """Dirac Jobs SQL Table."""
-
+    """
+    Dirac Jobs SQL Table.
+    """
     __tablename__ = 'diracjobs'
     classtype = Column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,

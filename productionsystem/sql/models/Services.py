@@ -1,4 +1,6 @@
-"""Services Table."""
+"""
+Services Table.
+"""
 from __future__ import annotations
 
 import logging
@@ -16,8 +18,9 @@ from ..SQLTableBase import SQLTableBase
 
 
 class Service(BaseModel):
-    """JSON-serialisable schema for a Services row."""
-
+    """
+    JSON-serialisable schema for a Services row.
+    """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
@@ -27,16 +30,35 @@ class Service(BaseModel):
 
     @field_serializer("status")
     def _serialize_status(self, value: ServiceStatus) -> str:
+        """
+        Serialize a service status enum using its display name.
+        
+        Args:
+            value: Service status enum value from the model field.
+
+        Returns:
+            str: Capitalized service status name for API responses.
+        """
         return value.name.capitalize()
 
     @field_serializer("timestamp")
     def _serialize_timestamp(self, value: datetime) -> str:
+        """
+        Serialize a service timestamp in the API's string representation.
+        
+        Args:
+            value: Service timestamp from the model field.
+
+        Returns:
+            str: ISO-like timestamp string for API responses.
+        """
         return value.isoformat(' ')
 
 
 class Services(SQLTableBase):
-    """Services SQL Table."""
-
+    """
+    Services SQL Table.
+    """
     __tablename__ = 'services'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
     name: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
@@ -45,14 +67,18 @@ class Services(SQLTableBase):
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def add(self):
-        """Add self to the DB."""
+        """
+        Add self to the DB.
+        """
         with managed_session() as session:
             session.add(self)
             session.flush()
             session.refresh(self)
 
     def update(self):
-        """Update the DB with current values."""
+        """
+        Update the DB with current values.
+        """
         with managed_session() as session:
             # Onupdate doesn't trigger if setting status field to same as current value as it's
             # no-op in some DBs.

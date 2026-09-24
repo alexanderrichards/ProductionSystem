@@ -1,4 +1,6 @@
-"""ParametricJobs Table."""
+"""
+ParametricJobs Table.
+"""
 from __future__ import annotations
 
 import logging
@@ -41,8 +43,9 @@ from .DiracJobs import DiracJobs
 
 
 class ParametricJob(BaseModel):
-    """JSON-serialisable schema for a ParametricJobs row."""
-
+    """
+    JSON-serialisable schema for a ParametricJobs row.
+    """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     request_id: int = Field(frozen=True)
@@ -62,10 +65,28 @@ class ParametricJob(BaseModel):
 
     @field_serializer("status")
     def _serialize_status(self, value: LocalStatus) -> str:
+        """
+        Serialize a local status enum using its display name.
+        
+        Args:
+            value: Local status enum value from the model field.
+
+        Returns:
+            str: Capitalized local status name for API responses.
+        """
         return value.name.capitalize()
 
     @field_serializer("timestamp")
     def _serialize_timestamp(self, value: datetime) -> str:
+        """
+        Serialize a timestamp in the API's string representation.
+        
+        Args:
+            value: Job timestamp from the model field.
+
+        Returns:
+            str: UTC ISO-like timestamp string for API responses.
+        """
         if value.tzinfo is None:
             # Database returned a naive value as not all are timezone-aware; this assumes it was stored as UTC.
             value = value.replace(tzinfo=timezone.utc)
@@ -75,15 +96,17 @@ class ParametricJob(BaseModel):
         return value.isoformat(" ")
 
 class ParametricJobCreate(BaseModel):
-    """Input schema for creating a parametric job with a request."""
-
+    """
+    Input schema for creating a parametric job with a request.
+    """
     priority: int = 3
     site: str = "ANY"
 
 
 class ParametricJobs(SQLTableBase):
-    """Jobs SQL Table."""
-
+    """
+    Jobs SQL Table.
+    """
     __tablename__ = 'parametricjobs'
     classtype: Mapped[str] = mapped_column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
@@ -111,24 +134,42 @@ class ParametricJobs(SQLTableBase):
 
     @hybrid_property
     def num_other(self) -> int:
-        """Return the number of jobs in states other than the known ones."""
+        """
+        Return the number of jobs in states other than the known ones.
+
+        Returns:
+            int: Jobs not counted as submitted, running, failed, or completed.
+        """
         return self.num_jobs - (self.num_submitted +
                                 self.num_running +
                                 self.num_failed +
                                 self.num_completed)
 
     def update(self):
-        """Update DB with current values."""
+        """
+        Update DB with current values.
+        """
         with managed_session() as session:
             session.merge(self)
 
     def _clientlog(self, log: str):
+        """
+        Append a message to the job's client-visible log.
+        
+        Args:
+            log: Message to append to the parametric job log with a timestamp.
+        """
         if self.log is None:
             self.log = ''
         self.log += "%s %s\n" % (timestamp(), log)
 
     def _remove_dirac_jobs(self):
-        """Remove dirac_jobs from the DIRAC system."""
+        """
+        Remove dirac_jobs from the DIRAC system.
+
+        Returns:
+            None. Removes associated DIRAC jobs when present and logs cleanup failures.
+        """
         if not self.dirac_jobs:
             return
 
@@ -149,7 +190,17 @@ class ParametricJobs(SQLTableBase):
                          DiracJobClass: DiracAPIJobClass,
                          tmp_runscript: TextIOWrapper,
                          tmp_filemanager: TemporaryFileManagerContext):
-        """Define the DIRAC parametric job."""
+        """
+        Define the DIRAC parametric job.
+
+        Args:
+            DiracJobClass: Recorder class used to build DIRAC job definitions.
+            tmp_runscript: Writable temporary shell script included in the DIRAC job sandbox.
+            tmp_filemanager: Context manager for additional temporary job files.
+
+        Returns:
+            list[DiracAPIJob]: Recorded DIRAC job definitions to submit.
+        """
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
         job = DiracJobClass()
@@ -159,7 +210,12 @@ class ParametricJobs(SQLTableBase):
 
     # TODO: Document all methods in Google style.
     def submit(self):
-        """Submit parametric job."""
+        """
+        Submit parametric job.
+
+        Returns:
+            None. Submits DIRAC jobs, records created IDs, and updates counters/status on failure.
+        """
         with (dirac_api_job_client() as (dirac, dirac_job_class),
               TemporaryFileManagerContext() as tmp_filemanager,
               open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript):
@@ -234,6 +290,9 @@ class ParametricJobs(SQLTableBase):
 
         This method updates all DIRAC jobs which belong to the given
         parametricjob.
+
+        Returns:
+            None. Refreshes DIRAC job statuses, reschedules jobs when needed, and updates counters.
         """
         # Group jobs by status
 
@@ -482,7 +541,15 @@ class ParametricJobs(SQLTableBase):
 
 @event.listens_for(ParametricJobs.status, "set", propagate=True)
 def intercept_status_set(target, newvalue, oldvalue, _):
-    """Intercept status transitions."""
+    """
+    Intercept status transitions.
+
+    Args:
+        target: Parametric job whose status is being changed.
+        newvalue: New local status assigned to the parametric job.
+        oldvalue: Previous local status before the assignment.
+        _: SQLAlchemy event initiator, unused.
+    """
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached and oldvalue != newvalue:
         target._clientlog("Parametric job %d.%d transitioned from status %s to %s"
@@ -493,7 +560,13 @@ def intercept_status_set(target, newvalue, oldvalue, _):
 
 @event.listens_for(Session, "persistent_to_deleted")
 def intercept_persistent_to_deleted(session, object_):
-    """Intercept deletion of object and remove DIRAC jobs."""
+    """
+    Intercept deletion of object and remove DIRAC jobs.
+
+    Args:
+        session: SQLAlchemy session emitting the deletion transition.
+        object_: Persistent ORM object being deleted.
+    """
     if isinstance(object_, DiracJobs):
         DiracJobs.logger.debug("Local DB Dirac job %d from parametric job %d.%d is being removed.",
                                object_.id, object_.request_id, object_.parametricjob_id)

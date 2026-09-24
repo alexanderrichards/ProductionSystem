@@ -1,4 +1,6 @@
-"""SQLAlchemy global session registry."""
+"""
+SQLAlchemy global session registry.
+"""
 from __future__ import annotations
 
 import logging
@@ -20,7 +22,12 @@ class SessionRegistry:
     """
 
     def __init__(self, url):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            url: SQLAlchemy database URL used to create the engine.
+        """
         # SQLAlchemy 2.0+ engine configuration with improved pool settings
         self.engine = create_engine(url,
                                     pool_pre_ping=True,  # Verify connections before using
@@ -35,13 +42,20 @@ class SessionRegistry:
         self._logger.info("SessionRegistry initialized with engine: %s", self.engine)
 
     def create_session(self):
-        """Return a new session instance."""
+        """
+        Return a new session instance.
+
+        Returns:
+            Session: New SQLAlchemy session bound to the registry engine.
+        """
         return self._session_factory()
 
 
 @contextmanager
 def managed_session():
-    """Transactional scoped DB session context."""
+    """
+    Transactional scoped DB session context.
+    """
     logger = logging.getLogger(__name__)
     # Get a new session instance
     session = SessionRegistry.get_instance().create_session()  # pylint: disable=no-member

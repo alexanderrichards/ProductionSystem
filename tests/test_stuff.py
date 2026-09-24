@@ -1,4 +1,6 @@
-"""Test Stuff."""
+"""
+Test Stuff.
+"""
 from unittest import TestCase
 
 # def setup_module(module):
@@ -9,8 +11,12 @@ from unittest import TestCase
 
 
 class TestStuff(TestCase):
-    """Test case."""
+    """
+    Test case.
+    """
 
     def test_bob(self):
-        """test bob."""
+        """
+        test bob.
+        """
         pass

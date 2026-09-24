@@ -1,4 +1,6 @@
-"""SQL Models."""
+"""
+SQL Models.
+"""
 from __future__ import annotations
 
 from collections import OrderedDict
@@ -30,7 +32,16 @@ _MODELS = OrderedDict({"Services": "Services",
 
 
 def _load_one(name, module):
-    """Import and return the model class for ``name`` from the specified ``module``."""
+    """
+    Import and return the model class for ``name`` from the specified ``module``.
+
+    Args:
+        name: Model class name to resolve.
+        module: Built-in model module containing the fallback class.
+
+    Returns:
+        type: Model class loaded from an extension entry point or built-in module.
+    """
     entry_points = ConfigSystem.get_instance().entry_point_map
     if name in _NON_OVERRIDABLE_MODELS or name.lower() not in entry_points['dbmodels']:
         return getattr(import_module(f"{__name__}.{module}"), name)
@@ -51,6 +62,9 @@ def __getattr__(name):
     lazy loader), resolve *all* of the known models in one dependency-ordered pass the first
     time any single one of them is requested, so every name ends up correctly self-healed to
     its class and no further access falls back to this function.
+
+    Returns:
+        type: Lazily resolved model class exposed by this package.
     """
     if name not in __all__:
         raise AttributeError("module %r has no attribute %r" % (__name__, name))
@@ -61,4 +75,3 @@ def __getattr__(name):
     return globals()[name]
 
 __all__ = tuple(_MODELS.keys())  # pyright: ignore[reportUnsupportedDunderAll]
-

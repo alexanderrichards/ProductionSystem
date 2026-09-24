@@ -1,4 +1,6 @@
-"""Requests Table."""
+"""
+Requests Table.
+"""
 from __future__ import annotations
 
 import logging
@@ -20,8 +22,9 @@ from .Users import User, Users
 
 
 class Request(BaseModel):
-    """JSON-serialisable schema for a Requests row."""
-
+    """
+    JSON-serialisable schema for a Requests row.
+    """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
     id: int = Field(frozen=True)
@@ -36,10 +39,28 @@ class Request(BaseModel):
 
     @field_serializer("status")
     def _serialize_status(self, value: LocalStatus) -> str:
+        """
+        Serialize a local status enum using its display name.
+        
+        Args:
+            value: Local status enum value from the model field.
+
+        Returns:
+            str: Capitalized local status name for API responses.
+        """
         return value.name.capitalize()
 
     @field_serializer("request_date", "timestamp")
     def _serialize_datetime(self, value: datetime) -> str:
+        """
+        Serialize a request datetime in the API's string representation.
+        
+        Args:
+            value: Request datetime or update timestamp from the model field.
+
+        Returns:
+            str: UTC ISO-like timestamp string for API responses.
+        """
         if value.tzinfo is None:
             # Database returned a naive value as not all are timezone-aware; this assumes it was stored as UTC.
             value = value.replace(tzinfo=timezone.utc)
@@ -50,15 +71,17 @@ class Request(BaseModel):
 
 
 class RequestCreate(BaseModel):
-    """Input schema for creating a request and its parametric jobs."""
-
+    """
+    Input schema for creating a request and its parametric jobs.
+    """
     description: str = ""
     parametric_jobs: list[ParametricJobCreate] = Field(default_factory=list)
 
 
 class Requests(SQLTableBase):
-    """Requests SQL Table."""
-
+    """
+    Requests SQL Table.
+    """
     __tablename__ = 'requests'
     classtype: Mapped[str] = mapped_column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
@@ -77,29 +100,43 @@ class Requests(SQLTableBase):
 
 
     def _clientlog(self, log: str):
+        """
+        Append a message to the request's client-visible log.
+        
+        Args:
+            log: Message to append to the request log with a timestamp.
+        """
         if self.log is None:
             self.log = ''
         self.log += "%s %s\n" % (timestamp(), log)
 
     def add(self):
-        """Add self to the DB."""
+        """
+        Add self to the DB.
+        """
         with managed_session() as session:
             session.add(self)
             session.flush()
             session.refresh(self)
 
     def remove(self):
-        """Remove self from the DB."""
+        """
+        Remove self from the DB.
+        """
         with managed_session() as session:
             session.delete(self)
 
     def update(self):
-        """Update the DB with current values."""
+        """
+        Update the DB with current values.
+        """
         with managed_session() as session:
             session.merge(self)
 
     def submit(self):
-        """Submit Request."""
+        """
+        Submit Request.
+        """
         self._clientlog("Submitting request %s" % self.id)
         self.logger.info("Submitting request %s", self.id)
         try:
@@ -111,7 +148,12 @@ class Requests(SQLTableBase):
             self.status = LocalStatus.FAILED
 
     def monitor(self):
-        """Update request status."""
+        """
+        Update request status.
+
+        Returns:
+            None. Updates this request status from its parametric jobs.
+        """
         self.logger.info("Monitoring request %s", self.id)
         if not self.parametric_jobs:
             self._clientlog("No parametric jobs present to monitor, changing status to Unknown")
@@ -136,7 +178,17 @@ class Requests(SQLTableBase):
 
     @classmethod
     def delete(cls, request_id: int):
-        """Delete a requests from the DB."""
+        """
+        Delete a requests from the DB.
+
+        Args:
+            request_id: Request ID to delete from the database.
+
+        Raises:
+            ValueError: If `request_id` cannot be converted to an integer.
+            NoResultFound: If no request exists with the requested ID.
+            MultipleResultsFound: If more than one request matches the ID.
+        """
         try:
             request_id = int(request_id)
         except ValueError:
@@ -299,7 +351,7 @@ class Requests(SQLTableBase):
         Get requests from the database
 
         Get all requests from the database or explicitly those with a given request_id, user_id or status.
-        
+       
         Args:
             request_id (int | list[int] | None): request id/ids to extract. Defaults to None.
             user_id (int | None): user id to extract. Defaults to None.
@@ -375,7 +427,12 @@ class Requests(SQLTableBase):
 
     @classmethod
     def get_reschedules(cls):
-        """Get Requests with ParametricJobs to reschedule."""
+        """
+        Get Requests with ParametricJobs to reschedule.
+
+        Returns:
+            list[Requests]: Failed requests containing parametric jobs marked for reschedule.
+        """
         with managed_session() as session:
             requests = session.execute(
                 select(cls)
@@ -389,7 +446,15 @@ class Requests(SQLTableBase):
 
 @event.listens_for(Requests.status, "set", propagate=True)
 def intercept_status_set(target, newvalue, oldvalue, _):
-    """Intercept status transitions."""
+    """
+    Intercept status transitions.
+
+    Args:
+        target: Request whose status is being changed.
+        newvalue: New local status assigned to the request.
+        oldvalue: Previous local status before the assignment.
+        _: SQLAlchemy event initiator, unused.
+    """
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached and oldvalue != newvalue:
         target._clientlog("Request %d transitioned from status %s to %s" % (target.id, oldvalue.name, newvalue.name))

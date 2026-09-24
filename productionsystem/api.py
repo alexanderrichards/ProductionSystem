@@ -1,4 +1,6 @@
-"""Client side Python wrapped REST API."""
+"""
+Client side Python wrapped REST API.
+"""
 import logging
 import urllib.parse as up
 
@@ -6,8 +8,9 @@ import httpx
 
 
 class JSI:
-    """Object providing Pythonic access to the HTTP RESTful API used by the backend server."""
-
+    """
+    Object providing Pythonic access to the HTTP RESTful API used by the backend server.
+    """
     __slots__ = ("_url", "_cert", "_verify", "_logger")
 
     def __init__(self, url, cert=None, verify=False):
@@ -108,6 +111,9 @@ class JSI:
         Raises:
             httpx.HTTPStatusError: Problem with the request
             httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the create-request endpoint.
         """
         if not isinstance(request, dict):
             raise TypeError("request parameter should be of type dict, received %r" % request)
@@ -117,6 +123,20 @@ class JSI:
         return ret
 
     def modify_request_status(self, request_id, status):
+        """
+        Change the status of an existing JSI request.
+
+        Args:
+            request_id (int): Identifier of the request to update.
+            status (str): New request status.
+
+        Returns:
+            httpx.Response: The response returned by the JSI service.
+
+        Raises:
+            TypeError: If ``request_id`` or ``status`` has an invalid type.
+            httpx.HTTPStatusError: If the service rejects the update.
+        """
         if not isinstance(status, str):
             raise TypeError("status parameter should be of type str, received %r" % status)
         if not isinstance(request_id, int):
@@ -143,6 +163,9 @@ class JSI:
         Raises:
             httpx.HTTPStatusError: Problem with the request
             httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the approve-request update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
@@ -167,6 +190,9 @@ class JSI:
         Raises:
             httpx.HTTPStatusError: Problem with the request
             httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the checked-status update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
@@ -191,6 +217,9 @@ class JSI:
         Raises:
             httpx.HTTPStatusError: Problem with the request
             httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the closed-status update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
@@ -201,7 +230,8 @@ class JSI:
         return ret
 
     def delete_request(self, request_id):
-        """Delete JSI request.
+        """
+        Delete JSI request.
 
         Schedules a requests for removal by placing it in the "Removing" state
         such that it gets picked up and deleted by the backend monitoring. The
@@ -217,6 +247,9 @@ class JSI:
         Raises:
             HTTPError: Problem with the request
             SSLError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the delete-request endpoint.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
