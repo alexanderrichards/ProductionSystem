@@ -191,10 +191,16 @@ class Requests(SQLTableBase):
                                  validated_request_data.model_dump())
             raise ValueError("Error creating parametric jobs, bad input") from err 
 
-        request = cls(
-            requester_id=requester_id,
-            **(validated_request_data.model_dump() | {"parametric_jobs": parametricjobs}),
-        )
+        try:
+            request = cls(
+                requester_id=requester_id,
+                **(validated_request_data.model_dump() | {"parametric_jobs": parametricjobs}),
+            )
+        except Exception as err:
+            cls.logger.exception("Error creating request, bad input: %s\n%s",
+                                 err,
+                                 validated_request_data.model_dump() | {"parametric_jobs": parametricjobs})
+            raise ValueError("Error creating request, bad input") from err
 
         if not parametricjobs:
             request._clientlog("No parametricjobs associated with new request.")
