@@ -10,17 +10,13 @@ from fastapi import APIRouter, Body, Depends, Form, HTTPException
 from pydantic import ValidationError
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound, SQLAlchemyError
 
-from productionsystem.apache_utils import admin_only, get_requested_status, get_verified_user
+from productionsystem.apache_utils import AdminUser, RequestedStatus, VerifiedUser
 from productionsystem.sql.enums import LocalStatus
 from productionsystem.sql.models import ParametricJob, ParametricJobs, Request, RequestCreate, Requests
 from productionsystem.sql.models.DiracJobs import DiracJob, DiracJobs
 from productionsystem.sql.models.Services import Service, Services
 from productionsystem.sql.models.Users import User, Users
 from ._http import http_error_handle
-
-VerifiedUser = Annotated[User, Depends(get_verified_user)]
-AdminUser = Annotated[User, Depends(admin_only)]
-RequestedStatus = Annotated[LocalStatus, Depends(get_requested_status)]
 
 
 class ServicesAPI:

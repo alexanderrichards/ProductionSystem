@@ -7,6 +7,8 @@ credentials against a local DB.
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, Form, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
@@ -15,11 +17,11 @@ import productionsystem.sql as sql
 from productionsystem.sql.enums import LocalStatus
 from productionsystem.sql.models import User, Users
 
-__all__ = ('apache_client_convert', 'get_requested_status', 'get_verified_user', 'admin_only',
-           'get_dummy_user', 'DUMMY_USER')
+__all__ = ('get_requested_status', 'get_verified_user', 'admin_only',
+           'get_dummy_user', 'DUMMY_USER', 'VerifiedUser', 'RequestedStatus', 'AdminUser')
 
 
-def apache_client_convert(client_dn, client_ca=None):
+def _apache_client_convert(client_dn, client_ca=None):
     """
     Convert Apache style client certs.
 
@@ -59,6 +61,9 @@ def get_requested_status(status: str = Form(...)) -> LocalStatus:
         raise HTTPException(400, f"Invalid status: {status!r}") from err
 
 
+RequestedStatus = Annotated[LocalStatus, Depends(get_requested_status)]
+
+
 def get_verified_user(request: Request) -> User:
     """
     FastAPI dependency: verify the client's certificate headers and return the DB user.
@@ -72,8 +77,8 @@ def get_verified_user(request: Request) -> User:
         raise HTTPException(401, 'Unauthorized: Incomplete certificate information '
                                  'available, required: %s' % list(missing_headers))
 
-    client_dn, client_ca = apache_client_convert(request.headers['Ssl-Client-S-Dn'],
-                                                 request.headers['Ssl-Client-I-Dn'])
+    client_dn, client_ca = _apache_client_convert(request.headers['Ssl-Client-S-Dn'],
+                                                  request.headers['Ssl-Client-I-Dn'])
     client_verified = request.headers['Ssl-Client-Verify']
     if client_verified != 'SUCCESS':
         raise HTTPException(401, 'Unauthorized: Cert not verified for user DN: %s, CA: %s.'
@@ -102,8 +107,10 @@ def get_verified_user(request: Request) -> User:
     return User.model_validate(user)
 
 
-#TODO: add the VerifiedUser and AdminUser to this module
-def admin_only(user: User = Depends(get_verified_user)) -> User:
+VerifiedUser = Annotated[User, Depends(get_verified_user)]
+
+
+def admin_only(user: VerifiedUser) -> User:
     """
     FastAPI dependency: enforce that the verified user is an admin.
 
@@ -113,6 +120,9 @@ def admin_only(user: User = Depends(get_verified_user)) -> User:
     if not user.admin:
         raise HTTPException(403, 'Forbidden: Admin users only')
     return user
+
+
+AdminUser = Annotated[User, Depends(admin_only)]
 
 
 DUMMY_USER = Users(id=17, dn='/test/CN=dummy user/testdn', ca='ca', email='test@email.com',

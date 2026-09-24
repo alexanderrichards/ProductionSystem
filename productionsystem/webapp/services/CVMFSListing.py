@@ -6,10 +6,10 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from packaging.version import Version
 
-from productionsystem.apache_utils import get_verified_user
+from productionsystem.apache_utils import VerifiedUser
 from ._http import http_error_handle
 
 
@@ -20,14 +20,14 @@ class CVMFSDirectoryListing(object):
     sort_type_map = {None: None,
                      'versions': Version}
 
-    def post(self, path: str, data: dict = Body(...), user=Depends(get_verified_user)):
+    def post(self, path: str, user: VerifiedUser, data: dict = Body(...)):
         """
         HTTP POST request handler.
 
         Args:
             path: CVMFS path suffix below ``/cvmfs`` to list.
-            data: JSON body containing regex, type, and optional sort controls.
             user: Verified user dependency required to access the endpoint.
+            data: JSON body containing regex, type, and optional sort controls.
 
         Returns:
             list[str]: Matching directory and/or file names from the CVMFS path.
