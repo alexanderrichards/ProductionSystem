@@ -1,4 +1,6 @@
-"""Define necessary setup fixtures."""
+"""
+Define necessary setup fixtures.
+"""
 import pytest
 
 from productionsystem.cli import load_entry_points
@@ -7,7 +9,9 @@ from productionsystem.config import ConfigSystem
 
 @pytest.fixture(scope="session", autouse=True)
 def config():
-    """Set up the config entrypoint map."""
+    """
+    Set up the config entrypoint map.
+    """
     config_instance = ConfigSystem.setup(None)  # pylint: disable=no-member
     # Use the importlib.metadata-based entry point map (same as production code paths), rather
     # than pkg_resources.get_entry_map(...). pkg_resources' EntryPoint.load() internally calls

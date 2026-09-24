@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Dirac daemon run script."""
+"""
+Dirac daemon run script.
+"""
 from __future__ import annotations
 
 import importlib
@@ -21,12 +23,24 @@ DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "log")
 
 
 def stop(args, *, logger):
-    """Stop the monitoring daemon."""
+    """
+    Stop the monitoring daemon.
+
+    Args:
+        args: Prepared CLI options containing PID file, DIRAC address, and daemon flags.
+        logger: Logger used for daemon lifecycle messages.
+    """
     stop_daemon(args.pid_file, logger)
 
 
 def start(args, *, logger):
-    """Start the dirac daemon."""
+    """
+    Start the dirac daemon.
+
+    Args:
+        args: Prepared CLI options used to configure and start the DIRAC daemon.
+        logger: Logger passed to the daemon instance.
+    """
     if args.mock_mode:
         mock.patch.dict(sys.modules, {"DIRAC": mock.MagicMock(),
                                       "DIRAC.Core": mock.MagicMock(),
@@ -76,6 +90,15 @@ def start(args, *, logger):
 
 
 def _run(ctx, section, values, action):
+    """
+    Run a DIRAC daemon lifecycle action with parsed CLI values.
+    
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        section: Configuration section used for the command.
+        values: Parsed command option values.
+        action: Lifecycle function to execute after setup.
+    """
     values.pop("ctx", None)
     args, cli_values, config_instance, config_path = prepare_options(
         ctx, section, values, APP_NAME)
@@ -97,7 +120,21 @@ def start_command(
         mock_mode: bool = typer.Option(False, help="Mock the DIRAC API."),
         extension: str | None = typer.Option(None, help="Activate an installed extension."),
 ):
-    """Start the DIRAC daemon."""
+    """
+    Start the DIRAC daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        api_host: Hostname or interface for the DIRAC REST API server.
+        api_port: Port for the DIRAC REST API server.
+        pid_file: Path to the daemon PID file.
+        log_dir: Directory for daemon log files.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        config: Path to the ProductionSystem configuration file.
+        debug_mode: If True, run in the foreground.
+        mock_mode: If True, install mocked DIRAC modules before startup.
+        extension: Optional installed extension name to activate.
+    """
     _run(ctx, "dirac", locals() | {"debug_mode": debug_mode}, start)
 
 
@@ -108,7 +145,15 @@ def stop_command(
         verbose: int = typer.Option(0, "-v", "--verbose", count=True),
         config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
 ):
-    """Stop the DIRAC daemon."""
+    """
+    Stop the DIRAC daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        pid_file: Path to the daemon PID file.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        config: Path to the ProductionSystem configuration file.
+    """
     values = locals() | {"debug_mode": True, "log_dir": ""}
     _run(ctx, "dirac", values, stop)
 

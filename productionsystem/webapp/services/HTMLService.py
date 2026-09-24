@@ -1,4 +1,6 @@
-"""HTML Page Server."""
+"""
+HTML Page Server.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -45,7 +47,16 @@ def gravitar_hash(email_add):
 
 @jinja2_filter
 def service_badge_url(service, service_name):
-    """Return ShieldIO url for service badge."""
+    """
+    Return ShieldIO url for service badge.
+
+    Args:
+        service: Service model to display, or None when status is unavailable.
+        service_name: Fallback badge label when no service model is available.
+
+    Returns:
+        str: Shields.io badge URL for the service status.
+    """
     name = service_name
     status = ServiceStatus.UNKNOWN
     if service is not None:
@@ -57,7 +68,12 @@ def service_badge_url(service, service_name):
 
 @jinja2_filter
 def log_splitter(log):
-    """Split up the log string by line."""
+    """
+    Split up the log string by line.
+
+    Returns:
+        list[str]: Log lines, or an empty list for missing logs.
+    """
     if log is None:
         return []
     return log.splitlines()
@@ -83,10 +99,16 @@ def utc_datetime(value: datetime) -> str:
 
 
 class HTMLPageServer(object):
-    """The Web server."""
-
+    """
+    The Web server.
+    """
     def __init__(self, extra_jinja2_loader=None):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            extra_jinja2_loader: Optional loader searched in addition to packaged templates.
+        """
         loader = jinja2.PackageLoader("productionsystem.webapp")
         if extra_jinja2_loader is not None:
             prefix_loader = jinja2.PrefixLoader({'productionsystem': loader})
@@ -97,11 +119,28 @@ class HTMLPageServer(object):
         self._logger = logging.getLogger(__name__)
 
     def _render(self, template_name, **kwargs):
-        """Wrap the Jinja2 template getting and rendering boilerplate."""
+        """
+        Wrap the Jinja2 template getting and rendering boilerplate.
+
+        Args:
+            template_name: Name of the Jinja2 template to render.
+            **kwargs: Template context passed to Jinja2.
+
+        Returns:
+            str: Rendered HTML template content.
+        """
         return self._template_env.get_template(template_name).render(**kwargs)
 
     def index(self, user: VerifiedUser):
-        """Return the index page."""
+        """
+        Return the index page.
+
+        Args:
+            user: Verified user viewing the page.
+
+        Returns:
+            HTMLResponse: Rendered dashboard page.
+        """
         services = {service.name: Service.model_validate(service) for service in Services.get_services()}
         monitoring_service = services.get("monitoringd")
         if monitoring_service is None:
@@ -117,16 +156,41 @@ class HTMLPageServer(object):
                                          dirac_service=services.get('DIRAC')))
 
     def admins(self, user: AdminUser):
-        """Return admin management page."""
+        """
+        Return admin management page.
+
+        Args:
+            user: Admin user viewing the page.
+
+        Returns:
+            HTMLResponse: Rendered admin-management page.
+        """
         users = [User.model_validate(user) for user in Users.get_users()]
         return HTMLResponse(self._render('admins_template.html', users=users))
 
     def newrequest(self, user: VerifiedUser):
-        """Return new request page."""
+        """
+        Return new request page.
+
+        Args:
+            user: Verified user creating a request.
+
+        Returns:
+            HTMLResponse: Rendered new-request page.
+        """
         return HTMLResponse(self._render("newrequest_template.html"))
 
     def info(self, id: int, requester: VerifiedUser):
-        """Return request info page."""
+        """
+        Return request info page.
+
+        Args:
+            id: Request ID to display.
+            requester: Verified user whose permissions constrain request access.
+
+        Returns:
+            HTMLResponse: Rendered request information page.
+        """
         selected_request = Request.model_validate(Requests.get(request_id=id,
                                                                user_id=None if requester.admin else requester.id,
                                                                load_user=True,
@@ -134,7 +198,16 @@ class HTMLPageServer(object):
         return HTMLResponse(self._render('requestinfo_template.html', request=selected_request))
 
     def log(self, id: int, requester: VerifiedUser):
-        """Return request log page."""
+        """
+        Return request log page.
+
+        Args:
+            id: Request ID whose log should be displayed.
+            requester: Verified user whose permissions constrain request access.
+
+        Returns:
+            HTMLResponse: Rendered request log page.
+        """
         selected_request = Request.model_validate(Requests.get(request_id=id,
                                                                user_id=None if requester.admin else requester.id,
                                                                load_user=True,
@@ -143,7 +216,12 @@ class HTMLPageServer(object):
         return HTMLResponse(self._render('log_template.html', request=selected_request))
 
     def router(self) -> APIRouter:
-        """Build the router for this service."""
+        """
+        Build the router for this service.
+
+        Returns:
+            APIRouter: Router exposing HTML page endpoints.
+        """
         router = APIRouter()
         router.add_api_route("/", self.index, methods=["GET"], response_class=HTMLResponse)
         router.add_api_route("/admins", self.admins, methods=["GET"], response_class=HTMLResponse)

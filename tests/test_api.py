@@ -1,4 +1,6 @@
-"""Test api.py."""
+"""
+Test api.py.
+"""
 import os
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -7,10 +9,13 @@ import productionsystem.api as api
 
 
 class TestJSI(TestCase):
-    """Test case for api.py."""
-
+    """
+    Test case for api.py.
+    """
     def test__init__(self):
-        """Test JSI Instantiation."""
+        """
+        Test JSI Instantiation.
+        """
         with self.assertRaisesRegex(TypeError, "missing 1 required positional argument: 'url'"):
             api.JSI()
         with self.assertRaisesRegex(TypeError, "Expected url to be a string"):
@@ -41,7 +46,9 @@ class TestJSI(TestCase):
 
     @patch("httpx.get")
     def test_get_requests(self, mock_get):
-        """Test get_requests method."""
+        """
+        Test get_requests method.
+        """
         # Testing getting all requests
         jsi = api.JSI("http://localhost:8080")
         jsi.get_requests()
@@ -72,7 +79,9 @@ class TestJSI(TestCase):
 
     @patch("httpx.post")
     def test_create_request(self, mock_post):
-        """Test create_requests method."""
+        """
+        Test create_requests method.
+        """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request parameter should be of type dict"):
             jsi.create_request(12)
@@ -87,7 +96,9 @@ class TestJSI(TestCase):
 
     @patch("httpx.delete")
     def test_delete_request(self, mock_delete):
-        """Test delete_requests method."""
+        """
+        Test delete_requests method.
+        """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
             jsi.delete_request("12")
@@ -102,7 +113,9 @@ class TestJSI(TestCase):
 
     @patch("httpx.put")
     def test_approve_request(self, mock_put):
-        """Test approve_request method."""
+        """
+        Test approve_request method.
+        """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
             jsi.approve_request("12")
@@ -126,7 +139,9 @@ class TestLiveServer(TestCase):
     """
 
     def test_get_requests(self):
-        """Test get_requests method."""
+        """
+        Test get_requests method.
+        """
         jsi = api.JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443",
                       verify=False,
                       cert=(os.path.join(os.path.expanduser("~"), ".globus", "usercert.pem"),

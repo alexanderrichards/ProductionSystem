@@ -1,4 +1,6 @@
-"""LZ Production Web Server."""
+"""
+LZ Production Web Server.
+"""
 from __future__ import annotations
 
 import importlib.resources
@@ -14,8 +16,9 @@ from .services import CVMFSDirectoryListing, GitDirectoryListing, GitSchema, Git
 
 
 class WebApp(Daemonize):
-    """LZ Production Web Server Daemon."""
-
+    """
+    LZ Production Web Server Daemon.
+    """
     def __init__(self,
                  dburl="sqlite:///",
                  socket_host='0.0.0.0',
@@ -27,7 +30,21 @@ class WebApp(Daemonize):
                  extra_jinja2_loader=None,
                  mock_mode=False,
                  **kwargs):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            dburl: SQLAlchemy database URL used by the web application.
+            socket_host: Host interface passed to Uvicorn.
+            socket_port: TCP port passed to Uvicorn.
+            thread_pool: Maximum concurrent Uvicorn connections.
+            git_schema: Git provider schema enum or enum name.
+            git_token: Access token used by GitHub/GitLab listing services.
+            git_api_base_url: Base URL or local root for git listing services.
+            extra_jinja2_loader: Optional additional Jinja2 template loader.
+            mock_mode: If True, use dummy credentials and seed mock data.
+            **kwargs: Additional options forwarded to ``Daemonize``.
+        """
         super(WebApp, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._socket_host = socket_host
@@ -42,6 +59,12 @@ class WebApp(Daemonize):
             self._git_schema = GitSchema[git_schema]
 
     def exit(self):
+        """
+        Stop the daemon and ignore a successful ``SystemExit``.
+        
+        Returns:
+            object | None: Result from ``Daemonize.exit`` unless it exits successfully.
+        """
         try:
             return super().exit()
         except SystemExit as err:
@@ -49,7 +72,15 @@ class WebApp(Daemonize):
                 raise
 
     def _create_app(self, static_resources_path):
-        """Build and return the FastAPI application, mounting all services."""
+        """
+        Build and return the FastAPI application, mounting all services.
+
+        Args:
+            static_resources_path: Filesystem path mounted as the static-resource fallback.
+
+        Returns:
+            FastAPI: Application with HTML, CVMFS, git, REST, and static routes mounted.
+        """
         app = FastAPI()
 
         app.include_router(HTMLPageServer(extra_jinja2_loader=self._extra_jinja2_loader).router())
@@ -73,7 +104,9 @@ class WebApp(Daemonize):
         return app
 
     def main(self):
-        """Daemon main."""
+        """
+        Daemon main.
+        """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
         # Setup testing entry for mock mode.

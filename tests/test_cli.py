@@ -1,4 +1,6 @@
-"""Tests for the Typer command-line applications."""
+"""
+Tests for the Typer command-line applications.
+"""
 from __future__ import annotations
 
 import importlib.util
@@ -11,7 +13,9 @@ SCRIPTS = Path(__file__).parents[1] / "scripts"
 
 
 def load_script(name):
-    """Load a hyphenated script as a Python module."""
+    """
+    Load a hyphenated script as a Python module.
+    """
     spec = importlib.util.spec_from_file_location(name.replace("-", "_"), SCRIPTS / name)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -23,7 +27,9 @@ def load_script(name):
     ("dirac-daemon.py", "monitoring-daemon.py", "webapp-daemon.py"),
 )
 def test_daemon_help_lists_start_and_stop_commands(script_name):
-    """Daemon Typer applications expose their lifecycle commands."""
+    """
+    Daemon Typer applications expose their lifecycle commands.
+    """
     result = CliRunner().invoke(load_script(script_name).app, ["--help"])
     assert result.exit_code == 0
     assert "start" in result.output
@@ -31,7 +37,9 @@ def test_daemon_help_lists_start_and_stop_commands(script_name):
 
 
 def test_userdb_help_lists_options():
-    """The user database updater remains a single-command application."""
+    """
+    The user database updater remains a single-command application.
+    """
     result = CliRunner().invoke(load_script("userdb-update.py").app, ["--help"])
     assert result.exit_code == 0
     assert "--voms" in result.output
@@ -39,7 +47,9 @@ def test_userdb_help_lists_options():
 
 
 def test_config_file_values_override_command_defaults(tmp_path):
-    """Config file values replace Typer defaults."""
+    """
+    Config file values replace Typer defaults.
+    """
     module = load_script("webapp-daemon.py")
     config = tmp_path / "productionsystem.conf"
     config.write_text(
@@ -49,6 +59,10 @@ def test_config_file_values_override_command_defaults(tmp_path):
     seen = {}
 
     def fake_start(args, *, logger):
+        """
+        Capture the daemon start arguments for the test.
+       
+        """
         seen["dburl"] = args.dburl
         seen["socket_port"] = args.socket_port
 
@@ -62,7 +76,9 @@ def test_config_file_values_override_command_defaults(tmp_path):
 
 
 def test_command_line_values_override_config_file(tmp_path):
-    """Explicit command-line options keep precedence over config files."""
+    """
+    Explicit command-line options keep precedence over config files.
+    """
     module = load_script("webapp-daemon.py")
     config = tmp_path / "productionsystem.conf"
     config.write_text(
@@ -72,6 +88,10 @@ def test_command_line_values_override_config_file(tmp_path):
     seen = {}
 
     def fake_start(args, *, logger):
+        """
+        Capture the daemon start arguments for the test.
+       
+        """
         seen["dburl"] = args.dburl
 
     module.start = fake_start
@@ -91,7 +111,9 @@ def test_command_line_values_override_config_file(tmp_path):
 
 
 def test_model_entry_points_load_without_duplicate_mappers():
-    """The daemon's real model entry points load with SQLAlchemy 2."""
+    """
+    The daemon's real model entry points load with SQLAlchemy 2.
+    """
     from sqlalchemy.orm import configure_mappers
 
     from productionsystem.cli import load_entry_points
@@ -108,7 +130,9 @@ def test_model_entry_points_load_without_duplicate_mappers():
 
 
 def setup_database(url):
-    """Point the session registry singleton at a fresh database."""
+    """
+    Point the session registry singleton at a fresh database.
+    """
     from productionsystem.sql.registry import SessionRegistry
 
     if vars(SessionRegistry).get("__instance__") is not None:
@@ -117,7 +141,9 @@ def setup_database(url):
 
 
 def test_service_queries_return_mapped_entities(tmp_path):
-    """ORM helpers return model instances rather than SQLAlchemy rows."""
+    """
+    ORM helpers return model instances rather than SQLAlchemy rows.
+    """
     from productionsystem.sql.enums import ServiceStatus
     from productionsystem.sql.models import Services
 
@@ -132,7 +158,9 @@ def test_service_queries_return_mapped_entities(tmp_path):
 
 
 def test_request_json_keeps_enum_names_and_nested_requester(tmp_path):
-    """Serialised requests expose the requester object and enum names."""
+    """
+    Serialised requests expose the requester object and enum names.
+    """
     import json
 
     from productionsystem.cli import load_entry_points

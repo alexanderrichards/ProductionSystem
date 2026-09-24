@@ -1,4 +1,6 @@
-"""Monitoring Daemon."""
+"""
+Monitoring Daemon.
+"""
 from __future__ import annotations
 
 import time
@@ -17,10 +19,20 @@ MINS = 60
 
 
 class MonitoringDaemon(Daemonize):
-    """Monitoring Daemon."""
-
+    """
+    Monitoring Daemon.
+    """
     def __init__(self, dburl, delay, cert, verify=False, **kwargs):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            dburl: SQLAlchemy database URL used by the monitoring loop.
+            delay: Polling interval in minutes between monitoring passes.
+            cert: Client certificate path or ``(cert, key)`` pair for external HTTP checks.
+            verify: TLS verification flag or CA bundle path used by HTTP clients.
+            **kwargs: Additional options forwarded to ``Daemonize``.
+        """
         super(MonitoringDaemon, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._delay = delay
@@ -36,7 +48,9 @@ class MonitoringDaemon(Daemonize):
                 raise RuntimeError("Failed to connect to DIRAC API daemon.") from err
 
     def exit(self):
-        """Update the monitoringd status on exit."""
+        """
+        Update the monitoringd status on exit.
+        """
         try:
             monitoring_service = Services.get_services(service_name="monitoringd")
         except NoResultFound:
@@ -61,7 +75,9 @@ class MonitoringDaemon(Daemonize):
                 raise
 
     def main(self):
-        """Daemon main function."""
+        """
+        Daemon main function.
+        """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
         try:

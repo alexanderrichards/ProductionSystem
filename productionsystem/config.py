@@ -1,4 +1,6 @@
-"""Configuration System Module."""
+"""
+Configuration System Module.
+"""
 from __future__ import annotations
 
 import ast
@@ -13,10 +15,16 @@ from .singleton import singleton
 
 @singleton
 class ConfigSystem(object):
-    """Config system singleton."""
-
+    """
+    Config system singleton.
+    """
     def __init__(self, configs=None):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            configs: Optional config filename or iterable of filenames to read immediately.
+        """
         self._config = defaultdict(dict)
         self._logger = logging.getLogger(__name__)
         if configs is not None:
@@ -24,33 +32,74 @@ class ConfigSystem(object):
 
     @property
     def config(self):
-        """Get the current state of the configuration."""
+        """
+        Get the current state of the configuration.
+
+        Returns:
+            dict: Deep copy of the current configuration mapping.
+        """
         return dict(deepcopy(self._config))
 
     @property
     def sections(self):
-        """Get list of sections."""
+        """
+        Get list of sections.
+
+        Returns:
+            list[str]: Names of loaded configuration sections.
+        """
         return list(self._config)
 
     @property
     def entry_point_map(self):
-        """Return the entry point map."""
+        """
+        Return the entry point map.
+
+        Returns:
+            dict | None: Deep copy of the configured extension entry-point map.
+        """
         return deepcopy(self._config['Core'].get("entry_point_map"))
 
     @entry_point_map.setter
     def entry_point_map(self, map):
-        """Set the entry point map (one time only)."""
+        """
+        Set the entry point map (one time only).
+
+        Args:
+            map: Entry-point mapping discovered from installed projects.
+        """
         if self._config['Core'].get("entry_point_map") is not None:
             self._logger.warning("Can not re-set entry_point_map once it's been set.")
         else:
             self._config['Core']['entry_point_map'] = map
 
     def get_section(self, section):
-        """Return a given section."""
+        """
+        Return a given section.
+
+        Args:
+            section: Configuration section name to copy.
+
+        Returns:
+            dict: Deep copy of the requested section values.
+        """
         return deepcopy(self._config[section])
 
     def read(self, filenames, ignore_errors=False):
-        """Initialise the configuration system."""
+        """
+        Initialise the configuration system.
+
+        Args:
+            filenames: Config filename or iterable of filenames to load.
+            ignore_errors: If True, log unreadable or invalid files and continue.
+
+        Returns:
+            None. Updates the in-memory configuration from parsed files.
+
+        Raises:
+            IOError: If a file cannot be opened and ``ignore_errors`` is False.
+            configparser.Error: If a file cannot be parsed and ``ignore_errors`` is False.
+        """
         config_parser = configparser.ConfigParser()
         config_parser.optionxform = str
 
@@ -83,5 +132,11 @@ def getConfig(section):  # pylint: disable=invalid-name
     Get config helper function.
 
     Return the config for the given section.
+
+    Args:
+        section (str): Configuration section to retrieve.
+
+    Returns:
+        dict: A copy of the section configuration.
     """
     return ConfigSystem.get_instance().get_section(section)  # pylint: disable=no-member

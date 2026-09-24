@@ -15,13 +15,15 @@ from suds.transport.https import HttpAuthenticated
 
 
 class HttpCertAuthenticated(HttpAuthenticated):
-    """Certificate authenticated http transport."""
-
+    """
+    Certificate authenticated http transport.
+    """
     def __init__(self, cert, verify=True, **kwargs):
         """
         Initialise.
 
         Args:
+            **kwargs: Additional options forwarded to ``HttpAuthenticated``.
             cert (tuple): Tuple containing the path to the cert file followed
                           by the path to the key file as strings.
             verify (bool/str): Whether to verify the handled request url. If a
@@ -43,6 +45,12 @@ class HttpCertAuthenticated(HttpAuthenticated):
         Open the url.
 
         Open the url in the specified request.
+
+        Args:
+            request: Suds request object containing the URL to fetch.
+
+        Returns:
+            io.BytesIO: Buffered response body for suds to read.
         """
         # Suds expects a file-like object supporting .read(); httpx doesn't expose
         # a raw urllib3-style stream so the body is buffered into a BytesIO instead.
@@ -50,7 +58,15 @@ class HttpCertAuthenticated(HttpAuthenticated):
         return io.BytesIO(response.content)
 
     def send(self, request):
-        """Send the request."""
+        """
+        Send the request.
+
+        Args:
+            request: Suds request object containing URL, SOAP body, and headers.
+
+        Returns:
+            Reply: Suds transport reply built from the HTTP response.
+        """
         response = self._client.post(request.url,
                                      content=request.message,
                                      headers=request.headers)
@@ -58,8 +74,9 @@ class HttpCertAuthenticated(HttpAuthenticated):
 
 
 class CertClient(Client):
-    """Certificate authenticated suds client."""
-
+    """
+    Certificate authenticated suds client.
+    """
     def __init__(self, url, cert, verify=True, **kwargs):
         """
         Initialise.
@@ -69,6 +86,7 @@ class CertClient(Client):
         alternative transport in keyword args.
 
         Args:
+            **kwargs: Additional suds client options, including an optional transport override.
             url (str): The url to connect to.
             cert (tuple): Tuple containing the path to the cert file followed
                           by the path to the key file as strings.
