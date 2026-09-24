@@ -5,8 +5,7 @@ import logging
 from typing import Generator
 from contextlib import contextmanager
 
-# TODO: move from requests to httpx
-import requests
+import httpx
 
 from productionsystem.config import getConfig
 
@@ -72,7 +71,7 @@ class _RESTClient:
         if not self.api_url:
             logger.warning("DIRAC API URL not configured, using default: %s", DEFAULT_API_URL)
             self.api_url = DEFAULT_API_URL
-        self.session = requests.Session()
+        self.session = httpx.Client()
 
     def close(self):
         """Close the underlying HTTP connection pool."""

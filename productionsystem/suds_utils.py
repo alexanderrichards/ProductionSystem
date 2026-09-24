@@ -6,7 +6,9 @@ authentication in suds.
 """
 from __future__ import annotations
 
-import requests
+import io
+
+import httpx
 from suds.client import Client
 from suds.transport import Reply
 from suds.transport.https import HttpAuthenticated
@@ -29,14 +31,12 @@ class HttpCertAuthenticated(HttpAuthenticated):
                                directory, the directory must have been processed
                                using the c_rehash utility supplied with OpenSSL.
                                This list of trusted CAs can also be specified through
-                               the REQUESTS_CA_BUNDLE environment variable (this may
+                               the SSL_CERT_FILE environment variable (this may
                                cause pip to fail to validate against PyPI).
 
         """
         HttpAuthenticated.__init__(self, **kwargs)
-        self._session = requests.Session()
-        self._session.cert = cert
-        self._session.verify = verify
+        self._client = httpx.Client(cert=cert, verify=verify)
 
     def open(self, request):
         """
@@ -44,16 +44,16 @@ class HttpCertAuthenticated(HttpAuthenticated):
 
         Open the url in the specified request.
         """
-        # raw method of the response object returns a file-like object.
-        return self._session.get(request.url,
-                                 stream=True).raw
+        # Suds expects a file-like object supporting .read(); httpx doesn't expose
+        # a raw urllib3-style stream so the body is buffered into a BytesIO instead.
+        response = self._client.get(request.url)
+        return io.BytesIO(response.content)
 
     def send(self, request):
         """Send the request."""
-        response = self._session.post(request.url,
-                                      data=request.message,
-                                      headers=request.headers,
-                                      stream=True)
+        response = self._client.post(request.url,
+                                     content=request.message,
+                                     headers=request.headers)
         return Reply(response.status_code, response.headers, response.content)
 
 

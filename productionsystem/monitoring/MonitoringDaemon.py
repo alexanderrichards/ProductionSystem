@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-import requests
+import httpx
 from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
@@ -86,11 +86,9 @@ class MonitoringDaemon(Daemonize):
         # DIRAC
         status = ServiceStatus.DOWN
         try:
-            if requests.get("https://dirac.gridpp.ac.uk/DIRAC/",
-                            cert=self.cert, verify=self.verify) \
-                    .status_code == 200:
+            if httpx.get("https://dirac.gridpp.ac.uk/DIRAC/", cert=self.cert, verify=self.verify).status_code == 200:
                 status = ServiceStatus.UP
-        except IOError as err:
+        except (IOError, httpx.HTTPError) as err:
             self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
                               "for PEM password): %s", err)
             status = ServiceStatus.UNKNOWN

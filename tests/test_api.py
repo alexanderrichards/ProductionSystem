@@ -39,7 +39,7 @@ class TestJSI(TestCase):
         self.assertEqual(jsi._cert, "test")
         self.assertEqual(jsi._verify, True)
 
-    @patch("requests.get")
+    @patch("httpx.get")
     def test_get_requests(self, mock_get):
         """Test get_requests method."""
         # Testing getting all requests
@@ -48,8 +48,8 @@ class TestJSI(TestCase):
         mock_get.assert_called_once_with('http://localhost:8080/api/requests', verify=False, cert=None)
         mock_get.reset_mock()
 
-        mock_get.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
-        with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
+        mock_get.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
+        with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.get_requests()
         mock_get.assert_called_once_with('http://localhost:8080/api/requests', verify=False, cert=None)
         mock_get.reset_mock()
@@ -65,12 +65,12 @@ class TestJSI(TestCase):
         self.assertIsInstance(requests, list)
         mock_get.reset_mock()
 
-        mock_get.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
-        with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
+        mock_get.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
+        with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.get_requests(12)
         mock_get.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
 
-    @patch("requests.post")
+    @patch("httpx.post")
     def test_create_request(self, mock_post):
         """Test create_requests method."""
         jsi = api.JSI("http://localhost:8080")
@@ -80,12 +80,12 @@ class TestJSI(TestCase):
         mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
         mock_post.reset_mock()
 
-        mock_post.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
-        with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
+        mock_post.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
+        with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.create_request({})
         mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
 
-    @patch("requests.delete")
+    @patch("httpx.delete")
     def test_delete_request(self, mock_delete):
         """Test delete_requests method."""
         jsi = api.JSI("http://localhost:8080")
@@ -95,12 +95,12 @@ class TestJSI(TestCase):
         mock_delete.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
         mock_delete.reset_mock()
 
-        mock_delete.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
-        with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
+        mock_delete.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
+        with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.delete_request(12)
         mock_delete.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
 
-    @patch("requests.put")
+    @patch("httpx.put")
     def test_approve_request(self, mock_put):
         """Test approve_request method."""
         jsi = api.JSI("http://localhost:8080")
@@ -110,8 +110,8 @@ class TestJSI(TestCase):
         mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
         mock_put.reset_mock()
 
-        mock_put.return_value.raise_for_status.side_effect = api.requests.exceptions.HTTPError(400)
-        with self.assertRaisesRegex(api.requests.exceptions.HTTPError, "400"):
+        mock_put.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
+        with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.approve_request(12)
         mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
 
