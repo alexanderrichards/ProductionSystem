@@ -75,6 +75,7 @@
           The file is read in your browser; only the resulting JSON is submitted.
         </small>
         <div id="parametricjobs_status" class="form-text text-muted" role="status" aria-live="polite">Choose an Excel file to configure the parametricjobs.</div>
+        <div id="parametricjobs_summary" class="mt-3" role="region" aria-label="Parametricjob preview" hidden></div>
         {% endblock %}
       </fieldset>
       <hr>
@@ -113,7 +114,8 @@ $(document).ready(function(){
     parametricjob_upload = new ParametricJobUpload(
         document.getElementById("parametricjobs_excel"),
         document.getElementById("parametricjobs_status"),
-        document.getElementById("submit_btn")
+        document.getElementById("submit_btn"),
+        document.getElementById("parametricjobs_summary")
     );
 
 //    $("#submit_btn").click(function(event){

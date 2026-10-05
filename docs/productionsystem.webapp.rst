@@ -45,10 +45,25 @@ The Excel reader uses SheetJS, loaded from the same CDN as the Excel example.
 An unreadable, empty, or invalid workbook blocks submission and displays an
 error in the form. API failures leave the form open for retry.
 
+After a successful upload, a preview shows the total parametricjob count, the
+fields present across all jobs, and values from the first and last jobs (only
+one example for a single-job file). Missing example values are marked as
+omitted, and fields empty in every job are not listed. Values use JSON notation
+to distinguish strings, numbers and booleans. Values longer than 200 characters
+are shortened in the preview only; the submitted data is unchanged. Changing
+or clearing the file removes the old preview while the new file is read.
+
+Enter a single job number and click "Show job" (or press Enter in the selector)
+to replace the default examples with that job. Numbers are 1-based positions
+in the parsed job list, excluding empty data rows, not Excel row numbers.
+Ranges, fractions and out-of-bounds numbers display an error without changing
+the existing preview or submitted data. "Show first and last" restores the
+default preview. Each new upload resets the selection.
+
 To run the browser regression tests, open
 ``tests/test_parametricjob_upload.html`` in a browser with CDN access. These
 tests exercise real XLS/XLSX workbooks, value types, invalid uploads and
-overlapping file reads.
+overlapping file reads, and bounded first/last previews for large uploads.
 
 Subpackages
 -----------

@@ -50,8 +50,9 @@ async function run_tests() {
         var input = document.createElement("input");
         var status = document.createElement("div");
         var button = document.createElement("button");
-        var upload = new ParametricJobUpload(input, status, button);
-        return {input, status, button, upload};
+        var summary = document.createElement("div");
+        var upload = new ParametricJobUpload(input, status, button, summary);
+        return {input, status, button, summary, upload};
     };
     var select = function(fixture, files) {
         Object.defineProperty(fixture.input, "files", {value: files, configurable: true});
@@ -101,13 +102,16 @@ async function run_tests() {
     await test("invalid replacement and cancelled selection clear previous jobs", async function() {
         var state = fixture();
         await select(state, [file([["site"], ["ANY"]])]);
+        assert(!state.summary.hidden, "Valid upload should show preview");
         await select(state, [file([["site"]])]);
+        assert(state.summary.hidden && !state.summary.textContent, "Invalid upload must clear preview");
         assert(state.button.disabled, "Invalid replacement must disable submission");
         assert(state.input.validationMessage.includes("at least one"), "Missing validation error");
         throws(() => state.upload.getJobs(), "valid Excel file");
         await select(state, []);
         assert(state.button.disabled, "Cancelled selection must disable submission");
         assert(!state.input.validationMessage, "Old error should be cleared");
+        assert(state.summary.hidden && !state.summary.textContent, "Clearing selection must hide preview");
     });
     await test("incorrect extension and unreadable workbooks display errors", async function() {
         var state = fixture();
@@ -133,10 +137,13 @@ async function run_tests() {
         var resolve;
         var old_file = {name: "old.xlsx", arrayBuffer: () => new Promise(done => {resolve = done;})};
         var old_read = select(state, [old_file]);
+        assert(state.summary.hidden, "Preview must be hidden while reading");
         await select(state, [file([["site"], ["NEW"]])]);
         resolve(await file([["site"], ["OLD"]]).arrayBuffer());
         await old_read;
         equal(state.upload.getJobs(), [{site: "NEW"}]);
+        assert(state.summary.textContent.includes('"NEW"') &&
+               !state.summary.textContent.includes('"OLD"'), "Stale upload must not replace preview");
         assert(!state.button.disabled, "Stale read must not disable submission");
     });
     await test("a stale read error cannot invalidate a newer selection", async function() {
@@ -150,6 +157,113 @@ async function run_tests() {
         await old_read;
         equal(state.upload.getJobs(), [{site: "NEW"}]);
         assert(!state.input.validationMessage, "Stale error must not invalidate current file");
+        assert(!state.summary.hidden && state.summary.textContent.includes('"NEW"'),
+               "Stale error must not clear current preview");
+    });
+    await test("large uploads preview only first/last jobs and include middle-only fields", async function() {
+        var state = fixture();
+        var rows = [["site", "priority", "enabled", "middle_only", "empty_field"]];
+        for (var index = 0; index < 5000; index++) {
+            rows.push([`SITE-${index}`, index === 0 ? 0 : 3, false,
+                       index === 2500 ? "middle value" : null]);
+        }
+        await select(state, [file(rows)]);
+        assert(state.summary.textContent.includes("5000 parametricjob(s), 4 field(s)"), "Incorrect counts");
+        var table = state.summary.querySelector("table");
+        assert(table.tBodies[0].rows.length === 4, "Must render one row per field, not per job");
+        equal(Array.from(table.tHead.rows[0].cells, cell => cell.textContent),
+              ["Field", "First job (#1)", "Last job (#5000)"]);
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent),
+              ["site", '"SITE-0"', '"SITE-4999"']);
+        equal(Array.from(table.tBodies[0].rows[3].cells, cell => cell.textContent),
+              ["middle_only", "(omitted)", "(omitted)"]);
+        assert(!state.summary.textContent.includes("SITE-2500"), "Middle jobs must not be rendered");
+        assert(state.upload.getJobs().length === 5000, "Preview must not limit submitted jobs");
+    });
+    await test("single-job preview preserves JSON types, escapes HTML and bounds long values", async function() {
+        var state = fixture();
+        var long_value = "x".repeat(1000);
+        var html_value = '<img src=x onerror="alert(1)">';
+        await select(state, [file([
+            ["<script>", "priority", "enabled", "long_value"],
+            [html_value, 0, false, long_value]
+        ])]);
+        var table = state.summary.querySelector("table");
+        assert(table.tHead.rows[0].cells.length === 2, "Single job must not be shown twice");
+        assert(!state.summary.querySelector("img, script"), "Upload content must be displayed as text");
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent),
+              ["<script>", JSON.stringify(html_value)]);
+        equal(table.tBodies[0].rows[1].cells[1].textContent, "0");
+        equal(table.tBodies[0].rows[2].cells[1].textContent, "false");
+        equal(table.tBodies[0].rows[3].cells[1].textContent,
+              JSON.stringify(long_value).slice(0, 200) + "...");
+        equal(state.upload.getJobs()[0].long_value, long_value);
+        await select(state, [file([["site"], ["replacement"]])]);
+        assert(state.summary.querySelectorAll("table").length === 1, "Preview should be replaced");
+        assert(!state.summary.textContent.includes(html_value), "Old preview values must be removed");
+    });
+    await test("selecting one job replaces examples and reset restores first/last", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["FIRST"], [], ["MIDDLE"], ["LAST"]])]);
+        var original = JSON.stringify(state.upload.getJobs());
+        var input = state.summary.querySelector("input");
+        var buttons = state.summary.querySelectorAll("button");
+        assert(!input.name && buttons[0].type === "button" && buttons[1].type === "button",
+               "Preview controls must not submit or add fields to the request");
+        input.value = "2";
+        buttons[0].click();
+        var table = state.summary.querySelector("table");
+        equal(Array.from(table.tHead.rows[0].cells, cell => cell.textContent), ["Field", "Job (#2)"]);
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent), ["site", '"MIDDLE"']);
+        assert(state.summary.querySelectorAll("table").length === 1, "Only one table should be rendered");
+        input.value = "3";
+        var enter = new KeyboardEvent("keydown", {key: "Enter", cancelable: true});
+        input.dispatchEvent(enter);
+        assert(enter.defaultPrevented, "Enter must preview, not submit the request");
+        assert(state.summary.querySelector("table").textContent.includes('"LAST"'), "Enter should select last job");
+        buttons[1].click();
+        equal(Array.from(state.summary.querySelector("thead tr").cells, cell => cell.textContent),
+              ["Field", "First job (#1)", "Last job (#3)"]);
+        assert(!input.value, "Reset should clear selection");
+        equal(JSON.stringify(state.upload.getJobs()), original);
+        input.value = "2";
+        buttons[0].click();
+        await select(state, [file([["site"], ["REPLACEMENT"]])]);
+        assert(!state.summary.querySelector("input").value, "New upload should reset selection");
+        assert(state.summary.querySelector("thead tr").cells.length === 2, "Single-job default stays compact");
+    });
+    await test("invalid preview selections preserve the previous table and do not block submission", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["FIRST"], ["LAST"]])]);
+        var input = state.summary.querySelector("input");
+        var buttons = state.summary.querySelectorAll("button");
+        var table = state.summary.querySelector("table").textContent;
+        for (var value of ["", "0", "-1", "3", "1.5", "1-2", "1,2", "abc", "1e0", "9007199254740993"]) {
+            input.value = value;
+            buttons[0].click();
+            assert(state.summary.querySelector('[role="alert"]').textContent.includes("one whole job number"),
+                   `Missing validation message for "${value}"`);
+            assert(input.getAttribute("aria-invalid") === "true", "Invalid selection should be marked");
+            equal(state.summary.querySelector("table").textContent, table);
+            assert(!state.button.disabled && input.checkValidity(), "Preview errors must not block request submission");
+        }
+        input.value = "1";
+        buttons[0].click();
+        assert(!state.summary.querySelector('[role="alert"]').textContent &&
+               !input.hasAttribute("aria-invalid"), "Valid selection must clear previous error");
+        equal(state.summary.querySelector("thead tr").cells[1].textContent, "Job (#1)");
+        input.value = "bad";
+        buttons[0].click();
+        buttons[1].click();
+        assert(!state.summary.querySelector('[role="alert"]').textContent &&
+               !input.hasAttribute("aria-invalid"), "Reset must clear previous error");
+    });
+    await test("upload remains compatible when no summary element is supplied", async function() {
+        var state = fixture();
+        state.upload.summary = null;
+        await select(state, [file([["site"], ["ANY"]])]);
+        equal(state.upload.getJobs(), [{site: "ANY"}]);
+        assert(!state.button.disabled, "Optional preview must not block submission");
     });
     document.getElementById("results").textContent = results.join("\n");
     document.title = results.some(result => result.startsWith("FAIL")) ? "FAIL" : "PASS";
