@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Parametricjob upload tests</title>
+</head>
+<body>
+<h1>Parametricjob upload tests</h1>
+<pre id="results">Running...</pre>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../productionsystem/webapp/static_resources/parametricjob_upload.js"></script>
+<script>
+async function run_tests() {
+    var results = [];
+    var assert = function(condition, message) {
+        if (!condition) throw new Error(message);
+    };
+    var equal = function(actual, expected) {
+        assert(JSON.stringify(actual) === JSON.stringify(expected),
+               `Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`);
+    };
+    var throws = function(callback, message) {
+        try {
+            callback();
+        } catch (error) {
+            assert(error.message.includes(message), error.message);
+            return;
+        }
+        throw new Error(`Expected error containing "${message}"`);
+    };
+    var test = async function(name, callback) {
+        try {
+            await callback();
+            results.push(`PASS: ${name}`);
+        } catch (error) {
+            results.push(`FAIL: ${name}: ${error.message}`);
+        }
+    };
+    var worksheet = function(rows) {
+        return XLSX.utils.aoa_to_sheet(rows);
+    };
+    var file = function(rows, type) {
+        var workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet(rows), "Jobs");
+        XLSX.utils.book_append_sheet(workbook, worksheet([["ignored"], [99]]), "Ignored");
+        return new File([XLSX.write(workbook, {type: "array", bookType: type || "xlsx"})],
+                        `jobs.${type || "xlsx"}`);
+    };
+    var fixture = function() {
+        var input = document.createElement("input");
+        var status = document.createElement("div");
+        var button = document.createElement("button");
+        var upload = new ParametricJobUpload(input, status, button);
+        return {input, status, button, upload};
+    };
+    var select = function(fixture, files) {
+        Object.defineProperty(fixture.input, "files", {value: files, configurable: true});
+        return fixture.upload.read();
+    };
+
+    await test("native types, trimmed headers, optional cells and blank rows", function() {
+        equal(worksheet_to_parametricjobs(worksheet([
+            [" site ", "priority", "num_jobs", "enabled", "custom_field"],
+            ["ANY", 0, 3, false, "001"],
+            [],
+            ["LCG.UKI-LT2-IC-HEP.uk", 5, 7, true]
+        ]), XLSX), [
+            {site: "ANY", priority: 0, num_jobs: 3, enabled: false, custom_field: "001"},
+            {site: "LCG.UKI-LT2-IC-HEP.uk", priority: 5, num_jobs: 7, enabled: true}
+        ]);
+    });
+    await test("invalid headers and empty worksheets are rejected", function() {
+        [
+            [[], "header row"],
+            [[["priority"]], "at least one"],
+            [[["site", " site "], ["ANY", "ANY"]], "Duplicate"],
+            [[["site", null], ["ANY", 1]], "Column 2"],
+            [[[123], [1]], "JSON field name"],
+            [[["__proto__"], ["bad"]], "Unsupported"],
+            [[["site"], ["ANY", 1]], "Column 2"]
+        ].forEach(function(example) {
+            throws(() => worksheet_to_parametricjobs(worksheet(example[0]), XLSX), example[1]);
+        });
+    });
+    for (var type of ["xlsx", "xls"]) {
+        await test(`${type} is parsed locally using only the first worksheet`, async function() {
+            var state = fixture();
+            assert(state.button.disabled, "Submit should initially be disabled");
+            throws(() => state.upload.getJobs(), "valid Excel file");
+            await select(state, [file([["site", "priority"], ["ANY", 3]], type)]);
+            equal(state.upload.getJobs(), [{site: "ANY", priority: 3}]);
+            assert(!state.button.disabled, "Valid upload should enable submission");
+            assert(state.status.textContent.includes('1 parametricjob(s) from "Jobs"'), "Missing status");
+            equal(JSON.parse(JSON.stringify({request: {
+                description: "Manual request", priority: "5", parametricjobs: state.upload.getJobs()
+            }})), {request: {
+                description: "Manual request", priority: "5", parametricjobs: [{site: "ANY", priority: 3}]
+            }});
+        });
+    }
+    await test("invalid replacement and cancelled selection clear previous jobs", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        await select(state, [file([["site"]])]);
+        assert(state.button.disabled, "Invalid replacement must disable submission");
+        assert(state.input.validationMessage.includes("at least one"), "Missing validation error");
+        throws(() => state.upload.getJobs(), "valid Excel file");
+        await select(state, []);
+        assert(state.button.disabled, "Cancelled selection must disable submission");
+        assert(!state.input.validationMessage, "Old error should be cleared");
+    });
+    await test("incorrect extension and unreadable workbooks display errors", async function() {
+        var state = fixture();
+        await select(state, [new File(["bad"], "jobs.csv")]);
+        assert(state.status.textContent.includes(".xlsx or .xls"), "Missing extension error");
+        await select(state, [new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "bad.xlsx")]);
+        assert(state.button.disabled && state.input.validationMessage, "Unreadable file should fail");
+    });
+    await test("missing Excel reader displays a recoverable error", async function() {
+        var state = fixture();
+        var reader = XLSX;
+        try {
+            window.XLSX = undefined;
+            await select(state, [new File([], "jobs.xlsx")]);
+            assert(state.status.textContent.includes("could not be loaded"), "Missing reader error");
+            assert(state.button.disabled, "Missing reader must disable submission");
+        } finally {
+            window.XLSX = reader;
+        }
+    });
+    await test("a stale asynchronous upload cannot replace a newer selection", async function() {
+        var state = fixture();
+        var resolve;
+        var old_file = {name: "old.xlsx", arrayBuffer: () => new Promise(done => {resolve = done;})};
+        var old_read = select(state, [old_file]);
+        await select(state, [file([["site"], ["NEW"]])]);
+        resolve(await file([["site"], ["OLD"]]).arrayBuffer());
+        await old_read;
+        equal(state.upload.getJobs(), [{site: "NEW"}]);
+        assert(!state.button.disabled, "Stale read must not disable submission");
+    });
+    await test("a stale read error cannot invalidate a newer selection", async function() {
+        var state = fixture();
+        var reject;
+        var old_read = select(state, [{
+            name: "old.xlsx", arrayBuffer: () => new Promise((resolve, fail) => {reject = fail;})
+        }]);
+        await select(state, [file([["site"], ["NEW"]])]);
+        reject(new Error("old file failed"));
+        await old_read;
+        equal(state.upload.getJobs(), [{site: "NEW"}]);
+        assert(!state.input.validationMessage, "Stale error must not invalidate current file");
+    });
+    document.getElementById("results").textContent = results.join("\n");
+    document.title = results.some(result => result.startsWith("FAIL")) ? "FAIL" : "PASS";
+}
+run_tests().catch(function(error) {
+    document.getElementById("results").textContent = error.stack;
+    document.title = "FAIL";
+});
+</script>
+</body>
+</html>

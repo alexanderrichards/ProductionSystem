@@ -62,7 +62,23 @@
       {% endblock %}
       </fieldset>
       <hr>
-      <button id="submit_btn" type="submit" class="btn btn-primary">
+      <fieldset>
+        <legend>Parametricjobs</legend>
+        {% block parametricjobs_content %}
+        <label for="parametricjobs_excel">Excel file:</label>
+        <input id="parametricjobs_excel" class="form-control-file" type="file" accept=".xlsx,.xls" required aria-describedby="parametricjobs_help parametricjobs_status">
+        <small id="parametricjobs_help" class="form-text text-muted">
+          Use JSON field names as column headers (for example, site, priority, num_jobs).
+          Each non-empty row in the first worksheet creates one parametricjob.
+          Enter numeric and boolean values as Excel numbers and booleans.
+          Empty cells are omitted so server defaults still apply.
+          The file is read in your browser; only the resulting JSON is submitted.
+        </small>
+        <div id="parametricjobs_status" class="form-text text-muted" role="status" aria-live="polite">Choose an Excel file to configure the parametricjobs.</div>
+        {% endblock %}
+      </fieldset>
+      <hr>
+      <button id="submit_btn" type="submit" class="btn btn-primary" disabled>
         <span class="oi oi-cloud-upload"></span>
         Submit
       </button>
@@ -76,12 +92,14 @@
 <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="parametricjob_upload.js"></script>
 <script src="utils.js"></script>
 {% endblock %}
 <script>
-function create_request(form_data){
+function create_request(form_data, parametricjobs){
     {% block create_request %}
-    form_data["parametricjobs"] = [{num_jobs: 3}, {num_jobs: 5}];
+    form_data["parametricjobs"] = parametricjobs;
     return form_data;
     {% endblock%}
 }
@@ -89,29 +107,61 @@ function create_request(form_data){
 
 $(document).ready(function(){
     {% block document_ready_js %}
+
+    // Setup listener for parametric job Excel file uploads.
+    var parametricjob_upload;
+    parametricjob_upload = new ParametricJobUpload(
+        document.getElementById("parametricjobs_excel"),
+        document.getElementById("parametricjobs_status"),
+        document.getElementById("submit_btn")
+    );
+
 //    $("#submit_btn").click(function(event){
     $("form").submit(function(event){
         event.preventDefault();  // prevent default submission as doesn't create json content.
-        parent.$.fancybox.close();
 
         var form_data = new Object();
 	    $.each($("form").serializeArray(), function(index, mapping){
 	      form_data[mapping.name] = mapping.value;
 	    });
 
+        var parametricjobs;
+        try {
+            parametricjobs = parametricjob_upload.getJobs();
+        } catch (error) {
+            console.error("Failed to get parametricjobs.", error);
+            document.getElementById("parametricjobs_status").textContent = error.message;
+            document.getElementById("parametricjobs_status").className = "form-text text-danger";
+            return;
+        }
+
+        var request_data;
+        try {
+            request_data = create_request(form_data, parametricjobs);
+        } catch (error) {
+            console.error("Failed to prepare new request.", error);
+            bootstrap_alert("danger", "ERROR:", "Failed to prepare new request.");
+            return;
+        }
+
+        $("#submit_btn").prop("disabled", true);
+        $("#parametricjobs_excel").prop("disabled", true);
         $.ajax({
             url: "/api/requests",
             type: "POST",
             contentType: "application/json; charset=utf-8",
-            data: JSON.stringify({request: create_request(form_data)}),
+            data: JSON.stringify({request: request_data}),
             error: function(jqXHR, textStatus, errorThrown){
+                $("#submit_btn").prop("disabled", false);
+                $("#parametricjobs_excel").prop("disabled", false);
                 console.error(`Failed to create new requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
-                parent.bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
+                bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
             },
             success: function(response, status, request){
                 console.log("Request created");
                 parent.bootstrap_alert("success", "Success:", "Request added");
                 parent.$("#requests_table").DataTable().ajax.reload();
+                parent.$.fancybox.close();
             }
         });
     });
