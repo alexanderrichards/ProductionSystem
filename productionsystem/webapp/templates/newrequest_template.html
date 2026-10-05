@@ -63,19 +63,19 @@
       </fieldset>
       <hr>
       <fieldset>
-        <legend>Parametricjobs</legend>
+        <legend>Defining Parametricjobs</legend>
         {% block parametricjobs_content %}
         <label for="parametricjobs_excel">Excel file:</label>
         <input id="parametricjobs_excel" class="form-control-file" type="file" accept=".xlsx,.xls" required aria-describedby="parametricjobs_help parametricjobs_status">
         <small id="parametricjobs_help" class="form-text text-muted">
-          Use JSON field names as column headers (for example, site, priority, num_jobs).
-          Each non-empty row in the first worksheet creates one parametricjob.
+          Use the column headers expected by your request setup (for example, site, priority, num_jobs).
+          Each non-empty row in the first worksheet is passed to the request setup hook.
           Enter numeric and boolean values as Excel numbers and booleans.
-          Empty cells are omitted so server defaults still apply.
+          Empty cells are omitted from the parsed rows.
           The file is read in your browser; only the resulting JSON is submitted.
         </small>
-        <div id="parametricjobs_status" class="form-text text-muted" role="status" aria-live="polite">Choose an Excel file to configure the parametricjobs.</div>
-        <div id="parametricjobs_summary" class="mt-3" role="region" aria-label="Parametricjob preview" hidden></div>
+        <div id="parametricjobs_status" class="form-text text-muted" role="status" aria-live="polite">Choose an Excel file to load its rows.</div>
+        <div id="parametricjobs_summary" class="mt-3" role="region" aria-label="Excel row preview" hidden></div>
         {% endblock %}
       </fieldset>
       <hr>
@@ -98,9 +98,9 @@
 <script src="utils.js"></script>
 {% endblock %}
 <script>
-function create_request(form_data, parametricjobs){
+function create_request(form_data, excel_rows){
     {% block create_request %}
-    form_data["parametricjobs"] = parametricjobs;
+    form_data["parametricjobs"] = excel_rows;
     return form_data;
     {% endblock%}
 }
@@ -127,11 +127,11 @@ $(document).ready(function(){
 	      form_data[mapping.name] = mapping.value;
 	    });
 
-        var parametricjobs;
+        var excel_rows;
         try {
-            parametricjobs = parametricjob_upload.getJobs();
+            excel_rows = parametricjob_upload.getExcelRows();
         } catch (error) {
-            console.error("Failed to get parametricjobs.", error);
+            console.error("Failed to get Excel rows.", error);
             document.getElementById("parametricjobs_status").textContent = error.message;
             document.getElementById("parametricjobs_status").className = "form-text text-danger";
             return;
@@ -139,7 +139,7 @@ $(document).ready(function(){
 
         var request_data;
         try {
-            request_data = create_request(form_data, parametricjobs);
+            request_data = create_request(form_data, excel_rows);
         } catch (error) {
             console.error("Failed to prepare new request.", error);
             bootstrap_alert("danger", "ERROR:", "Failed to prepare new request.");

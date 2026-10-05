@@ -1,4 +1,4 @@
-function worksheet_to_parametricjobs(sheet, xlsx) {
+function worksheet_to_excel_rows(sheet, xlsx) {
     var rows = xlsx.utils.sheet_to_json(sheet, {header: 1, raw: true, defval: null, blankrows: true});
     var has_value = function(value) {
         return value !== null && value !== undefined && value !== "";
@@ -24,22 +24,22 @@ function worksheet_to_parametricjobs(sheet, xlsx) {
         seen.add(header);
     });
 
-    var jobs = [];
+    var excel_rows = [];
     rows.slice(1).forEach(function(row, index) {
         if (!row.some(has_value)) return;
         if (row.slice(headers.length).some(has_value)) {
             throw new Error(`Row ${index + 2} contains data in a column without a header.`);
         }
-        var job = {};
+        var excel_row = {};
         headers.forEach(function(header, column) {
-            if (has_value(row[column])) job[header] = row[column];
+            if (has_value(row[column])) excel_row[header] = row[column];
         });
-        jobs.push(job);
+        excel_rows.push(excel_row);
     });
-    if (!jobs.length) {
-        throw new Error("The first worksheet must contain at least one parametricjob row.");
+    if (!excel_rows.length) {
+        throw new Error("The first worksheet must contain at least one data row.");
     }
-    return jobs;
+    return excel_rows;
 }
 
 class ParametricJobUpload {
@@ -48,7 +48,7 @@ class ParametricJobUpload {
         this.status = status;
         this.submit_button = submit_button;
         this.summary = summary;
-        this.jobs = null;
+        this.excel_rows = null;
         this.version = 0;
         this.clearSummary();
         submit_button.disabled = true;
@@ -64,32 +64,32 @@ class ParametricJobUpload {
     showSummary() {
         if (!this.summary) return;
         var fields = new Set();
-        this.jobs.forEach(function(job) {
-            Object.keys(job).forEach(field => fields.add(field));
+        this.excel_rows.forEach(function(excel_row) {
+            Object.keys(excel_row).forEach(field => fields.add(field));
         });
         var heading = document.createElement("h5");
-        heading.textContent = "Parametricjob preview";
+        heading.textContent = "Excel row preview";
         var count = document.createElement("p");
-        count.textContent = `${this.jobs.length} parametricjob(s), ${fields.size} field(s). ` +
-            "Defaults to the first and last jobs; choose one job number to inspect it instead. " +
-            "Job numbers start at 1 and count non-empty data rows, not Excel row numbers. " +
+        count.textContent = `${this.excel_rows.length} Excel row(s), ${fields.size} field(s). ` +
+            "Defaults to the first and last rows; choose one row number to inspect it instead. " +
+            "Preview row numbers start at 1 and count non-empty data rows, not Excel row numbers. " +
             "Missing values are omitted from JSON; " +
-            "fields empty in every job are not listed. Long values are shortened here only.";
+            "fields empty in every row are not listed. Long values are shortened here only.";
         var controls = document.createElement("div");
         controls.className = "mb-2";
         var label = document.createElement("label");
-        label.textContent = "Job number: ";
+        label.textContent = "Row number: ";
         var selection = document.createElement("input");
         selection.type = "text";
         selection.inputMode = "numeric";
-        selection.placeholder = `1 to ${this.jobs.length}`;
+        selection.placeholder = `1 to ${this.excel_rows.length}`;
         selection.className = "form-control form-control-sm d-inline-block w-auto mx-2";
         label.appendChild(selection);
         controls.appendChild(label);
         var choose = document.createElement("button");
         choose.type = "button";
         choose.className = "btn btn-sm btn-primary mr-2";
-        choose.textContent = "Show job";
+        choose.textContent = "Show row";
         controls.appendChild(choose);
         var reset = document.createElement("button");
         reset.type = "button";
@@ -106,8 +106,8 @@ class ParametricJobUpload {
             var value = selection.value.trim();
             var number = Number(value);
             if (!/^[0-9]+$/.test(value) || !Number.isSafeInteger(number) ||
-                number < 1 || number > this.jobs.length) {
-                error.textContent = `Enter one whole job number from 1 to ${this.jobs.length}; ranges are not supported.`;
+                number < 1 || number > this.excel_rows.length) {
+                error.textContent = `Enter one whole row number from 1 to ${this.excel_rows.length}; ranges are not supported.`;
                 selection.setAttribute("aria-invalid", "true");
                 return;
             }
@@ -136,15 +136,15 @@ class ParametricJobUpload {
         this.summary.hidden = false;
     }
 
-    renderSummaryTable(fields, wrapper, job_number = null) {
+    renderSummaryTable(fields, wrapper, row_number = null) {
         var table = document.createElement("table");
         table.className = "table table-sm table-bordered mb-0";
         var head = table.createTHead().insertRow();
-        var labels = ["Field", job_number === null ? "First job (#1)" : `Job (#${job_number})`];
-        var examples = [this.jobs[job_number === null ? 0 : job_number - 1]];
-        if (job_number === null && this.jobs.length > 1) {
-            labels.push(`Last job (#${this.jobs.length})`);
-            examples.push(this.jobs[this.jobs.length - 1]);
+        var labels = ["Field", row_number === null ? "First row (#1)" : `Row (#${row_number})`];
+        var examples = [this.excel_rows[row_number === null ? 0 : row_number - 1]];
+        if (row_number === null && this.excel_rows.length > 1) {
+            labels.push(`Last row (#${this.excel_rows.length})`);
+            examples.push(this.excel_rows[this.excel_rows.length - 1]);
         }
         labels.forEach(function(label) {
             var cell = document.createElement("th");
@@ -159,14 +159,14 @@ class ParametricJobUpload {
             label.scope = "row";
             label.textContent = field;
             row.appendChild(label);
-            examples.forEach(function(job) {
+            examples.forEach(function(excel_row) {
                 var cell = row.insertCell();
-                if (!Object.prototype.hasOwnProperty.call(job, field)) {
+                if (!Object.prototype.hasOwnProperty.call(excel_row, field)) {
                     cell.textContent = "(omitted)";
                     cell.className = "text-muted";
                     return;
                 }
-                var value = JSON.stringify(job[field]);
+                var value = JSON.stringify(excel_row[field]);
                 cell.textContent = value.length > 200 ? value.slice(0, 200) + "..." : value;
                 cell.style.whiteSpace = "pre-wrap";
                 cell.style.overflowWrap = "anywhere";
@@ -178,14 +178,14 @@ class ParametricJobUpload {
 
     async read() {
         var version = ++this.version;
-        this.jobs = null;
+        this.excel_rows = null;
         this.clearSummary();
         this.submit_button.disabled = true;
         this.status.className = "form-text text-muted";
         this.input.setCustomValidity("");
         var file = this.input.files[0];
         if (!file) {
-            this.status.textContent = "Choose an Excel file to configure the parametricjobs.";
+            this.status.textContent = "Choose an Excel file to load its rows.";
             return;
         }
         this.status.textContent = "Reading Excel file...";
@@ -203,27 +203,27 @@ class ParametricJobUpload {
                 throw new Error("The workbook does not contain any worksheets.");
             }
             var sheet_name = workbook.SheetNames[0];
-            this.jobs = worksheet_to_parametricjobs(workbook.Sheets[sheet_name], XLSX);
+            this.excel_rows = worksheet_to_excel_rows(workbook.Sheets[sheet_name], XLSX);
             this.showSummary();
-            this.status.textContent = `Loaded ${this.jobs.length} parametricjob(s) from "${sheet_name}".`;
+            this.status.textContent = `Loaded ${this.excel_rows.length} Excel row(s) from "${sheet_name}".`;
             this.status.className = "form-text text-success";
             this.submit_button.disabled = false;
         } catch (error) {
             // A replaced file must not overwrite the latest upload's state.
             if (version !== this.version) return;
-            this.jobs = null;
+            this.excel_rows = null;
             this.clearSummary();
-            console.error("Failed to read parametricjobs from Excel.", error);
+            console.error("Failed to read Excel rows.", error);
             this.status.textContent = `Unable to load Excel file: ${error.message}`;
             this.status.className = "form-text text-danger";
             this.input.setCustomValidity(this.status.textContent);
         }
     }
 
-    getJobs() {
-        if (!this.jobs) {
+    getExcelRows() {
+        if (!this.excel_rows) {
             throw new Error("Load a valid Excel file before submitting the request.");
         }
-        return this.jobs;
+        return this.excel_rows;
     }
 }
