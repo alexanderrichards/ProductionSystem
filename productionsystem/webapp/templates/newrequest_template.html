@@ -75,7 +75,7 @@
           The file is read in your browser; only the resulting JSON is submitted.
         </small>
         <div id="parametricjobs_status" class="form-text text-muted" role="status" aria-live="polite">Choose an Excel file to load its rows.</div>
-        <div id="parametricjobs_summary" class="mt-3" role="region" aria-label="Excel row preview" hidden></div>
+        <div id="parametricjobs_summary" class="mt-3" role="region" aria-label="Parametricjob preview" hidden></div>
         {% endblock %}
       </fieldset>
       <hr>
@@ -98,7 +98,17 @@
 <script src="utils.js"></script>
 {% endblock %}
 <script>
-function create_request(form_data, excel_rows){
+function create_request(form=$("form"), excel_rows){
+    // can use 'this' within this scope to refer to the ParametricJobUpload instance.
+    // excel_rows is a copy so hooks can transform it without changing uploaded data.
+    // can access the raw data from this.excel_rows if needed.
+    // might remove access to 'this' to avoid accidental mutation of the ParametricJobUploads excel_rows data used for the preview
+    // can we trust that users will not manipulate the this.excel_rows data before submission?
+    var form_data = {};
+	  $.each(form.serializeArray(), function(index, mapping){
+	    form_data[mapping.name] = mapping.value;
+	  });
+    // delete form_data["parametricjobs"];
     {% block create_request %}
     form_data["parametricjobs"] = excel_rows;
     return form_data;
@@ -109,53 +119,40 @@ function create_request(form_data, excel_rows){
 $(document).ready(function(){
     {% block document_ready_js %}
 
+    var form = $("form");
     // Setup listener for parametric job Excel file uploads.
     var parametricjob_upload;
     parametricjob_upload = new ParametricJobUpload(
         document.getElementById("parametricjobs_excel"),
         document.getElementById("parametricjobs_status"),
         document.getElementById("submit_btn"),
-        document.getElementById("parametricjobs_summary")
+        document.getElementById("parametricjobs_summary"),
+        form,
+        create_request
     );
 
 //    $("#submit_btn").click(function(event){
-    $("form").submit(function(event){
+    $(form).submit(function(event){
         event.preventDefault();  // prevent default submission as doesn't create json content.
 
-        var form_data = new Object();
-	    $.each($("form").serializeArray(), function(index, mapping){
-	      form_data[mapping.name] = mapping.value;
-	    });
-
-        var excel_rows;
+        var request_json;
         try {
-            excel_rows = parametricjob_upload.getExcelRows();
-        } catch (error) {
-            console.error("Failed to get Excel rows.", error);
-            document.getElementById("parametricjobs_status").textContent = error.message;
-            document.getElementById("parametricjobs_status").className = "form-text text-danger";
-            return;
-        }
-
-        var request_data;
-        try {
-            request_data = create_request(form_data, excel_rows);
+            request_json = parametricjob_upload.prepareSubmission();
         } catch (error) {
             console.error("Failed to prepare new request.", error);
             bootstrap_alert("danger", "ERROR:", "Failed to prepare new request.");
             return;
         }
 
-        $("#submit_btn").prop("disabled", true);
-        $("#parametricjobs_excel").prop("disabled", true);
-        $.ajax({
+        if (request_json === null) return;  // ParametricJobUpload internal submitting variable is true, submission already in progress
+        try {
+          $.ajax({
             url: "/api/requests",
             type: "POST",
             contentType: "application/json; charset=utf-8",
-            data: JSON.stringify({request: request_data}),
+            data: request_json,
             error: function(jqXHR, textStatus, errorThrown){
-                $("#submit_btn").prop("disabled", false);
-                $("#parametricjobs_excel").prop("disabled", false);
+                parametricjob_upload.allowRetrySubmission();
                 console.error(`Failed to create new requests.\n--------\nStatus: ${textStatus}\nError: ${errorThrown}\n--------\n${jqXHR.responseText}`);
                 bootstrap_alert("danger", "ERROR:", "Failed to create new requests!");
             },
@@ -165,7 +162,12 @@ $(document).ready(function(){
                 parent.$("#requests_table").DataTable().ajax.reload();
                 parent.$.fancybox.close();
             }
-        });
+          });
+        } catch (error) {
+            parametricjob_upload.allowRetrySubmission();
+            console.error("Failed to send new request.", error);
+            bootstrap_alert("danger", "ERROR:", "Failed to send new request.");
+        }
     });
     {% endblock %}
 });
