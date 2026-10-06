@@ -10,7 +10,7 @@ Creating requests from Excel
 ---------------------------
 
 The new-request form still collects request-level information manually. Upload
-an ``.xlsx`` or ``.xls`` workbook to configure its parametricjobs. The browser
+an ``.xlsx``, ``.xls`` or ``.csv`` workbook to configure its parametricjobs. The browser
 reads the first worksheet; the workbook itself is never uploaded to the server.
 
 Use the first row for column names expected by the request setup hook, such as
