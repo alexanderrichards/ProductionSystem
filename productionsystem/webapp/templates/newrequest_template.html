@@ -65,7 +65,7 @@
         <legend>Defining Parametricjobs</legend>
         {% block parametricjobs_content %}
         <label for="parametricjobs_excel">Excel file:</label>
-        <input id="parametricjobs_excel" class="form-control-file" type="file" accept=".xlsx,.xls" required aria-describedby="parametricjobs_help parametricjobs_status">
+        <input id="parametricjobs_excel" class="form-control-file" type="file" accept=".xlsx,.xls,.csv" required aria-describedby="parametricjobs_help parametricjobs_status">
         <small id="parametricjobs_help" class="form-text text-muted">
           Use the column headers expected by your request setup (for example, site, priority, num_jobs).
           Each non-empty row in the first worksheet is passed to the request setup hook.
