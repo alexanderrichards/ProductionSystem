@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Parametricjob upload tests</title>
+</head>
+<body>
+<h1>Parametricjob upload tests</h1>
+<pre id="results">Running...</pre>
+<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../productionsystem/webapp/static_resources/parametricjob_upload.js"></script>
+<script>
+async function run_tests() {
+    var results = [];
+    var assert = function(condition, message) {
+        if (!condition) throw new Error(message);
+    };
+    var equal = function(actual, expected) {
+        assert(JSON.stringify(actual) === JSON.stringify(expected),
+               `Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`);
+    };
+    var throws = function(callback, message) {
+        try {
+            callback();
+        } catch (error) {
+            assert(error.message.includes(message), error.message);
+            return;
+        }
+        throw new Error(`Expected error containing "${message}"`);
+    };
+    var test = async function(name, callback) {
+        try {
+            await callback();
+            results.push(`PASS: ${name}`);
+        } catch (error) {
+            results.push(`FAIL: ${name}: ${error.message}`);
+        }
+    };
+    var worksheet = function(rows) {
+        return XLSX.utils.aoa_to_sheet(rows);
+    };
+    var file = function(rows, type) {
+        var workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet(rows), "Jobs");
+        XLSX.utils.book_append_sheet(workbook, worksheet([["ignored"], [99]]), "Ignored");
+        return new File([XLSX.write(workbook, {type: "array", bookType: type || "xlsx"})],
+                        `jobs.${type || "xlsx"}`);
+    };
+    var fixture = function() {
+        var input = document.createElement("input");
+        var status = document.createElement("div");
+        var button = document.createElement("button");
+        var summary = document.createElement("div");
+        var upload = new ParametricJobUpload(input, status, button, summary, $("<form>"), (form, rows) => ({parametricjobs: rows}));
+        return {input, status, button, summary, upload};
+    };
+    var select = function(fixture, files) {
+        Object.defineProperty(fixture.input, "files", {value: files, configurable: true});
+        return fixture.upload.read();
+    };
+
+    await test("native types, trimmed headers, optional cells and blank rows", function() {
+        equal(worksheet_to_excel_rows(worksheet([
+            [" site ", "priority", "num_jobs", "enabled", "custom_field"],
+            ["ANY", 0, 3, false, "001"],
+            [],
+            ["LCG.UKI-LT2-IC-HEP.uk", 5, 7, true]
+        ]), XLSX), [
+            {site: "ANY", priority: 0, num_jobs: 3, enabled: false, custom_field: "001"},
+            {site: "LCG.UKI-LT2-IC-HEP.uk", priority: 5, num_jobs: 7, enabled: true}
+        ]);
+    });
+    await test("invalid headers and empty worksheets are rejected", function() {
+        [
+            [[], "header row"],
+            [[["priority"]], "at least one"],
+            [[["site", " site "], ["ANY", "ANY"]], "Duplicate"],
+            [[["site", null], ["ANY", 1]], "Column 2"],
+            [[[123], [1]], "JSON field name"],
+            [[["__proto__"], ["bad"]], "Unsupported"],
+            [[["site"], ["ANY", 1]], "Column 2"]
+        ].forEach(function(example) {
+            throws(() => worksheet_to_excel_rows(worksheet(example[0]), XLSX), example[1]);
+        });
+    });
+    for (var type of ["xlsx", "xls"]) {
+        await test(`${type} is parsed locally using only the first worksheet`, async function() {
+            var state = fixture();
+            assert(state.button.disabled, "Submit should initially be disabled");
+            throws(() => state.upload.prepareSubmission(), "valid request preview");
+            await select(state, [file([["site", "priority"], ["ANY", 3]], type)]);
+            equal(state.upload.excel_rows, [{site: "ANY", priority: 3}]);
+            assert(!state.button.disabled, "Valid upload should enable submission");
+            assert(state.status.textContent.includes('1 Excel row(s) from "Jobs"'), "Missing status");
+            equal(JSON.parse(JSON.stringify({request: {
+                description: "Manual request", priority: "5", parametricjobs: state.upload.excel_rows
+            }})), {request: {
+                description: "Manual request", priority: "5", parametricjobs: [{site: "ANY", priority: 3}]
+            }});
+        });
+    }
+    await test("invalid replacement and cancelled selection clear previous rows", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        assert(!state.summary.hidden, "Valid upload should show preview");
+        await select(state, [file([["site"]])]);
+        assert(state.summary.hidden && !state.summary.textContent, "Invalid upload must clear preview");
+        assert(state.button.disabled, "Invalid replacement must disable submission");
+        assert(state.input.validationMessage.includes("at least one"), "Missing validation error");
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        await select(state, []);
+        assert(state.button.disabled, "Cancelled selection must disable submission");
+        assert(!state.input.validationMessage, "Old error should be cleared");
+        assert(state.summary.hidden && !state.summary.textContent, "Clearing selection must hide preview");
+    });
+    await test("incorrect extension and unreadable workbooks display errors", async function() {
+        var state = fixture();
+        await select(state, [new File(["bad"], "jobs.csv")]);
+        assert(state.status.textContent.includes(".xlsx or .xls"), "Missing extension error");
+        await select(state, [new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], "bad.xlsx")]);
+        assert(state.button.disabled && state.input.validationMessage, "Unreadable file should fail");
+    });
+    await test("missing Excel reader displays a recoverable error", async function() {
+        var state = fixture();
+        var reader = XLSX;
+        try {
+            window.XLSX = undefined;
+            await select(state, [new File([], "jobs.xlsx")]);
+            assert(state.status.textContent.includes("could not be loaded"), "Missing reader error");
+            assert(state.button.disabled, "Missing reader must disable submission");
+        } finally {
+            window.XLSX = reader;
+        }
+    });
+    await test("a stale asynchronous upload cannot replace a newer selection", async function() {
+        var state = fixture();
+        var resolve;
+        var old_file = {name: "old.xlsx", arrayBuffer: () => new Promise(done => {resolve = done;})};
+        var old_read = select(state, [old_file]);
+        assert(state.summary.hidden, "Preview must be hidden while reading");
+        await select(state, [file([["site"], ["NEW"]])]);
+        resolve(await file([["site"], ["OLD"]]).arrayBuffer());
+        await old_read;
+        equal(state.upload.excel_rows, [{site: "NEW"}]);
+        assert(state.summary.textContent.includes('"NEW"') &&
+               !state.summary.textContent.includes('"OLD"'), "Stale upload must not replace preview");
+        assert(!state.button.disabled, "Stale read must not disable submission");
+    });
+    await test("a stale read error cannot invalidate a newer selection", async function() {
+        var state = fixture();
+        var reject;
+        var old_read = select(state, [{
+            name: "old.xlsx", arrayBuffer: () => new Promise((resolve, fail) => {reject = fail;})
+        }]);
+        await select(state, [file([["site"], ["NEW"]])]);
+        reject(new Error("old file failed"));
+        await old_read;
+        equal(state.upload.excel_rows, [{site: "NEW"}]);
+        assert(!state.input.validationMessage, "Stale error must not invalidate current file");
+        assert(!state.summary.hidden && state.summary.textContent.includes('"NEW"'),
+               "Stale error must not clear current preview");
+    });
+    await test("large uploads preview only first/last jobs and include middle-only fields", async function() {
+        var state = fixture();
+        var rows = [["site", "priority", "enabled", "middle_only", "empty_field"]];
+        for (var index = 0; index < 5000; index++) {
+            rows.push([`SITE-${index}`, index === 0 ? 0 : 3, false,
+                       index === 2500 ? "middle value" : null]);
+        }
+        await select(state, [file(rows)]);
+        assert(state.summary.textContent.includes("5000 parametricjob(s), 4 field(s)"), "Incorrect counts");
+        var table = state.summary.querySelector("table");
+        assert(table.tBodies[0].rows.length === 4, "Must render one row per field, not per Excel row");
+        equal(Array.from(table.tHead.rows[0].cells, cell => cell.textContent),
+              ["Field", "First job (#1)", "Last job (#5000)"]);
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent),
+              ["site", '"SITE-0"', '"SITE-4999"']);
+        equal(Array.from(table.tBodies[0].rows[3].cells, cell => cell.textContent),
+              ["middle_only", "(omitted)", "(omitted)"]);
+        assert(!state.summary.textContent.includes("SITE-2500"), "Middle rows must not be rendered");
+        assert(state.upload.excel_rows.length === 5000, "Preview must not limit parsed rows");
+    });
+    await test("single-job preview preserves JSON types, escapes HTML and bounds long values", async function() {
+        var state = fixture();
+        var long_value = "x".repeat(1000);
+        var html_value = '<img src=x onerror="alert(1)">';
+        await select(state, [file([
+            ["<script>", "priority", "enabled", "long_value"],
+            [html_value, 0, false, long_value]
+        ])]);
+        var table = state.summary.querySelector("table");
+        assert(table.tHead.rows[0].cells.length === 2, "Single row must not be shown twice");
+        assert(!state.summary.querySelector("img, script"), "Upload content must be displayed as text");
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent),
+              ["<script>", JSON.stringify(html_value)]);
+        equal(table.tBodies[0].rows[1].cells[1].textContent, "0");
+        equal(table.tBodies[0].rows[2].cells[1].textContent, "false");
+        equal(table.tBodies[0].rows[3].cells[1].textContent,
+              JSON.stringify(long_value).slice(0, 200) + "...");
+        equal(state.upload.excel_rows[0].long_value, long_value);
+        await select(state, [file([["site"], ["replacement"]])]);
+        assert(state.summary.querySelectorAll("table").length === 1, "Preview should be replaced");
+        assert(!state.summary.textContent.includes(html_value), "Old preview values must be removed");
+    });
+    await test("selecting one job replaces examples and reset restores first/last", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["FIRST"], [], ["MIDDLE"], ["LAST"]])]);
+        var original = JSON.stringify(state.upload.excel_rows);
+        var input = state.summary.querySelector("input");
+        var buttons = state.summary.querySelectorAll("button");
+        assert(!input.name && buttons[0].type === "button" && buttons[1].type === "button",
+               "Preview controls must not submit or add fields to the request");
+        input.value = "2";
+        buttons[0].click();
+        var table = state.summary.querySelector("table");
+        equal(Array.from(table.tHead.rows[0].cells, cell => cell.textContent), ["Field", "Job (#2)"]);
+        equal(Array.from(table.tBodies[0].rows[0].cells, cell => cell.textContent), ["site", '"MIDDLE"']);
+        assert(state.summary.querySelectorAll("table").length === 1, "Only one table should be rendered");
+        input.value = "3";
+        var enter = new KeyboardEvent("keydown", {key: "Enter", cancelable: true});
+        input.dispatchEvent(enter);
+        assert(enter.defaultPrevented, "Enter must preview, not submit the request");
+        assert(state.summary.querySelector("table").textContent.includes('"LAST"'), "Enter should select last row");
+        buttons[1].click();
+        equal(Array.from(state.summary.querySelector("thead tr").cells, cell => cell.textContent),
+              ["Field", "First job (#1)", "Last job (#3)"]);
+        assert(!input.value, "Reset should clear selection");
+        equal(JSON.stringify(state.upload.excel_rows), original);
+        input.value = "2";
+        buttons[0].click();
+        await select(state, [file([["site"], ["REPLACEMENT"]])]);
+        assert(!state.summary.querySelector("input").value, "New upload should reset selection");
+        assert(state.summary.querySelector("thead tr").cells.length === 2, "Single-row default stays compact");
+    });
+    await test("invalid preview selections preserve the previous table and do not block submission", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["FIRST"], ["LAST"]])]);
+        var input = state.summary.querySelector("input");
+        var buttons = state.summary.querySelectorAll("button");
+        var table = state.summary.querySelector("table").textContent;
+        for (var value of ["", "0", "-1", "3", "1.5", "1-2", "1,2", "abc", "1e0", "9007199254740993"]) {
+            input.value = value;
+            buttons[0].click();
+            assert(state.summary.querySelector('[role="alert"]').textContent.includes("one whole job number"),
+                   `Missing validation message for "${value}"`);
+            assert(input.getAttribute("aria-invalid") === "true", "Invalid selection should be marked");
+            equal(state.summary.querySelector("table").textContent, table);
+            assert(!state.button.disabled && input.checkValidity(), "Preview errors must not block request submission");
+        }
+        input.value = "1";
+        buttons[0].click();
+        assert(!state.summary.querySelector('[role="alert"]').textContent &&
+               !input.hasAttribute("aria-invalid"), "Valid selection must clear previous error");
+        equal(state.summary.querySelector("thead tr").cells[1].textContent, "Job (#1)");
+        input.value = "bad";
+        buttons[0].click();
+        buttons[1].click();
+        assert(!state.summary.querySelector('[role="alert"]').textContent &&
+               !input.hasAttribute("aria-invalid"), "Reset must clear previous error");
+    });
+    await test("preview uses serialized hook jobs rather than raw rows and keeps uploaded rows intact", async function() {
+        var state = fixture();
+        var calls = 0;
+        state.upload.create_request = function(rows) {
+            calls++;
+            var first = rows.shift();
+            return {description: "Manual", parametricjobs: [
+                {site: first.source, num_jobs: first.count, optional: undefined, metadata: {enabled: false}}
+            ]};
+        };
+        await select(state, [file([["source", "count", "ignored"], ["ANY", 3, "secret"], ["LAST", 4, "unused"]])]);
+        assert(state.status.textContent.includes('2 Excel row(s) from "Jobs"'), "Status must count source rows");
+        assert(state.summary.textContent.includes("1 parametricjob(s), 3 field(s)"), "Preview must count output jobs");
+        var labels = Array.from(state.summary.querySelectorAll("tbody th"), cell => cell.textContent);
+        equal(labels, ["site", "num_jobs", "metadata"]);
+        assert(!state.summary.textContent.includes("secret") && !state.summary.textContent.includes("source"),
+               "Ignored input fields must not appear");
+        equal(state.upload.excel_rows.length, 2);
+        var request_json = JSON.stringify({request: state.upload.payload});
+        equal(JSON.parse(request_json), {request: {description: "Manual", parametricjobs: [
+            {site: "ANY", num_jobs: 3, metadata: {enabled: false}}
+        ]}});
+        equal(JSON.stringify({request: state.upload.payload}), request_json);
+        equal(calls, 1);
+        state.upload.refreshRequest();
+        equal(JSON.stringify({request: state.upload.payload}), request_json);
+        equal(calls, 2);
+    });
+    await test("hook errors and malformed jobs block submission but preserve loaded rows and allow recovery", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        for (var invalid of [null, {}, {parametricjobs: {}}, {parametricjobs: [null]}, {parametricjobs: [[]]}]) {
+            state.upload.create_request = () => invalid;
+            state.upload.refreshRequest();
+            assert(state.button.disabled, "Invalid hook output must disable submission");
+            assert(state.summary.textContent.includes("Unable to prepare request preview"), "Missing hook error");
+            assert(!state.summary.querySelector("table"), "Stale preview must be cleared");
+            assert(state.status.textContent.includes("Loaded 1 Excel row(s)"), "Keep loaded-row status");
+            throws(() => state.upload.prepareSubmission(), "valid request preview");
+            equal(state.upload.excel_rows, [{site: "ANY"}]);
+        }
+        state.upload.create_request = () => {throw new Error("Hook failed");};
+        state.upload.refreshRequest();
+        assert(state.summary.textContent.includes("Hook failed"), "Hook exception must be visible");
+        state.upload.create_request = rows => ({parametricjobs: rows});
+        state.upload.refreshRequest();
+        assert(!state.button.disabled && state.summary.querySelector("table"), "Fixed hook should recover");
+    });
+    await test("generated job selection uses the hook output count, not the uploaded row count", async function() {
+        var state = fixture();
+        state.upload.create_request = rows => ({parametricjobs: rows.flatMap(row => [
+            {site: row.source}, {site: row.source + "-extra"}
+        ])});
+        await select(state, [file([["source", "ignored"], ["ANY", "unused"]])]);
+        assert(state.status.textContent.includes("Loaded 1 Excel row(s)"), "Keep source row count");
+        assert(state.summary.textContent.includes("2 parametricjob(s), 1 field(s)"), "Count generated jobs and fields");
+        var input = state.summary.querySelector("input");
+        input.value = "2";
+        state.summary.querySelector("button").click();
+        equal(state.summary.querySelector("thead tr").cells[1].textContent, "Job (#2)");
+        equal(state.summary.querySelector("tbody tr").cells[1].textContent, '"ANY-extra"');
+        assert(!input.hasAttribute("aria-invalid"), "Generated job #2 must be selectable with only one input row");
+    });
+    await test("serialization failures block submission and clear previously prepared JSON", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        var circular = {};
+        circular.self = circular;
+        state.upload.create_request = () => ({parametricjobs: [circular]});
+        state.upload.refreshRequest();
+        assert(state.button.disabled && state.summary.textContent.includes("Unable to prepare request preview"),
+               "Serialization failure must be surfaced");
+        assert(!state.summary.querySelector("table"), "Serialization failure must clear old preview");
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+    });
+    await test("zero generated jobs show an empty summary with no selectors", async function() {
+        var state = fixture();
+        state.upload.create_request = () => ({parametricjobs: []});
+        await select(state, [file([["site"], ["ANY"]])]);
+        assert(state.summary.textContent.includes("0 parametricjob(s), 0 field(s)"), "Missing empty job count");
+        assert(!state.summary.querySelector("table, input, button"), "Empty list must not have examples or selectors");
+        equal(JSON.parse(JSON.stringify({request: state.upload.payload})), {request: {parametricjobs: []}});
+    });
+    await test("owned form refreshes only for named inputs and guards pending submissions", async function() {
+        var state = fixture();
+        var form = document.createElement("form");
+        var priority = document.createElement("input");
+        priority.name = "priority";
+        priority.value = "3";
+        form.appendChild(priority);
+        form.appendChild(state.input);
+        form.appendChild(state.summary);
+        form.appendChild(state.button);
+        var calls = 0;
+        state.upload = new ParametricJobUpload(state.input, state.status, state.button, state.summary, form, (owned_form, rows) => {
+            calls++;
+            return {priority: priority.value, parametricjobs: rows.map(row => ({
+                site: row.site, priority: Number(priority.value)
+            }))};
+        });
+        assert(state.upload.form[0] === form, "Upload should own its file input's form");
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        assert(!state.upload.submitting, "Failed preparation must not mark a submission as pending");
+        await select(state, [file([["site"], ["ANY"]])]);
+        equal(calls, 1);
+        priority.value = "8";
+        $(priority).trigger("input");
+        equal(calls, 2);
+        equal(state.upload.payload.parametricjobs[0].priority, 8);
+        priority.value = "5";
+        $(priority).trigger("change");
+        equal(calls, 3);
+        var selector = state.summary.querySelector("input");
+        $(selector).trigger("input");
+        equal(calls, 3);
+        var dynamic = document.createElement("input");
+        dynamic.name = "dynamic";
+        form.appendChild(dynamic);
+        $(dynamic).trigger("change");
+        equal(calls, 4);
+        var request_json = state.upload.prepareSubmission();
+        assert(state.upload.submitting && state.button.disabled && state.input.disabled, "Pending controls must be disabled");
+        equal(state.upload.prepareSubmission(), null);
+        priority.value = "9";
+        $(priority).trigger("input");
+        state.upload.refreshRequest();
+        await state.upload.read();
+        equal(calls, 4);
+        equal(JSON.stringify({request: state.upload.payload}), request_json);
+        equal(state.upload.payload.parametricjobs[0].priority, 5);
+        state.upload.allowRetrySubmission();
+        assert(!state.upload.submitting && !state.button.disabled && !state.input.disabled, "Retry must restore controls");
+        equal(calls, 5);
+        equal(state.upload.payload.parametricjobs[0].priority, 9);
+        state.upload.prepareSubmission();
+        state.upload.create_request = () => {throw new Error("Retry setup failed");};
+        state.upload.allowRetrySubmission();
+        assert(state.button.disabled && !state.input.disabled && !state.upload.submitting,
+               "Invalid retry setup should block submission but allow replacing the file");
+    });
+    await test("constructor validates its callback and accepts native or jQuery forms", function() {
+        var form = document.createElement("form");
+        var input = document.createElement("input");
+        form.appendChild(input);
+        var status = document.createElement("div");
+        var button = document.createElement("button");
+        var hook = function(owned_form, rows) {
+            "use strict";
+            assert(this === null, "Strict hooks must not receive the upload instance");
+            assert(owned_form[0] === form, "Hook must receive its jQuery form");
+            equal(rows, [{site: "ANY"}]);
+            return {parametricjobs: rows};
+        };
+        var upload = new ParametricJobUpload(input, status, button, null, form, hook);
+        upload.excel_rows = [{site: "ANY"}];
+        upload.refreshRequest();
+        assert(!button.disabled, "Explicit native form should be supported");
+        var sloppy_receiver;
+        var jquery_upload = new ParametricJobUpload(input, status, button, null, $(form), function(owned_form, rows) {
+            sloppy_receiver = this;
+            return {parametricjobs: rows};
+        });
+        jquery_upload.excel_rows = [{site: "ANY"}];
+        jquery_upload.refreshRequest();
+        assert(sloppy_receiver === window && sloppy_receiver !== jquery_upload,
+               "Non-strict hooks receive the global object, not the upload instance");
+        throws(() => new ParametricJobUpload(input, status, button), "callback");
+        throws(() => new ParametricJobUpload(input, status, button, null, $(), hook), "exactly one form");
+        throws(() => new ParametricJobUpload(input, status, button, null, undefined, hook), "exactly one form");
+        throws(() => new ParametricJobUpload(input, status, button, null, $("<div>"), hook), "exactly one form");
+    });
+    await test("file replacement invalidates submissions while reading and after cancellation or failure", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        var resolve;
+        var pending = select(state, [{
+            name: "pending.xlsx", arrayBuffer: () => new Promise(done => {resolve = done;})
+        }]);
+        equal(state.upload.payload, null);
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        assert(!state.upload.submitting, "Invalid submission must not lock the form");
+        await select(state, []);
+        resolve(await file([["site"], ["STALE"]]).arrayBuffer());
+        await pending;
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        await select(state, [file([["site"], ["ANY"]])]);
+        await select(state, [new File(["invalid"], "bad.csv")]);
+        equal(state.upload.payload, null);
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        state.upload.allowRetrySubmission();
+        assert(state.button.disabled, "Retry without valid rows must not enable submission");
+    });
+    await test("render failures clear payload and synchronous hooks reject promises and non-finite values", async function() {
+        var state = fixture();
+        await select(state, [file([["site"], ["ANY"]])]);
+        var render = state.upload.showSummary;
+        state.upload.showSummary = () => {throw new Error("Render failed");};
+        state.upload.refreshRequest();
+        equal(state.upload.payload, null);
+        assert(state.summary.textContent.includes("Render failed"), "Render error must be visible");
+        throws(() => state.upload.prepareSubmission(), "valid request preview");
+        state.upload.showSummary = render;
+        state.upload.create_request = () => Promise.resolve({parametricjobs: []});
+        state.upload.refreshRequest();
+        assert(state.summary.textContent.includes("synchronous"), "Async hook should be rejected");
+        for (var value of [Infinity, NaN, -Infinity, BigInt(1)]) {
+            state.upload.create_request = () => ({parametricjobs: [{value: value}]});
+            state.upload.refreshRequest();
+            equal(state.upload.payload, null);
+            assert(state.button.disabled, "Unserializable or invalid numbers must block submission");
+        }
+        state.upload.create_request = () => {throw "plain error";};
+        state.upload.refreshRequest();
+        assert(state.summary.textContent.includes("plain error"), "Non-Error exceptions must be visible");
+    });
+    await test("prepared payload is a frozen JSON snapshot detached from hook output", async function() {
+        var state = fixture();
+        var output = {description: "Manual", parametricjobs: [{site: "ANY", omitted: undefined, metadata: {enabled: false}}]};
+        state.upload.create_request = () => output;
+        await select(state, [file([["site"], ["INPUT"]])]);
+        output.parametricjobs[0].site = "CHANGED";
+        assert(Object.isFrozen(state.upload.payload) &&
+               Object.isFrozen(state.upload.payload.parametricjobs[0].metadata), "Snapshot must be deeply frozen");
+        var json = state.upload.prepareSubmission();
+        equal(JSON.parse(json), {request: {description: "Manual", parametricjobs: [{site: "ANY", metadata: {enabled: false}}]}});
+        equal(state.upload.prepareSubmission(), null);
+    });
+    await test("rejected asynchronous hooks are reported without unhandled promise rejections", async function() {
+        var state = fixture();
+        var unhandled = 0;
+        var listener = function() {unhandled++;};
+        window.addEventListener("unhandledrejection", listener);
+        try {
+            state.upload.create_request = () => Promise.reject(new Error("Async hook failed"));
+            await select(state, [file([["site"], ["ANY"]])]);
+            await new Promise(resolve => setTimeout(resolve, 20));
+            equal(unhandled, 0);
+            assert(state.button.disabled && state.summary.textContent.includes("synchronous"),
+                   "Rejected async hook must block submission with an explicit error");
+        } finally {
+            window.removeEventListener("unhandledrejection", listener);
+        }
+    });
+    await test("upload remains compatible when no summary element is supplied", async function() {
+        var state = fixture();
+        state.upload.summary = null;
+        await select(state, [file([["site"], ["ANY"]])]);
+        equal(state.upload.excel_rows, [{site: "ANY"}]);
+        assert(!state.button.disabled, "Optional preview must not block submission");
+    });
+    document.getElementById("results").textContent = results.join("\n");
+    document.title = results.some(result => result.startsWith("FAIL")) ? "FAIL" : "PASS";
+}
+run_tests().catch(function(error) {
+    document.getElementById("results").textContent = error.stack;
+    document.title = "FAIL";
+});
+</script>
+</body>
+</html>
