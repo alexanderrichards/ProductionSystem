@@ -110,9 +110,9 @@ class ParametricJobUpload {
             }));
             // Require the plain request shape; model-specific field validation remains the server's job.
             if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
-                !Array.isArray(payload.parametricjobs) ||
-                payload.parametricjobs.some(job => !job || typeof job !== "object" || Array.isArray(job))) {
-                throw new Error("The request setup hook must return a request with a parametricjobs array of objects.");
+                !Array.isArray(payload.parametric_jobs) ||
+                payload.parametric_jobs.some(job => !job || typeof job !== "object" || Array.isArray(job))) {
+                throw new Error("The request setup hook must return a request with a parametric_jobs array of objects.");
             }
             // Freeze nested objects and arrays too; a shallow freeze would leave individual jobs mutable.
             // Later refreshes replace this snapshot rather than editing it, keeping preview and submission aligned.
@@ -166,21 +166,21 @@ class ParametricJobUpload {
     showSummary() {
         if (!this.summary) return;
         var fields = new Set();
-        this.payload.parametricjobs.forEach(function(job) {
+        this.payload.parametric_jobs.forEach(function(job) {
             Object.keys(job).forEach(field => fields.add(field));
         });
         var heading = document.createElement("h5");
         heading.textContent = "Parametricjob preview";
         var count = document.createElement("p");
-        count.textContent = `${this.payload.parametricjobs.length} parametricjob(s), ${fields.size} field(s). ` +
+        count.textContent = `${this.payload.parametric_jobs.length} parametricjob(s), ${fields.size} field(s). ` +
             "Defaults to the first and last jobs; choose one job number to inspect it instead. " +
-            "Job numbers start at 1 in the request's parametricjobs list, not Excel row numbers. " +
+            "Job numbers start at 1 in the request's parametric_jobs list, not Excel row numbers. " +
             "Missing values are omitted from JSON; " +
             "Only fields present in the submitted jobs are listed. Long values are shortened here only.";
         this.summary.appendChild(heading);
         this.summary.appendChild(count);
         this.summary.hidden = false;
-        if (!this.payload.parametricjobs.length) return;
+        if (!this.payload.parametric_jobs.length) return;
         var controls = document.createElement("div");
         controls.className = "mb-2";
         var label = document.createElement("label");
@@ -188,7 +188,7 @@ class ParametricJobUpload {
         var selection = document.createElement("input");
         selection.type = "text";
         selection.inputMode = "numeric";
-        selection.placeholder = `1 to ${this.payload.parametricjobs.length}`;
+        selection.placeholder = `1 to ${this.payload.parametric_jobs.length}`;
         selection.className = "form-control form-control-sm d-inline-block w-auto mx-2";
         label.appendChild(selection);
         controls.appendChild(label);
@@ -212,8 +212,8 @@ class ParametricJobUpload {
             var value = selection.value.trim();
             var number = Number(value);
             if (!/^[0-9]+$/.test(value) || !Number.isSafeInteger(number) ||
-                number < 1 || number > this.payload.parametricjobs.length) {
-                error.textContent = `Enter one whole job number from 1 to ${this.payload.parametricjobs.length}; ranges are not supported.`;
+                number < 1 || number > this.payload.parametric_jobs.length) {
+                error.textContent = `Enter one whole job number from 1 to ${this.payload.parametric_jobs.length}; ranges are not supported.`;
                 selection.setAttribute("aria-invalid", "true");
                 return;
             }
@@ -245,10 +245,10 @@ class ParametricJobUpload {
         table.className = "table table-sm table-bordered mb-0";
         var head = table.createTHead().insertRow();
         var labels = ["Field", job_number === null ? "First job (#1)" : `Job (#${job_number})`];
-        var examples = [this.payload.parametricjobs[job_number === null ? 0 : job_number - 1]];
-        if (job_number === null && this.payload.parametricjobs.length > 1) {
-            labels.push(`Last job (#${this.payload.parametricjobs.length})`);
-            examples.push(this.payload.parametricjobs[this.payload.parametricjobs.length - 1]);
+        var examples = [this.payload.parametric_jobs[job_number === null ? 0 : job_number - 1]];
+        if (job_number === null && this.payload.parametric_jobs.length > 1) {
+            labels.push(`Last job (#${this.payload.parametric_jobs.length})`);
+            examples.push(this.payload.parametric_jobs[this.payload.parametric_jobs.length - 1]);
         }
         labels.forEach(function(label) {
             var cell = document.createElement("th");
