@@ -5,22 +5,23 @@ Tools for dealing with credential checking from X509 SSL certificates.
 These are useful when using Apache as a reverse proxy to check user
 credentials against a local DB.
 """
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from __future__ import annotations
 
-from functools import wraps
-import cherrypy
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from typing import Annotated
+
+from fastapi import Depends, Form, HTTPException, Request
+from sqlalchemy import select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+
 import productionsystem.sql as sql
-from productionsystem.sql.models import Users
+from productionsystem.sql.enums import LocalStatus
+from productionsystem.sql.models import User, Users
 
-__all__ = ('apache_client_convert', 'check_credentials', 'admin_only',
-           'dummy_credentials', 'DUMMY_USER')
+__all__ = ('get_requested_status', 'get_verified_user', 'admin_only',
+           'get_dummy_user', 'DUMMY_USER', 'VerifiedUser', 'RequestedStatus', 'AdminUser')
 
 
-def apache_client_convert(client_dn, client_ca=None):
+def _apache_client_convert(client_dn, client_ca=None):
     """
     Convert Apache style client certs.
 
@@ -42,69 +43,121 @@ def apache_client_convert(client_dn, client_ca=None):
     return client_dn, client_ca
 
 
-def admin_only(func):
-    """Enforce user must be an admin."""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if not hasattr(cherrypy.request, 'verified_user'):
-            raise cherrypy.HTTPError(500,
-                                     'User credentials must be checked before enforcing admin_only')
-        if not cherrypy.request.verified_user.admin:
-            raise cherrypy.HTTPError(403, 'Forbidden: Admin users only')
-        return func(*args, **kwargs)
-    return wrapper
+def get_requested_status(status: str = Form(...)) -> LocalStatus:
+    """
+    FastAPI dependency: parse the requested status from the form data.
+   
+    This would usually be in the form of a string like "APPROVED" or "RUNNING" so
+    convert to a LocalStatus enum member. Since LocalStatus is an IntEnum, the default FastAPI
+    conversion would only work if the client passed an integer value corresponding to the enum member
+    e.g. 1 for LocalStatus.APPROVED. This is not as user friendly as passing a string like "APPROVED" directly.
+
+    Returns:
+        LocalStatus: Status enum member named by the submitted form value.
+    """
+    try:
+        return LocalStatus[status.upper()]
+    except KeyError as err:
+        raise HTTPException(400, f"Invalid status: {status!r}") from err
 
 
-def check_credentials(func):
-    """Check users credentials."""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
-        missing_headers = required_headers.difference(cherrypy.request.headers)
-        if missing_headers:
-            raise cherrypy.HTTPError(401, 'Unauthorized: Incomplete certificate information '
-                                          'available, required: %s' % list(missing_headers))
-
-        client_dn, client_ca = apache_client_convert(cherrypy.request.headers['Ssl-Client-S-Dn'],
-                                                     cherrypy.request.headers['Ssl-Client-I-Dn'])
-        client_verified = cherrypy.request.headers['Ssl-Client-Verify']
-        if client_verified != 'SUCCESS':
-            raise cherrypy.HTTPError(401, 'Unauthorized: Cert not verified for user DN: %s, CA: %s.'
-                                     % (client_dn, client_ca))
-
-        with sql.managed_session() as session:
-            try:
-                user = session.query(sql.models.Users) \
-                    .filter_by(dn=client_dn, ca=client_ca) \
-                    .one()
-            except MultipleResultsFound:
-                raise cherrypy.HTTPError(500, 'Internal Server Error: Duplicate user detected. '
-                                              'user: (%s, %s)'
-                                         % (client_dn, client_ca))
-            except NoResultFound:
-                raise cherrypy.HTTPError(403, 'Forbidden: Unknown user. user: (%s, %s)'
-                                         % (client_dn, client_ca))
-            except Exception as err:
-                raise cherrypy.HTTPError(500,
-                                         "Internal Server Error: Unknown Exception caught %s-> %s"
-                                         % (type(err), err))
-            if user.suspended:
-                raise cherrypy.HTTPError(403, 'Forbidden: User is suspended by VO. user: (%s, %s)'
-                                         % (client_dn, client_ca))
-            session.expunge(user)
-            cherrypy.request.verified_user = user
-        return func(*args, **kwargs)
-    return wrapper
+RequestedStatus = Annotated[LocalStatus, Depends(get_requested_status)]
 
 
-DUMMY_USER = Users(id=17, dn='/test/CN=dummy user/testdn', ca='ca', email='test@email.com',
-                   suspended=False, admin=True)
+def _get_db_user(client_dn: str, client_ca: str) -> User:
+    """
+    Fetch a non-suspended user from the database by certificate DN and CA.
+
+    This function will fetch a user from the database as long as they are not suspended and return
+    a validated Pydantic model.
+
+    Args:
+        client_dn (str): The client user's DN
+        client_ca (str): The client user's CA
+
+    Raises:
+        HTTPException (500): If multiple users are found with the same DN and CA.
+        HTTPException (403): If no user is found with the specified DN and CA.
+        HTTPException (403): If the matching user is suspended.
+        HTTPException (500): For unexpected database errors.
+
+    Returns:
+        User: The matching user as a validated Pydantic model.
+    """
+    with sql.managed_session() as session:
+        try:
+            user = session.scalars(
+                select(Users)
+                .where(Users.dn == client_dn)
+                .where(Users.ca == client_ca)
+            ).one()
+        except MultipleResultsFound as err:
+            raise HTTPException(500, 'Internal Server Error: Duplicate user detected. '
+                                     f'user: ({client_dn}, {client_ca})') from err
+        except NoResultFound as err:
+            raise HTTPException(403, f'Forbidden: Unknown user. user: ({client_dn}, {client_ca})') from err
+        except Exception as err:
+            raise HTTPException(500, f"Internal Server Error: Unknown Exception caught {type(err)}-> {err}") from err
+
+        if user.suspended:
+            raise HTTPException(403, f'Forbidden: User is suspended by VO. user: ({client_dn}, {client_ca})')
+
+        return User.model_validate(user)
 
 
-def dummy_credentials(func):
-    """Assign dummy credentials for testing."""
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        cherrypy.request.verified_user = DUMMY_USER
-        return func(*args, **kwargs)
-    return wrapper
+def get_verified_user(request: Request) -> User:
+    """
+    FastAPI dependency: verify the client's certificate headers and return the DB user.
+
+    Returns:
+        User: Validated database user matching the verified client certificate.
+    """
+    required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
+    missing_headers = required_headers.difference(request.headers)
+    if missing_headers:
+        raise HTTPException(401, 'Unauthorized: Incomplete certificate information '
+                                 f'available, required: {list(missing_headers)}')
+
+    client_dn, client_ca = _apache_client_convert(request.headers['Ssl-Client-S-Dn'],
+                                                  request.headers['Ssl-Client-I-Dn'])
+    client_verified = request.headers['Ssl-Client-Verify']
+    if client_verified != 'SUCCESS':
+        raise HTTPException(401, f'Unauthorized: Cert not verified for user DN: {client_dn}, CA: {client_ca}.')
+
+    return _get_db_user(client_dn, client_ca)
+
+
+VerifiedUser = Annotated[User, Depends(get_verified_user)]
+
+
+def admin_only(user: VerifiedUser) -> User:
+    """
+    FastAPI dependency: enforce that the verified user is an admin.
+
+    Returns:
+        User: The verified admin user.
+    """
+    if not user.admin:
+        raise HTTPException(403, 'Forbidden: Admin users only')
+    return user
+
+
+AdminUser = Annotated[User, Depends(admin_only)]
+
+
+DUMMY_USER = Users(id=17,
+                   dn='/test/CN=dummy user/testdn',
+                   ca='ca',
+                   email='test@email.com',
+                   suspended=False,
+                   admin=True)
+
+
+def get_dummy_user() -> User:
+    """
+    Dependency override providing dummy credentials for testing/mock mode.
+
+    Returns:
+        User: Pydantic representation of the configured dummy user.
+    """
+    return _get_db_user(DUMMY_USER.dn, DUMMY_USER.ca)

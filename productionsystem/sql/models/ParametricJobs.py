@@ -1,108 +1,179 @@
-"""ParametricJobs Table."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin, bad-option-value # noqa: F401, F403, E501
+"""
+ParametricJobs Table.
+"""
+from __future__ import annotations
 
-import os
 import logging
-from datetime import datetime
-from collections import defaultdict, Counter
-try:
-    from collections import Iterable
-except ImportError:
-    from collections.abc import Iterable
+import os
+from collections import Counter, defaultdict
+from collections.abc import Iterable
 from copy import deepcopy
+from datetime import datetime, timezone
 from operator import attrgetter
+from typing import TYPE_CHECKING, overload
+if TYPE_CHECKING:
+    from io import TextIOWrapper
 
-from future.utils import native
-import cherrypy
-from sqlalchemy import (Column, SmallInteger, Integer, Boolean, TEXT, TIMESTAMP,
-                        ForeignKey, Enum, CheckConstraint, event, inspect)
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from sqlalchemy import (TEXT,
+                        TIMESTAMP,
+                        Boolean,
+                        CheckConstraint,
+                        Enum,
+                        ForeignKey,
+                        Integer,
+                        SmallInteger,
+                        event,
+                        inspect,
+                        select)
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from productionsystem.config import getConfig
-from productionsystem.utils import TemporyFileManagerContext, igroup, timestamp
-from productionsystem.monitoring.diracrpc.DiracRPCClient import (dirac_api_client,
-                                                                 dirac_api_job_client)
-# from lzproduction.rpc.DiracRPCClient import dirac_api_client, ParametricDiracJobClient
-from ..enums import LocalStatus, DiracStatus
-from ..registry import managed_session, SessionRegistry
-from ..SQLTableBase import SQLTableBase, SmartColumn
-from ..models import DiracJobs
+from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client,dirac_api_job_client
+from productionsystem.utils import TemporaryFileManagerContext, igroup, timestamp
+if TYPE_CHECKING:
+    from productionsystem.monitoring.diracrest.DiracRESTClient import DiracAPIJobClass
+
+from ..enums import DiracStatus, LocalStatus
+from ..registry import managed_session
+from ..SQLTableBase import SQLTableBase
+from .DiracJobs import DiracJobs
 
 
-def subdict(dct, keys, **kwargs):
-    """Create a sub dictionary."""
-    out = {k: dct[k] for k in keys if k in dct}
-    out.update(kwargs)
-    return out
+class ParametricJob(BaseModel):
+    """
+    JSON-serialisable schema for a ParametricJobs row.
+    """
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
+
+    request_id: int = Field(frozen=True)
+    id: int = Field(frozen=True)
+    requester_id: int = Field(frozen=True)
+    priority: int = Field(frozen=True)
+    site: str = Field(frozen=True)
+    status: LocalStatus = Field(frozen=True)
+    reschedule: bool = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
+    num_jobs: int = Field(frozen=True)
+    num_completed: int = Field(frozen=True)
+    num_failed: int = Field(frozen=True)
+    num_submitted: int = Field(frozen=True)
+    num_running: int = Field(frozen=True)
+    log: str = Field(frozen=True)
+
+    @field_serializer("status")
+    def _serialize_status(self, value: LocalStatus) -> str:
+        """
+        Serialize a local status enum using its display name.
+        
+        Args:
+            value: Local status enum value from the model field.
+
+        Returns:
+            str: Capitalized local status name for API responses.
+        """
+        return value.name.capitalize()
+
+    @field_serializer("timestamp")
+    def _serialize_timestamp(self, value: datetime) -> str:
+        """
+        Serialize a timestamp in the API's string representation.
+        
+        Args:
+            value: Job timestamp from the model field.
+
+        Returns:
+            str: UTC ISO-like timestamp string for API responses.
+        """
+        if value.tzinfo is None:
+            # Database returned a naive value as not all are timezone-aware; this assumes it was stored as UTC.
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+
+        return value.isoformat(" ")
+
+class ParametricJobCreate(BaseModel):
+    """
+    Input schema for creating a parametric job with a request.
+    """
+    priority: int = 3
+    site: str = "ANY"
 
 
-@cherrypy.expose
-@cherrypy.popargs('parametricjob_id')
 class ParametricJobs(SQLTableBase):
-    """Jobs SQL Table."""
-
+    """
+    Jobs SQL Table.
+    """
     __tablename__ = 'parametricjobs'
-    classtype = Column(TEXT)
+    classtype: Mapped[str] = mapped_column(TEXT)
     __mapper_args__ = {'polymorphic_on': classtype,
                        'polymorphic_identity': 'parametricjobs',
                        'with_polymorphic': '*'}
-    request_id = SmartColumn(Integer, ForeignKey('requests.id'), primary_key=True, required=True)
-    id = SmartColumn(Integer, primary_key=True, required=True)  # pylint: disable=invalid-name
-    requester_id = SmartColumn(Integer, ForeignKey('users.id'), required=True, nullable=False)
-    priority = SmartColumn(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'),
-                           nullable=False, default=3, allowed=True)
-    site = SmartColumn(TEXT, nullable=False, default='ANY', allowed=True)
-    status = Column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
-    reschedule = Column(Boolean, nullable=False, default=False)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    num_jobs = SmartColumn(Integer, nullable=False, default=0)
-    num_completed = Column(Integer, nullable=False, default=0)
-    num_failed = Column(Integer, nullable=False, default=0)
-    num_submitted = Column(Integer, nullable=False, default=0)
-    num_running = Column(Integer, nullable=False, default=0)
-    log = Column(TEXT, nullable=False, default="")
-    dirac_jobs = relationship("DiracJobs", cascade="all, delete-orphan",
-                              primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
-                                          "ParametricJobs.id==DiracJobs.parametricjob_id)")
+    request_id: Mapped[int] = mapped_column(Integer, ForeignKey('requests.id'), primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    requester_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    priority: Mapped[int] = mapped_column(SmallInteger, CheckConstraint('priority >= 0 and priority < 10'),
+                           nullable=False, default=3)
+    site: Mapped[str] = mapped_column(TEXT, nullable=False, default='ANY')
+    status: Mapped[LocalStatus] = mapped_column(Enum(LocalStatus), nullable=False, default=LocalStatus.REQUESTED)
+    reschedule: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    num_jobs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_submitted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    num_running: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    log: Mapped[str] = mapped_column(TEXT, nullable=False, default="")
+    dirac_jobs: Mapped[list[DiracJobs]] = relationship("DiracJobs", cascade="all, delete-orphan",
+                                                         primaryjoin="and_(ParametricJobs.request_id==DiracJobs.request_id, "
+                                                                     "ParametricJobs.id==DiracJobs.parametricjob_id)")
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @hybrid_property
-    def num_other(self):
-        """Return the number of jobs in states other than the known ones."""
+    def num_other(self) -> int:
+        """
+        Return the number of jobs in states other than the known ones.
+
+        Returns:
+            int: Jobs not counted as submitted, running, failed, or completed.
+        """
         return self.num_jobs - (self.num_submitted +
                                 self.num_running +
                                 self.num_failed +
                                 self.num_completed)
 
-    def __init__(self, **kwargs):
-        """Initialise."""
-        required_args = set(self.required_columns).difference(kwargs)  # pylint: disable=no-member
-        if required_args:
-            raise ValueError("Missing required keyword args: %s" % list(required_args))
-        # pylint: disable=no-member
-        super(ParametricJobs, self).__init__(**subdict(kwargs, self.allowed_columns))
-
     def update(self):
-        """Update DB with current values."""
+        """
+        Update DB with current values.
+        """
         with managed_session() as session:
             session.merge(self)
 
-    def _clientlog(self, log):
+    def _clientlog(self, log: str):
+        """
+        Append a message to the job's client-visible log.
+        
+        Args:
+            log: Message to append to the parametric job log with a timestamp.
+        """
         if self.log is None:
             self.log = ''  # defaults NULL sometimes
         self.log += "%s %s\n" % (timestamp(), log)
 
     def _remove_dirac_jobs(self):
-        """Remove dirac_jobs from the DIRAC system."""
+        """
+        Remove dirac_jobs from the DIRAC system.
+
+        Returns:
+            None. Removes associated DIRAC jobs when present and logs cleanup failures.
+        """
         if not self.dirac_jobs:
             return
 
-        dirac_ids = [job.id for job in self.dirac_jobs]
+        dirac_ids = {job.id for job in self.dirac_jobs}
         for ids in igroup(dirac_ids, 1000):
             try:
                 with dirac_api_client() as dirac:
@@ -115,20 +186,38 @@ class ParametricJobs(SQLTableBase):
                                       "on DIRAC system", len(ids))
 
 #    @abstractmethod
-    def _setup_dirac_job(self, DiracJob, tmp_runscript, tmp_filemanager):
-        """Define the DIRAC parametric job."""
+    def _setup_dirac_job(self,
+                         DiracJobClass: DiracAPIJobClass,
+                         tmp_runscript: TextIOWrapper,
+                         tmp_filemanager: TemporaryFileManagerContext):
+        """
+        Define the DIRAC parametric job.
+
+        Args:
+            DiracJobClass: Recorder class used to build DIRAC job definitions.
+            tmp_runscript: Writable temporary shell script included in the DIRAC job sandbox.
+            tmp_filemanager: Context manager for additional temporary job files.
+
+        Returns:
+            list[DiracAPIJob]: Recorded DIRAC job definitions to submit.
+        """
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
-        job = DiracJob()
+        job = DiracJobClass()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
         return [job]
 
     def submit(self):
-        """Submit parametric job."""
-        with dirac_api_job_client() as (dirac, dirac_job_class), \
-                TemporyFileManagerContext() as tmp_filemanager, \
-                open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript:
+        """
+        Submit parametric job.
+
+        Returns:
+            None. Submits DIRAC jobs, records created IDs, and updates counters/status on failure.
+        """
+        with (dirac_api_job_client() as (dirac, dirac_job_class),
+              TemporaryFileManagerContext() as tmp_filemanager,
+              open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript):
             os.chmod(tmp_runscript.name, 0o755)
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
@@ -200,6 +289,9 @@ class ParametricJobs(SQLTableBase):
 
         This method updates all DIRAC jobs which belong to the given
         parametricjob.
+
+        Returns:
+            None. Refreshes DIRAC job statuses, reschedules jobs when needed, and updates counters.
         """
         # Group jobs by status
 
@@ -226,24 +318,24 @@ class ParametricJobs(SQLTableBase):
             return
 
         num_reschedules = getConfig("parametricjobs").get("reschedules", 2)
-        job_types = defaultdict(set)
+        job_types: defaultdict[DiracStatus, set[int]] = defaultdict(set)
         for job in self.dirac_jobs:
             job_types[job.status].add(job.id)
             # add auto-reschedule jobs
-            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and\
-                    job.reschedules < num_reschedules:
-                job_types['Reschedule'].add(job.id)
+            if job.status in (DiracStatus.FAILED, DiracStatus.STALLED) and job.reschedules < num_reschedules:
+                # Note: RESCHEDULED status is used for counting only and is never applied to the actual job status
+                job_types[DiracStatus.RESCHEDULED].add(job.id)
 
-        reschedule_jobs = job_types['Reschedule'] if job_types[DiracStatus.DONE] else set()
-        monitor_jobs = job_types[DiracStatus.RUNNING] | \
-            job_types[DiracStatus.RECEIVED] | \
-            job_types[DiracStatus.QUEUED] | \
-            job_types[DiracStatus.WAITING] | \
-            job_types[DiracStatus.CHECKING] | \
-            job_types[DiracStatus.MATCHED] | \
-            job_types[DiracStatus.UNKNOWN] | \
-            job_types[DiracStatus.COMPLETED] | \
-            job_types[DiracStatus.COMPLETING]
+        reschedule_jobs: set[int] = job_types[DiracStatus.RESCHEDULED] if job_types[DiracStatus.DONE] else set()
+        monitor_jobs: set[int] = (job_types[DiracStatus.RUNNING]
+                                  | job_types[DiracStatus.RECEIVED]
+                                  | job_types[DiracStatus.QUEUED]
+                                  | job_types[DiracStatus.WAITING]
+                                  | job_types[DiracStatus.CHECKING]
+                                  | job_types[DiracStatus.MATCHED]
+                                  | job_types[DiracStatus.UNKNOWN]
+                                  | job_types[DiracStatus.COMPLETED]
+                                  | job_types[DiracStatus.COMPLETING])
 
         if self.reschedule:  # Manually triggered reschedule of all failed/stalled from Web app
             reschedule_jobs = job_types[DiracStatus.FAILED] | job_types[DiracStatus.STALLED]
@@ -300,7 +392,7 @@ class ParametricJobs(SQLTableBase):
                                             list(skipped_jobs))
 
         statuses = Counter()
-        for job in self.dirac_jobs:
+        for job in self.dirac_jobs:  # pyright: ignore[reportGeneralTypeIssues]
             if job.id in rescheduled_jobs:
                 job.reschedules += 1
             if job.id in monitored_jobs:
@@ -331,64 +423,132 @@ class ParametricJobs(SQLTableBase):
         self.num_running = statuses[LocalStatus.RUNNING]
         self.reschedule = False
 
+    @overload
     @classmethod
-    def get(cls, request_id=None, parametricjob_id=None, user_id=None):
-        """Get parametric jobs."""
+    def get(cls) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, parametricjob_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, user_id: None) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int) -> ParametricJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> ParametricJobs: ...
+
+    @overload
+    @classmethod
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id: None) -> ParametricJobs: ...
+
+    @classmethod
+    def get(cls,
+            *,
+            request_id: int | None = None,
+            parametricjob_id: int | None = None,
+            user_id: int | None = None) -> ParametricJobs | list[ParametricJobs]:
+        """
+        Get parametricjobs from the database.
+
+        Gets all parametricjobs in database or explicitly those with a given request_id, parametricjob_id  or user_id.
+
+        Args:
+            request_id (int | None): request id to extract. Defaults to None.
+            parametricjob_id (int | None): parametricjob id to extract. Defaults to None.
+            user_id (int | None): user id to extract. Defaults to None.
+
+        Raises:
+            TypeError: If request_id, parametricjob_id, or user_id is not an int (or convertable to int).
+            NoResultFound: If no parametricjob matches the given criteria when a request_id and parametricjob_id
+                           is provided.
+            MultipleResultsFound: If multiple parametricjobs match the given criteria when a request_id and
+                                  parametricjob_id is provided.
+
+        Returns:
+            ParametricJobs | list[ParametricJobs]: The parametricjob/parametricjobs pulled from the database
+        """
         if request_id is not None:
             try:
-                request_id = native(int(request_id))
-            except ValueError:
-                cls.logger.error("Request id: %r should be of type int "
-                                 "(or convertable to int)", request_id)
-                raise
+                request_id = int(request_id)
+            except ValueError as err:
+                cls.logger.error("Request id: %r should be of type int (or convertable to int)", request_id)
+                raise TypeError(f"Request id: {request_id!r} should be of type int (or convertable to int)") from err
 
         if parametricjob_id is not None:
             try:
-                parametricjob_id = native(int(parametricjob_id))
-            except ValueError:
-                cls.logger.error("Parametric job id: %r should be of type int "
-                                 "(or convertable to int)", parametricjob_id)
-                raise
+                parametricjob_id = int(parametricjob_id)
+            except ValueError as err:
+                cls.logger.error("Parametric job id: %r should be of type int (or convertable to int)",
+                                 parametricjob_id)
+                raise TypeError(f"Parametric job id: {parametricjob_id!r} should be of type int "
+                                "(or convertable to int)") from err
 
         if user_id is not None:
             try:
-                user_id = native(int(user_id))
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
+                user_id = int(user_id)
+            except ValueError as err:
+                cls.logger.error("User id: %r should be of type int (or convertable to int)", user_id)
+                raise TypeError(f"User id: {user_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
-            query = session.query(cls)
+            stmt = select(cls)
             if request_id is not None:
-                query = query.filter_by(request_id=request_id)
+                stmt = stmt.where(cls.request_id == request_id)
             if parametricjob_id is not None:
-                query = query.filter_by(id=parametricjob_id)
+                stmt = stmt.where(cls.id == parametricjob_id)
             if user_id is not None:
-                query = query.filter_by(requester_id=user_id)
+                stmt = stmt.where(cls.requester_id == user_id)
 
+            # TODO: Check this is correct, maybe should be just parametricjob_id...checked and it's correct
             if request_id is None or parametricjob_id is None:
-                parametricjobs = query.all()
-                session.expunge_all()
+                parametricjobs = session.scalars(stmt).all()
                 parametricjobs.sort(key=attrgetter("id"))
                 return parametricjobs
 
             try:
-                parametricjob = query.one()
+                parametricjob = session.scalars(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for parametric job id: %d", parametricjob_id)
                 raise
             except MultipleResultsFound:
-                cls.logger.error("Multiple results found for parametric job id: %d",
-                                 parametricjob_id)
+                cls.logger.error("Multiple results found for parametric job id: %d", parametricjob_id)
                 raise
-            session.expunge(parametricjob)
             return parametricjob
 
 
 @event.listens_for(ParametricJobs.status, "set", propagate=True)
 def intercept_status_set(target, newvalue, oldvalue, _):
-    """Intercept status transitions."""
+    """
+    Intercept status transitions.
+
+    Args:
+        target: Parametric job whose status is being changed.
+        newvalue: New local status assigned to the parametric job.
+        oldvalue: Previous local status before the assignment.
+        _: SQLAlchemy event initiator, unused.
+    """
     # will catch updates in detached state and again when we merge it into session
     if not inspect(target).detached and oldvalue != newvalue:
         target._clientlog("Parametric job %d.%d transitioned from status %s to %s"
@@ -397,9 +557,15 @@ def intercept_status_set(target, newvalue, oldvalue, _):
                            target.request_id, target.id, oldvalue.name, newvalue.name)
 
 
-@event.listens_for(SessionRegistry, "persistent_to_deleted")
+@event.listens_for(Session, "persistent_to_deleted")
 def intercept_persistent_to_deleted(session, object_):
-    """Intercept deletion of object and remove DIRAC jobs."""
+    """
+    Intercept deletion of object and remove DIRAC jobs.
+
+    Args:
+        session: SQLAlchemy session emitting the deletion transition.
+        object_: Persistent ORM object being deleted.
+    """
     if isinstance(object_, DiracJobs):
         DiracJobs.logger.debug("Local DB Dirac job %d from parametric job %d.%d is being removed.",
                                object_.id, object_.request_id, object_.parametricjob_id)

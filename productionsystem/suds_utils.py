@@ -4,26 +4,26 @@ Suds utility module.
 A couple of utility classes for working with certificate
 authentication in suds.
 """
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+from __future__ import annotations
 
-import requests
+import io
 
+import httpx
 from suds.client import Client
 from suds.transport import Reply
 from suds.transport.https import HttpAuthenticated
 
 
 class HttpCertAuthenticated(HttpAuthenticated):
-    """Certificate authenticated http transport."""
-
+    """
+    Certificate authenticated http transport.
+    """
     def __init__(self, cert, verify=True, **kwargs):
         """
         Initialise.
 
         Args:
+            **kwargs: Additional options forwarded to ``HttpAuthenticated``.
             cert (tuple): Tuple containing the path to the cert file followed
                           by the path to the key file as strings.
             verify (bool/str): Whether to verify the handled request url. If a
@@ -33,37 +33,50 @@ class HttpCertAuthenticated(HttpAuthenticated):
                                directory, the directory must have been processed
                                using the c_rehash utility supplied with OpenSSL.
                                This list of trusted CAs can also be specified through
-                               the REQUESTS_CA_BUNDLE environment variable (this may
+                               the SSL_CERT_FILE environment variable (this may
                                cause pip to fail to validate against PyPI).
 
         """
         HttpAuthenticated.__init__(self, **kwargs)
-        self._session = requests.Session()
-        self._session.cert = cert
-        self._session.verify = verify
+        self._client = httpx.Client(cert=cert, verify=verify)
 
     def open(self, request):
         """
         Open the url.
 
         Open the url in the specified request.
+
+        Args:
+            request: Suds request object containing the URL to fetch.
+
+        Returns:
+            io.BytesIO: Buffered response body for suds to read.
         """
-        # raw method of the response object returns a file-like object.
-        return self._session.get(request.url,
-                                 stream=True).raw
+        # Suds expects a file-like object supporting .read(); httpx doesn't expose
+        # a raw urllib3-style stream so the body is buffered into a BytesIO instead.
+        response = self._client.get(request.url)
+        return io.BytesIO(response.content)
 
     def send(self, request):
-        """Send the request."""
-        response = self._session.post(request.url,
-                                      data=request.message,
-                                      headers=request.headers,
-                                      stream=True)
+        """
+        Send the request.
+
+        Args:
+            request: Suds request object containing URL, SOAP body, and headers.
+
+        Returns:
+            Reply: Suds transport reply built from the HTTP response.
+        """
+        response = self._client.post(request.url,
+                                     content=request.message,
+                                     headers=request.headers)
         return Reply(response.status_code, response.headers, response.content)
 
 
 class CertClient(Client):
-    """Certificate authenticated suds client."""
-
+    """
+    Certificate authenticated suds client.
+    """
     def __init__(self, url, cert, verify=True, **kwargs):
         """
         Initialise.
@@ -73,6 +86,7 @@ class CertClient(Client):
         alternative transport in keyword args.
 
         Args:
+            **kwargs: Additional suds client options, including an optional transport override.
             url (str): The url to connect to.
             cert (tuple): Tuple containing the path to the cert file followed
                           by the path to the key file as strings.

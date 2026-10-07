@@ -1,12 +1,16 @@
-"""Client side Python wrapped REST API."""
+"""
+Client side Python wrapped REST API.
+"""
 import logging
 import urllib.parse as up
-import requests
+
+import httpx
 
 
 class JSI:
-    """Object providing Pythonic access to the HTTP RESTful API used by the backend server."""
-
+    """
+    Object providing Pythonic access to the HTTP RESTful API used by the backend server.
+    """
     __slots__ = ("_url", "_cert", "_verify", "_logger")
 
     def __init__(self, url, cert=None, verify=False):
@@ -59,27 +63,27 @@ class JSI:
             list: List of requests (represented as dictionaries).
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
         """
         if not isinstance(request_id, (int, type(None))):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests"
         if request_id is None:
             url = up.urlunsplit(self._url._replace(path=path))
-            ret = requests.get(url, verify=self._verify, cert=self._cert)
+            ret = httpx.get(url, verify=self._verify, cert=self._cert)
             ret.raise_for_status()
             return ret.json()
 
         path += "/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.get(url, verify=self._verify, cert=self._cert)
+        ret = httpx.get(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         request = ret.json()
 
         path += "/parametricjobs"
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.get(url, verify=self._verify, cert=self._cert)
+        ret = httpx.get(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return [dict(request, parametricjobs=ret.json())]
 
@@ -98,33 +102,48 @@ class JSI:
                             inlcuding all necessary parameters.
                             e.g. {
                                   "description": "Hello world",
-                                  "parametricjobs": [
+                                  "parametric_jobs": [
                                                      {"site": "ANY", "priority": 3},
                                                      {"site": "ANY", "priority": 2}
                                                     ]
                                  }
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the create-request endpoint.
         """
         if not isinstance(request, dict):
             raise TypeError("request parameter should be of type dict, received %r" % request)
         url = up.urlunsplit(self._url._replace(path="api/requests"))
-        ret = requests.post(url, json={"request": request},
-                            verify=self._verify, cert=self._cert)
+        ret = httpx.post(url, json={"request": request}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
     def modify_request_status(self, request_id, status):
+        """
+        Change the status of an existing JSI request.
+
+        Args:
+            request_id (int): Identifier of the request to update.
+            status (str): New request status.
+
+        Returns:
+            httpx.Response: The response returned by the JSI service.
+
+        Raises:
+            TypeError: If ``request_id`` or ``status`` has an invalid type.
+            httpx.HTTPStatusError: If the service rejects the update.
+        """
         if not isinstance(status, str):
             raise TypeError("status parameter should be of type str, received %r" % status)
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": status.capitalize()},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": status.capitalize()}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret        
 
@@ -142,15 +161,17 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the approve-request update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Approved"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Approved"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -167,15 +188,17 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the checked-status update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Checked"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Checked"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -192,20 +215,23 @@ class JSI:
             request_id (int): The numerical id of the request to approve.
 
         Raises:
-            requests.exceptions.HTTPError: Problem with the request
-            requests.exceptions.SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the closed-status update.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.put(url, data={"status": "Closed"},
-                           verify=self._verify, cert=self._cert)
+        ret = httpx.put(url, data={"status": "Closed"}, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
     def delete_request(self, request_id):
-        """Delete JSI request.
+        """
+        Delete JSI request.
 
         Schedules a requests for removal by placing it in the "Removing" state
         such that it gets picked up and deleted by the backend monitoring. The
@@ -221,12 +247,15 @@ class JSI:
         Raises:
             HTTPError: Problem with the request
             SSLError: Problem with the SSL
+
+        Returns:
+            httpx.Response: Response from the delete-request endpoint.
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = requests.delete(url, verify=self._verify, cert=self._cert)
+        ret = httpx.delete(url, verify=self._verify, cert=self._cert)
         ret.raise_for_status()
         return ret
 
@@ -236,12 +265,13 @@ if __name__ == "__main__":
     # print(jsi.get_requests())
     # print(jsi.get_requests(1))
     # jsi.create_request({"description": "Hello world",
-    #                     "parametricjobs": [{"site": "ANY", "priority": 3},
+    #                     "parametric_jobs": [{"site": "ANY", "priority": 3},
     #                                        {"site": "LCG.UKI-LT2-IC-HEP.uk", "priority": 2}]})
     # jsi.approve_request(4)
     # jsi.delete_request(3)
 
-    jsi = JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443", verify=False,
+    jsi = JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443",
+              verify=False,
               cert=(r"C:\Users\infer\.globus\usercert.pem", r"C:\Users\infer\.globus\userkey-unenc.pem"))
     print(jsi.get_requests())
     # print(jsi.get_requests(777))

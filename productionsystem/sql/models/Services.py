@@ -1,139 +1,159 @@
-"""Services Table."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Services Table.
+"""
+from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime
-from future.utils import native, native_str
-import cherrypy
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Enum
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from ..registry import managed_session
+from datetime import datetime, timezone
+from typing import overload
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from sqlalchemy import TIMESTAMP, Enum, Integer, String, select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm import Mapped, mapped_column
+
 from ..enums import ServiceStatus
+from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 
 
-@cherrypy.expose
-@cherrypy.popargs('service_id')
-class Services(SQLTableBase):
-    """Services SQL Table."""
+class Service(BaseModel):
+    """
+    JSON-serialisable schema for a Services row.
+    """
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
+    id: int = Field(frozen=True)
+    name: str = Field(frozen=True)
+    status: ServiceStatus = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
+
+    @field_serializer("status")
+    def _serialize_status(self, value: ServiceStatus) -> str:
+        """
+        Serialize a service status enum using its display name.
+        
+        Args:
+            value: Service status enum value from the model field.
+
+        Returns:
+            str: Capitalized service status name for API responses.
+        """
+        return value.name.capitalize()
+
+    @field_serializer("timestamp")
+    def _serialize_timestamp(self, value: datetime) -> str:
+        """
+        Serialize a service timestamp in the API's string representation.
+        
+        Args:
+            value: Service timestamp from the model field.
+
+        Returns:
+            str: ISO-like timestamp string for API responses.
+        """
+        return value.isoformat(' ')
+
+
+class Services(SQLTableBase):
+    """
+    Services SQL Table.
+    """
     __tablename__ = 'services'
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    name = Column(String(30), nullable=False, unique=True)
-    status = Column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
-    timestamp = Column(TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    name: Mapped[str] = mapped_column(String(30), nullable=False, unique=True)
+    status: Mapped[ServiceStatus] = mapped_column(Enum(ServiceStatus), nullable=False, default=ServiceStatus.UNKNOWN)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     def add(self):
-        """Add self to the DB."""
+        """
+        Add self to the DB.
+        """
         with managed_session() as session:
             session.add(self)
             session.flush()
             session.refresh(self)
-            session.expunge(self)
 
     def update(self):
-        """Update the DB with current values."""
+        """
+        Update the DB with current values.
+        """
         with managed_session() as session:
             # Onupdate doesn't trigger if setting status field to same as current value as it's
             # no-op in some DBs.
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
             session.merge(self)
 
+
+    @overload
     @classmethod
-    def get_services(cls, service_id=None, service_name=None):
+    def get_services(cls) -> list[Services]: ...
+
+    @overload
+    @classmethod
+    def get_services(cls, *, service_id: int) -> Services: ...
+
+    @overload
+    @classmethod
+    def get_services(cls, *, service_name: str) -> Services: ...
+
+    @classmethod
+    def get_services(cls,
+                     *,
+                     service_id: int | None = None,
+                     service_name: str | None = None) -> Services | list[Services]:
         """
-        Get service from database.
+        Get services from database.
 
         Gets all services in database or explicitly those with a given service_name or service_id.
 
         Args:
-            service_id (int): Service id to extract
-            service_name (string): Service name to extract
+            service_id (int | None): Service id to extract. Defaults to None.
+            service_name (string | None): Service name to extract. Defaults to None.
+
+        Raises:
+            TypeError: If service_id is not an int (or convertable to int) or service_name is not a str.
+            NoResultFound: If no service matches the given criteria when a single service_id or service_name
+                           is provided.
+            MultipleResultsFound: If multiple services match the given criteria when a single service_id or
+                                  service_name is provided.
 
         Returns:
-            list/Services: The services/service pulled from the database
+            Services | list[Services]: The service/services pulled from the database
 
         """
-        if service_name is not None:
-            if not isinstance(service_name, (str, native_str)):
-                cls.logger.error("Service name: %r should be of type str", service_name)
-                raise TypeError
+        if service_name is not None and not isinstance(service_name, str):
+            cls.logger.error("Service name: %r should be of type str", service_name)
+            raise TypeError
 
         if service_id is not None:
             try:
-                service_id = native(int(service_id))
-            except ValueError:
-                cls.logger.error("Service id: %r should be of type int "
-                                 "(or convertable to int)", service_id)
-                raise
+                service_id = int(service_id)
+            except ValueError as err:
+                cls.logger.error("Service id: %r should be of type int (or convertable to int)", service_id)
+                raise TypeError(f"Service id: {service_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
-            query = session.query(cls)
             query_id = []
+            stmt = select(cls)
             if service_id is not None:
-                query = query.filter_by(id=service_id)
+                stmt = stmt.where(cls.id == service_id)
                 query_id.append(str(service_id))
             if service_name is not None:
-                query = query.filter_by(name=service_name)
+                stmt = stmt.where(cls.name == service_name)
                 query_id.append(service_name)
 
             if service_id is None and service_name is None:
-                services = query.all()
-                session.expunge_all()
+                services = session.scalars(stmt).all()
                 return services
 
             try:
-                service = query.one()
+                service = session.scalars(stmt).one()
             except NoResultFound:
                 cls.logger.warning("No result found for service: (%s)", ', '.join(query_id))
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for service: (%s)", ', '.join(query_id))
                 raise
-            session.expunge(service)
             return service
-
-
-'''
-    @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
-    def GET(cls, service_id=None):  # pylint: disable=invalid-name
-        """REST Get method."""
-        cls.logger.debug("In GET: service_id = %r", service_id)
-        requester = cherrypy.request.verified_user
-        with managed_session() as session:
-            query = session.query(cls)
-            if service_id is None:
-                services = query.all()
-                session.expunge_all()
-                return services
-
-            try:
-                service_id = int(service_id)
-            except ValueError:
-                query = query.filter_by(name=service_id)
-            else:
-                query = query.filter_by(id=service_id)
-
-            try:
-                service = query.one()
-            except NoResultFound:
-                message = 'No matching service found.'
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = 'Multiple matching services found.'
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            session.expunge(service)
-            return service
-'''

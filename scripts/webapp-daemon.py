@@ -1,80 +1,57 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Script to start the Production web server."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
-from future.utils import viewitems
+"""
+Script to start the Production web server.
+"""
+from __future__ import annotations
 
 import os
-import sys
-import argparse
-import importlib
-import logging
-from logging.handlers import TimedRotatingFileHandler
-from itertools import chain
-from pprint import pformat
-import mock
-import pkg_resources
-import psutil
 
-from productionsystem.utils import expand_path
+import typer
 
+from productionsystem.cli import prepare_options, setup_logging, stop_daemon
+from productionsystem.config import ConfigSystem
 
-def stop(args):
-    """Stop the webapp."""
-    pidfile = args.pid_file
-    if not os.path.exists(pidfile):
-        logger.error("Pid file '%s' doesn't exist", pidfile)
-        return
-
-    try:
-        with open(pidfile, 'r') as file_:
-            pid = int(file_.read())
-    except IOError as err:
-        logger.error("Failed to open pid file: %s", err.message)
-        return
-    except ValueError as err:
-        logger.error("Bad pid value in pidfile '%s': %s", pidfile, err.message)
-        return
-
-    if not psutil.pid_exists(pid):
-        logger.warning("No process with pid: %d running", pid)
-        return
-
-    logger.info("Sending daemon SIGTERM...")
-    daemon = psutil.Process(pid)
-    daemon.terminate()
-    try:
-        daemon.wait(timeout=1)
-    except psutil.TimeoutExpired:
-        logger.warning("Daemon not responding, sending SIGKILL...")
-        daemon.kill()
-        try:
-            daemon.wait(timeout=0)
-        except psutil.TimeoutExpired:
-            logger.warning("SIGKILL failed to remove the process!")
-
-    logging.shutdown()
+app = typer.Typer(help="Run the Production web server.", no_args_is_help=True)
+APP_NAME = "webapp-daemon"
+DEFAULT_CONFIG = "~/.config/productionsystem/productionsystem.conf"
+DEFAULT_PID_FILE = os.path.join(os.getcwd(), APP_NAME + ".pid")
+DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "log")
 
 
-def start(args):
-    """Start the webapp."""
+def stop(args, *, logger):
+    """
+    Stop the webapp.
+
+    Args:
+        args: Prepared CLI options containing PID file and web server settings.
+        logger: Logger used for daemon lifecycle messages.
+    """
+    stop_daemon(args.pid_file, logger)
+
+
+def start(args, *, logger):
+    """
+    Start the webapp.
+
+    Args:
+        args: Prepared CLI options used to configure and start the web app.
+        logger: Logger passed to the web app daemon.
+    """
     # Force clean local DB for mock-mode
     ###########################################################################
     if args.mock_mode:
-        dbpath = os.path.join(current_dir, 'requests.db')
+        dbpath = os.path.join(os.getcwd(), 'requests.db')
         args.dburl = "sqlite:///" + dbpath
         if os.path.exists(dbpath):
             os.remove(dbpath)
-        apache_utils = importlib.import_module('productionsystem.apache_utils')
-        mock.patch.object(apache_utils, "check_credentials",
-                          wraps=apache_utils.dummy_credentials).start()
+
+    entry_point_map = ConfigSystem.get_instance().entry_point_map
 
     # Load WebApp class.
     ###########################################################################
-    WebApp = config_instance.entry_point_map['webapp']['daemon'].load()
+    WebApp = entry_point_map['webapp']['daemon'].load()
+#    WebApp = config_instance.entry_point_map['webapp']['daemon'].load()
 #    WebApp = pkg_resources.load_entry_point(config.getConfig('Plugins').get('webapp',
 #                                                                            'productionsystem'),
 #                                            'daemons',
@@ -82,7 +59,7 @@ def start(args):
 
     # Get extra jinja2 loader if present
     ###########################################################################
-    extra_jinja2_loader = config_instance.entry_point_map['webapp'].get('jinja2_loader')
+    extra_jinja2_loader = entry_point_map['webapp'].get('jinja2_loader')
     if extra_jinja2_loader is not None:
         extra_jinja2_loader = extra_jinja2_loader.load()
 
@@ -100,142 +77,95 @@ def start(args):
            app=args.app_name,
            pid=args.pid_file,
            logger=logger,
-           keep_fds=[fhandler.stream.fileno()],
+           keep_fds=[handler.stream.fileno() for handler in logger.handlers],
            foreground=args.debug_mode).start()
 
 
+def _run(ctx, values, action):
+    """
+    Run a web application daemon lifecycle action with parsed CLI values.
+    
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        values: Parsed command option values.
+        action: Lifecycle function to execute after setup.
+    """
+    values.pop("ctx", None)
+    args, cli_values, config_instance, config_path = prepare_options(
+        ctx, "webapp", values, APP_NAME)
+    logger = setup_logging(
+        args, cli_values, config_instance, config_path, daemon=True)
+    from pprint import pformat
+    logger.debug("Prepared options: %s", pformat(locals()))
+    logger.info("Starting action: %s with args: %s", action.__name__, args)
+    action(args, logger=logger)
+
+
+@app.command("start")
+def start_command(
+        ctx: typer.Context,
+        verbose: int = typer.Option(0, "-v", "--verbose", count=True),
+        log_dir: str = typer.Option(DEFAULT_LOG_DIR, "-l", "--log-dir"),
+        dburl: str = typer.Option(
+            "sqlite:///" + os.path.join(os.getcwd(), "requests.db"), "-d", "--dburl"),
+        socket_host: str = typer.Option("0.0.0.0", help="Host address to listen on."),
+        socket_port: int = typer.Option(8080, help="Port to listen on."),
+        thread_pool: int = typer.Option(8, help="Number of server threads."),
+        git_schema: str = typer.Option("GITHUB", help="Git service schema."),
+        git_api_base_url: str = typer.Option(
+            "https://api.github.com/repos", help="Git API base URL."),
+        git_token: str = typer.Option("", help="Git API access token."),
+        pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
+        config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
+        debug_mode: bool = typer.Option(False, help="Run in the foreground."),
+        mock_mode: bool = typer.Option(False, help="Run with mock credentials and data."),
+        extension: str | None = typer.Option(None, help="Activate an installed extension."),
+):
+    """
+    Start the web server.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        log_dir: Directory for daemon log files.
+        dburl: SQLAlchemy database URL used by the web app.
+        socket_host: Host interface for the Uvicorn server.
+        socket_port: TCP port for the Uvicorn server.
+        thread_pool: Maximum concurrent Uvicorn connections.
+        git_schema: Git provider schema name.
+        git_api_base_url: Base URL or local root used by git listing services.
+        git_token: Access token used by GitHub/GitLab listing services.
+        pid_file: Path to the daemon PID file.
+        config: Path to the ProductionSystem configuration file.
+        debug_mode: If True, run in the foreground.
+        mock_mode: If True, reset and seed a local mock database.
+        extension: Optional installed extension name to activate.
+    """
+    _run(ctx, locals(), start)
+
+
+@app.command("stop")
+def stop_command(
+        ctx: typer.Context,
+        verbose: int = typer.Option(0, "-v", "--verbose", count=True),
+        pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
+        config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
+):
+    """
+    Stop the web server.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        pid_file: Path to the daemon PID file.
+        config: Path to the ProductionSystem configuration file.
+    """
+    _run(ctx, locals() | {
+        "debug_mode": True,
+        "mock_mode": False,
+        "log_dir": "",
+    }, stop)
+
+
 if __name__ == '__main__':
-    current_dir = os.getcwd()
-    app_name = os.path.splitext(os.path.basename(__file__))[0]
-
-    parser = argparse.ArgumentParser(description='Run the Production web server.')
-    subparser = parser.add_subparsers(title='subcommands', dest="subcommand",
-                                      help='use subcommand -h for additional help.')
-    start_parser = subparser.add_parser('start', help='start the webserver')
-    stop_parser = subparser.add_parser('stop', help='stop the webserver')
-    parser.set_defaults(app_name=app_name)
-    start_parser.set_defaults(func=start, extension=None)
-    stop_parser.set_defaults(func=stop, debug_mode=True, mock_mode=False, extension=None)
-
-    start_parser.add_argument('-v', '--verbose', action='count',
-                              help="Increase the logged verbosity, can be used twice")
-    stop_parser.add_argument('-v', '--verbose', action='count',
-                             help="Increase the logged verbosity, can be used twice")
-    start_parser.add_argument('-l', '--log-dir', default=os.path.join(current_dir, 'log'),
-                              help="Path to the log directory. Will be created if doesn't exist "
-                              "[default: %(default)s]")
-    start_parser.add_argument('-d', '--dburl',
-                              default="sqlite:///" + os.path.join(current_dir, 'requests.db'),
-                              help="URL for the requests DB. Note can use the prefix "
-                                   "'mysql+pymysql://' if you have a problem with MySQLdb.py "
-                                   "[default: %(default)s]")
-    start_parser.add_argument('--socket-host', default='0.0.0.0',
-                              help="The host address to listen on (0.0.0.0 means all available "
-                              "interfaces) [default: %(default)s]")
-    start_parser.add_argument('--socket-port', default=8080, type=int,
-                              help="The host port to listen on [default: %(default)s]")
-    start_parser.add_argument('--thread-pool', default=8, type=int,
-                              help="The number of threads in the pool [default: %(default)s]")
-    start_parser.add_argument('--git-schema', default='GITHUB',
-                              help="The git schema to use [default: %(default)s]")
-    start_parser.add_argument('--git-api-base-url', default='https://api.github.com/repos',
-                              help="The git API base url [default: %(default)s]")
-    start_parser.add_argument('--git-token', default='',
-                              help="The git API access token [default: %(default)s]")
-    start_parser.add_argument('-p', '--pid-file',
-                              default=os.path.join(current_dir, '%s.pid' % app_name),
-                              help="The pid file used by the daemon [default: %(default)s]")
-    start_parser.add_argument('-c', '--config',
-                              default='~/.config/productionsystem/productionsystem.conf',
-                              help="The config file [default: %(default)s]")
-    stop_parser.add_argument('-c', '--config',
-                             default='~/.config/productionsystem/productionsystem.conf',
-                             help="The config file [default: %(default)s]")
-    start_parser.add_argument('--debug-mode', action='store_true', default=False,
-                              help="Run the daemon in a debug interactive monitoring mode. "
-                              "(debugging only)")
-    start_parser.add_argument('--mock-mode', action='store_true', default=False,
-                              help="Run the daemon with dummy user credentials installed and "
-                                   "spoof these credentials when connecting. Also blanks and sets "
-                                   "up a fresh local DB with one test job each time daemon starts. "
-                              "(debugging only)")
-    stop_parser.add_argument('-p', '--pid-file',
-                             default=os.path.join(current_dir, '%s.pid' % app_name),
-                             help="The pid file used by the daemon [default: %(default)s]")
-    projects = set(entry_point.dist.project_name for entry_point in
-                   chain(pkg_resources.iter_entry_points('dbmodels'),
-                         pkg_resources.iter_entry_points('monitoring'),
-                         pkg_resources.iter_entry_points('webapp'),
-                         pkg_resources.iter_entry_points('webapp.services')))
-    projects -= {'productionsystem'}
-    if projects:
-        extensions = start_parser.add_argument_group("Extensions")
-        extensions.add_argument('--extension', choices=projects,
-                                help="Activate the chosen extension")
-    args = parser.parse_args()
-    cli_args = vars(args).copy()
-
-    # Config Setup
-    ###########################################################################
-    config_path = expand_path(args.config)
-    if not os.path.exists(config_path):
-        config_path = None
-    config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(config_path)
-    if config_path is not None:
-        arg_dict = vars(args)
-        # Lay the config params on top of default parser ones
-        arg_dict.update(config_instance.get_section("webapp"))
-        # Now parse again with the current namespace to lay non-default parsed params on top
-        args = subparser.choices[arg_dict['subcommand']] \
-                        .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
-
-    # Logging setup
-    ###########################################################################
-    # setup the handler
-    fhandler = logging.StreamHandler()
-    if not args.debug_mode:
-        # check and create logging dir
-        log_dir = expand_path(args.log_dir)
-        if not os.path.isdir(log_dir):
-            if os.path.exists(log_dir):
-                raise ValueError("%s path already exists and isnt a directory so cant make log dir"
-                                 % log_dir)
-            os.makedirs(log_dir)
-
-        # use a filehandler
-        fhandler = TimedRotatingFileHandler(os.path.join(log_dir, '%s.log' % app_name),
-                                            when='midnight', backupCount=5)
-    fhandler.setFormatter(logging.Formatter("[%(asctime)s] %(name)15s : "
-                                            "%(levelname)8s : "
-                                            "%(message)s"))
-
-    # setup the root logger
-    root_logger = logging.getLogger()
-    root_logger.addHandler(fhandler)
-    root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
-
-    # setup the main app logger
-    logger = logging.getLogger(app_name)
-    logger.debug("Script called with args:\n%s", pformat(cli_args))
-    if config_path is None:
-        logger.warning("Config file '%s' does not exist", cli_args['config'])
-    logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
-    logger.debug("Runtime args:\n%s", pformat(vars(args)))
-
-    # Entry Point Setup
-    ###########################################################################
-    entry_point_map = pkg_resources.get_entry_map('productionsystem')
-    if args.extension is not None:
-        if args.extension not in projects:
-            logger.critical("Extension '%s' enabled in config file is not valid, "
-                            "expected one of: %s", args.extension, list(projects))
-            sys.exit(1)
-        for group, map in viewitems(entry_point_map):
-            map.update(pkg_resources.get_entry_map(args.extension, group))
-    config_instance.entry_point_map = entry_point_map
-    logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))
-
-    # Enact the subcommand
-    ###########################################################################
-    args.func(args)
+    app()

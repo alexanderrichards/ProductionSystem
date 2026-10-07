@@ -1,38 +1,56 @@
-"""Monitoring Daemon."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Monitoring Daemon.
+"""
+from __future__ import annotations
 
-import logging
 import time
-from datetime import datetime
 
-import requests
+import httpx
 from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.sql.registry import SessionRegistry, managed_session
-from productionsystem.sql.models import Requests, Services
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+
+from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client
 from productionsystem.sql.enums import LocalStatus, ServiceStatus
+from productionsystem.sql.models import Requests, Services
+from productionsystem.sql.registry import SessionRegistry
 
 MINS = 60
 
 
 class MonitoringDaemon(Daemonize):
-    """Monitoring Daemon."""
-
+    """
+    Monitoring Daemon.
+    """
     def __init__(self, dburl, delay, cert, verify=False, **kwargs):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            dburl: SQLAlchemy database URL used by the monitoring loop.
+            delay: Polling interval in minutes between monitoring passes.
+            cert: Client certificate path or ``(cert, key)`` pair for external HTTP checks.
+            verify: TLS verification flag or CA bundle path used by HTTP clients.
+            **kwargs: Additional options forwarded to ``Daemonize``.
+        """
         super(MonitoringDaemon, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._delay = delay
         self.cert = cert
         self.verify = verify
+        with dirac_api_client() as client:
+            try:
+                if not client.activeConnection():
+                    self.logger.error("Connection to DIRAC API daemon not healthy.")
+                    raise RuntimeError("Connection to DIRAC API daemon not healthy.")
+            except Exception as err:
+                self.logger.exception("Error while testing connection to DIRAC API daemon: %s", err)
+                raise RuntimeError("Failed to connect to DIRAC API daemon.") from err
 
     def exit(self):
-        """Update the monitoringd status on exit."""
+        """
+        Update the monitoringd status on exit.
+        """
         try:
             monitoring_service = Services.get_services(service_name="monitoringd")
         except NoResultFound:
@@ -50,10 +68,16 @@ class MonitoringDaemon(Daemonize):
             except SQLAlchemyError as err:
                 self.logger.exception("Error updating the status of monitoring daemon: %s",
                                       err)
-        super(MonitoringDaemon, self).exit()
+        try:
+            super(MonitoringDaemon, self).exit()
+        except SystemExit as err:
+            if err.code != 0:
+                raise
 
     def main(self):
-        """Daemon main function."""
+        """
+        Daemon main function.
+        """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
         try:
@@ -78,11 +102,9 @@ class MonitoringDaemon(Daemonize):
         # DIRAC
         status = ServiceStatus.DOWN
         try:
-            if requests.get("https://dirac.gridpp.ac.uk:8443/DIRAC/",
-                            cert=self.cert, verify=self.verify) \
-                    .status_code == 200:
+            if httpx.get("https://dirac.gridpp.ac.uk/DIRAC/", cert=self.cert, verify=self.verify).status_code == 200:
                 status = ServiceStatus.UP
-        except IOError as err:
+        except (IOError, httpx.HTTPError) as err:
             self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
                               "for PEM password): %s", err)
             status = ServiceStatus.UNKNOWN

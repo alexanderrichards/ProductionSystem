@@ -1,35 +1,51 @@
-"""Users Table."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Users Table.
+"""
+from __future__ import annotations
 
 import logging
-from future.utils import native
-import cherrypy
-from distutils.util import strtobool  # pylint: disable=import-error, no-name-in-module
-from sqlalchemy import Column, Integer, TEXT, Boolean
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from typing import Self, overload
+
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import TEXT, Boolean, Integer, select
+from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm import Mapped, mapped_column
+
+# from sqlmodel import Field, SQLModel
 from ..registry import managed_session
 from ..SQLTableBase import SQLTableBase
 
 
-@cherrypy.expose
-@cherrypy.popargs('user_id')
-class Users(SQLTableBase):
-    """Users SQL Table."""
+class User(BaseModel):
+    """
+    JSON-serialisable schema for a Users row.
+    """
+    model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
+    id: int = Field(frozen=True)
+    dn: str = Field(frozen=True)
+    ca: str = Field(frozen=True)
+    email: str = Field(frozen=True)
+    suspended: bool = Field(frozen=True)
+    admin: bool = Field(frozen=True)
+    name: str = Field(frozen=True)  # mainly used when converting ORM objects to pydantic as all attributes are read. Could have as a pydantic computed field but the code would duplicate that in the ORM model.
+
+
+class Users(SQLTableBase):
+    """
+    Users SQL Table.
+    """
     __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
-    dn = Column(TEXT, nullable=False)  # pylint: disable=invalid-name
-    ca = Column(TEXT, nullable=False)  # pylint: disable=invalid-name
-    email = Column(TEXT, nullable=False)
-    suspended = Column(Boolean, nullable=False)
-    admin = Column(Boolean, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    dn: Mapped[str] = mapped_column(TEXT, nullable=False)  # pylint: disable=invalid-name
+    ca: Mapped[str] = mapped_column(TEXT, nullable=False)  # pylint: disable=invalid-name
+    email: Mapped[str] = mapped_column(TEXT, nullable=False)
+    suspended: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    admin: Mapped[bool] = mapped_column(Boolean, nullable=False)
     logger = logging.getLogger(__name__).getChild(__qualname__)
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Human-readable name from DN.
 
@@ -48,113 +64,81 @@ class Users(SQLTableBase):
         return sorted(cns, key=len)[-1]
 
     def __hash__(self):
-        """hash."""
+        """
+        hash.
+
+        Returns:
+            int: Hash of the user certificate DN and CA pair.
+        """
         return hash((self.dn, self.ca))
 
-    def __eq__(self, other):
-        """Equality check."""
+    def __eq__(self, other: Self) -> bool:
+        """
+        Equality check.
+
+        Args:
+            other: User record to compare by certificate DN and CA.
+
+        Returns:
+            bool: True when both users have the same DN and CA.
+        """
         return (self.dn, self.ca) == (other.dn, other.ca)
 
     def update(self):
-        """Update the DB record from this Users object."""
+        """
+        Update the DB record from this Users object.
+        """
         with managed_session() as session:
             session.merge(self)
 
+    @overload
     @classmethod
-    def get_users(cls, user_id=None):
+    def get_users(cls) -> list[Users]: ...
+
+    @overload
+    @classmethod
+    def get_users(cls, *, user_id: int) -> Users: ...
+
+    @classmethod
+    def get_users(cls, user_id: int | None = None) -> Users | list[Users]:
         """
         Get users from database.
 
         Gets all users in database or explicitly those with a given user_id.
 
         Args:
-            user_id (int): User id to extract
+            user_id (int | None): User id to extract. None gives all users (default None)
+
+        Raises:
+            TypeError: If user_id is not an int (or convertable to int).
+            NoResultFound: If no user matches the given criteria when a single user_id is provided.
+            MultipleResultsFound: If multiple users match the given criteria when a single user_id is provided.
 
         Returns:
-            list/Users: The users/user pulled from the database
+            Users | list[Users]: The user/users pulled from the database
 
         """
         if user_id is not None:
             try:
-                user_id = native(int(user_id))
-            except ValueError:
-                cls.logger.error("User id: %r should be of type int "
-                                 "(or convertable to int)", user_id)
-                raise
+                user_id = int(user_id)
+            except ValueError as err:
+                cls.logger.error("User id: %r should be of type int (or convertable to int)", user_id)
+                raise TypeError(f"User id: {user_id!r} should be of type int (or convertable to int)") from err
 
         with managed_session() as session:
-            query = session.query(cls)
             if user_id is None:
-                users = query.all()
-                session.expunge_all()
+                users = session.scalars(select(cls)).all()
                 return users
 
             try:
-                user = query.filter_by(id=user_id).one()
+                user = session.scalars(
+                    select(cls)
+                    .where(cls.id == user_id)
+                ).one()
             except NoResultFound:
                 cls.logger.warning("No result found for user id: %d", user_id)
                 raise
             except MultipleResultsFound:
                 cls.logger.error("Multiple results found for user id: %d", user_id)
                 raise
-            session.expunge(user)
             return user
-
-
-'''
-    @classmethod
-    @cherrypy.tools.accept(media='application/json')
-    @cherrypy.tools.json_out()
-    @dummy_credentials
-#    @check_credentials
-#    @admin_only
-    def GET(cls, user_id=None):
-        """REST GET method."""
-        cls.logger.debug("In GET: user_id = %r", user_id)
-        with managed_session() as session:
-            query = session.query(cls)
-            if user_id is None:
-                users = query.all()
-                session.expunge_all()
-                return users
-
-            with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-                user_id = int(user_id)
-
-            try:
-                user = query.filter_by(id=user_id).one()
-            except NoResultFound:
-                message = 'No matching user found.'
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = 'Multiple matching users found.'
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            session.expunge(user)
-            return user
-
-    @classmethod
-    @check_credentials
-    @admin_only
-    def PUT(cls, user_id, admin):  # pylint: disable=invalid-name
-        """REST Put method."""
-        cls.logger.debug("In PUT: user_id = %s, admin = %s", user_id, admin)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad user_id: %r' % user_id):
-            user_id = int(user_id)
-        with cherrypy.HTTPError.handle(ValueError, 400, 'Bad admin value'):
-            admin = bool(strtobool(admin))
-
-        with managed_session() as session:
-            try:
-                user = session.query(cls).filter_by(id=user_id).one()
-            except NoResultFound:
-                message = "No matching user found."
-                cls.logger.warning(message)
-                raise cherrypy.NotFound(message)
-            except MultipleResultsFound:
-                message = "Multiple matching users found."
-                cls.logger.error(message)
-                raise cherrypy.HTTPError(500, message)
-            user.admin = admin
-'''
