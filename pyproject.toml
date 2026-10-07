@@ -9,7 +9,7 @@ description = "Production System"
 authors = [
     { name = "Alexander Richards", email = "a.richards@imperial.ac.uk" },
 ]
-license = { text = "MIT" }
+license = "MIT"
 keywords = ["production"]
 urls = { Homepage = "https://github.com/alexanderrichards/ProductionSystem" }
 dependencies = [
@@ -72,6 +72,10 @@ script-files = [
     "scripts/service-status.sh",
     "scripts/stop-services.sh",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["productionsystem", "productionsystem.*"]
 
 [tool.setuptools.package-data]
 productionsystem = [
