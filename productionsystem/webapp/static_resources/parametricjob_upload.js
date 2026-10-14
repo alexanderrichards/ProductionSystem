@@ -296,8 +296,8 @@ class ParametricJobUpload {
         }
         this.status.textContent = "Reading Excel file...";
         try {
-            if (!/\.(xlsx|xls)$/i.test(file.name)) {
-                throw new Error("Choose an .xlsx or .xls file.");
+            if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+                throw new Error("Choose an .xlsx, .xls, or .csv file.");
             }
             if (typeof XLSX === "undefined") {
                 throw new Error("The Excel reader could not be loaded. Reload the page and try again.");
