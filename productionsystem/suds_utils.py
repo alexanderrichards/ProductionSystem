@@ -13,6 +13,8 @@ from suds.client import Client
 from suds.transport import Reply
 from suds.transport.https import HttpAuthenticated
 
+from productionsystem.http_utils import create_ssl_context
+
 
 class HttpCertAuthenticated(HttpAuthenticated):
     """
@@ -38,7 +40,7 @@ class HttpCertAuthenticated(HttpAuthenticated):
 
         """
         HttpAuthenticated.__init__(self, **kwargs)
-        self._client = httpx.Client(cert=cert, verify=verify)
+        self._client = httpx.Client(verify=create_ssl_context(cert, verify))
 
     def open(self, request):
         """
@@ -97,7 +99,7 @@ class CertClient(Client):
                                the directory must have been processed using the
                                c_rehash utility supplied with OpenSSL. This list
                                of trusted CAs can also be specified through the
-                               REQUESTS_CA_BUNDLE environment variable (this may
+                               SSL_CERT_FILE environment variable (this may
                                cause pip to fail to validate against PyPI).
 
         """
