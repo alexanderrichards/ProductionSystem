@@ -6,6 +6,8 @@ import urllib.parse as up
 
 import httpx
 
+from productionsystem.http_utils import create_ssl_context
+
 
 class JSI:
     """
@@ -35,6 +37,11 @@ class JSI:
         self._cert = cert
         self._verify = verify
         self._logger = logging.getLogger("JSI_API")
+
+    def _request(self, method, url, **kwargs):
+        """Send a buffered request using the configured X509 credentials."""
+        with httpx.Client(verify=create_ssl_context(self._cert, self._verify)) as client:
+            return client.request(method, url, **kwargs)
 
     def get_requests(self, request_id=None):
         """
@@ -71,19 +78,19 @@ class JSI:
         path = "api/requests"
         if request_id is None:
             url = up.urlunsplit(self._url._replace(path=path))
-            ret = httpx.get(url, verify=self._verify, cert=self._cert)
+            ret = self._request("GET", url)
             ret.raise_for_status()
             return ret.json()
 
         path += "/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.get(url, verify=self._verify, cert=self._cert)
+        ret = self._request("GET", url)
         ret.raise_for_status()
         request = ret.json()
 
         path += "/parametricjobs"
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.get(url, verify=self._verify, cert=self._cert)
+        ret = self._request("GET", url)
         ret.raise_for_status()
         return [dict(request, parametricjobs=ret.json())]
 
@@ -118,7 +125,7 @@ class JSI:
         if not isinstance(request, dict):
             raise TypeError("request parameter should be of type dict, received %r" % request)
         url = up.urlunsplit(self._url._replace(path="api/requests"))
-        ret = httpx.post(url, json={"request": request}, verify=self._verify, cert=self._cert)
+        ret = self._request("POST", url, json={"request": request})
         ret.raise_for_status()
         return ret
 
@@ -143,7 +150,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.put(url, data={"status": status.capitalize()}, verify=self._verify, cert=self._cert)
+        ret = self._request("PUT", url, data={"status": status.capitalize()})
         ret.raise_for_status()
         return ret        
 
@@ -171,7 +178,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.put(url, data={"status": "Approved"}, verify=self._verify, cert=self._cert)
+        ret = self._request("PUT", url, data={"status": "Approved"})
         ret.raise_for_status()
         return ret
 
@@ -198,7 +205,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.put(url, data={"status": "Checked"}, verify=self._verify, cert=self._cert)
+        ret = self._request("PUT", url, data={"status": "Checked"})
         ret.raise_for_status()
         return ret
 
@@ -225,7 +232,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.put(url, data={"status": "Closed"}, verify=self._verify, cert=self._cert)
+        ret = self._request("PUT", url, data={"status": "Closed"})
         ret.raise_for_status()
         return ret
 
@@ -245,8 +252,8 @@ class JSI:
             request_id (int): The numerical id of the request to delete.
 
         Raises:
-            HTTPError: Problem with the request
-            SSLError: Problem with the SSL
+            httpx.HTTPStatusError: Problem with the request
+            httpx.ConnectError: Problem with the SSL
 
         Returns:
             httpx.Response: Response from the delete-request endpoint.
@@ -255,7 +262,7 @@ class JSI:
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
         path = "api/requests/%d" % request_id
         url = up.urlunsplit(self._url._replace(path=path))
-        ret = httpx.delete(url, verify=self._verify, cert=self._cert)
+        ret = self._request("DELETE", url)
         ret.raise_for_status()
         return ret
 

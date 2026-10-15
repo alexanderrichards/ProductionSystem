@@ -10,6 +10,7 @@ from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
+from productionsystem.http_utils import create_ssl_context
 from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client
 from productionsystem.sql.enums import LocalStatus, ServiceStatus
 from productionsystem.sql.models import Requests, Services
@@ -102,8 +103,9 @@ class MonitoringDaemon(Daemonize):
         # DIRAC
         status = ServiceStatus.DOWN
         try:
-            if httpx.get("https://dirac.gridpp.ac.uk/DIRAC/", cert=self.cert, verify=self.verify).status_code == 200:
-                status = ServiceStatus.UP
+            with httpx.Client(verify=create_ssl_context(self.cert, self.verify)) as client:
+                if client.get("https://dirac.gridpp.ac.uk/DIRAC/").status_code == 200:
+                    status = ServiceStatus.UP
         except (IOError, httpx.HTTPError) as err:
             self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
                               "for PEM password): %s", err)

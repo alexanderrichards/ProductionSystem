@@ -3,7 +3,7 @@ Test api.py.
 """
 import os
 from unittest import TestCase
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import productionsystem.api as api
 
@@ -44,7 +44,7 @@ class TestJSI(TestCase):
         self.assertEqual(jsi._cert, "test")
         self.assertEqual(jsi._verify, True)
 
-    @patch("httpx.get")
+    @patch("httpx.Client.request", autospec=True)
     def test_get_requests(self, mock_get):
         """
         Test get_requests method.
@@ -52,13 +52,13 @@ class TestJSI(TestCase):
         # Testing getting all requests
         jsi = api.JSI("http://localhost:8080")
         jsi.get_requests()
-        mock_get.assert_called_once_with('http://localhost:8080/api/requests', verify=False, cert=None)
+        mock_get.assert_called_once_with(ANY, "GET", 'http://localhost:8080/api/requests')
         mock_get.reset_mock()
 
         mock_get.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
         with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.get_requests()
-        mock_get.assert_called_once_with('http://localhost:8080/api/requests', verify=False, cert=None)
+        mock_get.assert_called_once_with(ANY, "GET", 'http://localhost:8080/api/requests')
         mock_get.reset_mock()
 
         # Testing getting single request
@@ -67,17 +67,17 @@ class TestJSI(TestCase):
         mock_get.return_value.raise_for_status = MagicMock()
         requests = jsi.get_requests(12)
         self.assertEqual(len(mock_get.call_args_list), 2)
-        mock_get.assert_any_call('http://localhost:8080/api/requests/12', verify=False, cert=None)
-        mock_get.assert_any_call('http://localhost:8080/api/requests/12/parametricjobs', verify=False, cert=None)
+        mock_get.assert_any_call(ANY, "GET", 'http://localhost:8080/api/requests/12')
+        mock_get.assert_any_call(ANY, "GET", 'http://localhost:8080/api/requests/12/parametricjobs')
         self.assertIsInstance(requests, list)
         mock_get.reset_mock()
 
         mock_get.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
         with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.get_requests(12)
-        mock_get.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
+        mock_get.assert_called_once_with(ANY, "GET", 'http://localhost:8080/api/requests/12')
 
-    @patch("httpx.post")
+    @patch("httpx.Client.request", autospec=True)
     def test_create_request(self, mock_post):
         """
         Test create_requests method.
@@ -86,15 +86,15 @@ class TestJSI(TestCase):
         with self.assertRaisesRegex(TypeError, "request parameter should be of type dict"):
             jsi.create_request(12)
         jsi.create_request({})
-        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
+        mock_post.assert_called_once_with(ANY, "POST", 'http://localhost:8080/api/requests', json={'request': {}})
         mock_post.reset_mock()
 
         mock_post.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
         with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.create_request({})
-        mock_post.assert_called_once_with('http://localhost:8080/api/requests', json={'request': {}}, verify=False, cert=None)
+        mock_post.assert_called_once_with(ANY, "POST", 'http://localhost:8080/api/requests', json={'request': {}})
 
-    @patch("httpx.delete")
+    @patch("httpx.Client.request", autospec=True)
     def test_delete_request(self, mock_delete):
         """
         Test delete_requests method.
@@ -103,15 +103,15 @@ class TestJSI(TestCase):
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
             jsi.delete_request("12")
         jsi.delete_request(12)
-        mock_delete.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
+        mock_delete.assert_called_once_with(ANY, "DELETE", 'http://localhost:8080/api/requests/12')
         mock_delete.reset_mock()
 
         mock_delete.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
         with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.delete_request(12)
-        mock_delete.assert_called_once_with('http://localhost:8080/api/requests/12', verify=False, cert=None)
+        mock_delete.assert_called_once_with(ANY, "DELETE", 'http://localhost:8080/api/requests/12')
 
-    @patch("httpx.put")
+    @patch("httpx.Client.request", autospec=True)
     def test_approve_request(self, mock_put):
         """
         Test approve_request method.
@@ -120,13 +120,13 @@ class TestJSI(TestCase):
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
             jsi.approve_request("12")
         jsi.approve_request(12)
-        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
+        mock_put.assert_called_once_with(ANY, "PUT", 'http://localhost:8080/api/requests/12', data={'status': 'Approved'})
         mock_put.reset_mock()
 
         mock_put.return_value.raise_for_status.side_effect = api.httpx.HTTPStatusError("400", request=MagicMock(), response=MagicMock())
         with self.assertRaisesRegex(api.httpx.HTTPStatusError, "400"):
             jsi.approve_request(12)
-        mock_put.assert_called_once_with('http://localhost:8080/api/requests/12', data={'status': 'Approved'}, verify=False, cert=None)
+        mock_put.assert_called_once_with(ANY, "PUT", 'http://localhost:8080/api/requests/12', data={'status': 'Approved'})
 
 
 class TestLiveServer(TestCase):
