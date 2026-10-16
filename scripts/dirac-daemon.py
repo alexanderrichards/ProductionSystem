@@ -1,68 +1,46 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Dirac daemon run script."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
-from future.utils import viewitems
+"""
+Dirac daemon run script.
+"""
+from __future__ import annotations
 
-import os
-import sys
 import importlib
-import argparse
+import os
 import random
-import logging
-from logging.handlers import TimedRotatingFileHandler
-from itertools import chain
-from pprint import pformat
-import pkg_resources
-import psutil
-import mock
+import sys
+import unittest.mock as mock
+
+import typer
+
+from productionsystem.cli import prepare_options, setup_logging, stop_daemon
+
+app = typer.Typer(help="Run the DIRAC environment daemon.", no_args_is_help=True)
+APP_NAME = "dirac-daemon"
+DEFAULT_CONFIG = "~/.config/productionsystem/productionsystem.conf"
+DEFAULT_PID_FILE = os.path.join(os.getcwd(), APP_NAME + ".pid")
+DEFAULT_LOG_DIR = os.path.join(os.getcwd(), "log")
 
 
-from productionsystem.utils import expand_path
+def stop(args, *, logger):
+    """
+    Stop the monitoring daemon.
+
+    Args:
+        args: Prepared CLI options containing PID file, DIRAC address, and daemon flags.
+        logger: Logger used for daemon lifecycle messages.
+    """
+    stop_daemon(args.pid_file, logger)
 
 
-def stop(args):
-    """Stop the monitoring daemon."""
-    pidfile = args.pid_file
-    if not os.path.exists(pidfile):
-        logger.error("Pid file '%s' doesn't exist", pidfile)
-        return
+def start(args, *, logger):
+    """
+    Start the dirac daemon.
 
-    try:
-        with open(pidfile, 'r') as file_:
-            pid = int(file_.read())
-    except IOError as err:
-        logger.error("Failed to open pid file: %s", err.message)
-        return
-    except ValueError as err:
-        logger.error("Bad pid value in pidfile '%s': %s", pidfile, err.message)
-        return
-
-    if not psutil.pid_exists(pid):
-        logger.warning("No process with pid: %d running", pid)
-        return
-
-    logger.info("Sending daemon SIGTERM...")
-    daemon = psutil.Process(pid)
-    daemon.terminate()
-    try:
-        daemon.wait(timeout=1)
-    except psutil.TimeoutExpired:
-        logger.warning("Daemon not responding, sending SIGKILL...")
-        daemon.kill()
-        try:
-            daemon.wait(timeout=0)
-        except psutil.TimeoutExpired:
-            logger.warning("SIGKILL failed to remove the process!")
-
-    logging.shutdown()
-
-
-def start(args):
-    """Start the dirac daemon."""
+    Args:
+        args: Prepared CLI options used to configure and start the DIRAC daemon.
+        logger: Logger passed to the daemon instance.
+    """
     if args.mock_mode:
         mock.patch.dict(sys.modules, {"DIRAC": mock.MagicMock(),
                                       "DIRAC.Core": mock.MagicMock(),
@@ -98,135 +76,87 @@ def start(args):
     ###########################################################################
     # Add the python src path to the sys.path for future imports
     # sys.path.append(lzprod_root)
-    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrpc.DiracRPCServer')\
+    DiracDaemon = importlib.import_module('productionsystem.monitoring.diracrest.DiracRESTDaemon')\
                            .DiracDaemon
 
     # Daemon setup
     ###########################################################################
-    DiracDaemon(address=(args.socket_host, args.socket_port),
-                app=app_name,
+    DiracDaemon(address=(args.api_host, args.api_port),
+                app=args.app_name,
                 pid=args.pid_file,
                 logger=logger,
-                keep_fds=[fhandler.stream.fileno()],
+                keep_fds=[handler.stream.fileno() for handler in logger.handlers],
                 foreground=args.debug_mode).start()
 
 
+def _run(ctx, section, values, action):
+    """
+    Run a DIRAC daemon lifecycle action with parsed CLI values.
+    
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        section: Configuration section used for the command.
+        values: Parsed command option values.
+        action: Lifecycle function to execute after setup.
+    """
+    values.pop("ctx", None)
+    args, cli_values, config_instance, config_path = prepare_options(
+        ctx, section, values, APP_NAME)
+    logger = setup_logging(
+        args, cli_values, config_instance, config_path, daemon=True)
+    action(args, logger=logger)
+
+
+@app.command("start")
+def start_command(
+        ctx: typer.Context,
+        api_host: str = typer.Option("dirac-daemon", help="DIRAC API host."),
+        api_port: int = typer.Option(18861, help="DIRAC API port."),
+        pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
+        log_dir: str = typer.Option(DEFAULT_LOG_DIR, "-l", "--log-dir"),
+        verbose: int = typer.Option(0, "-v", "--verbose", count=True),
+        config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
+        debug_mode: bool = typer.Option(False, help="Run in the foreground."),
+        mock_mode: bool = typer.Option(False, help="Mock the DIRAC API."),
+        extension: str | None = typer.Option(None, help="Activate an installed extension."),
+):
+    """
+    Start the DIRAC daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        api_host: Hostname or interface for the DIRAC REST API server.
+        api_port: Port for the DIRAC REST API server.
+        pid_file: Path to the daemon PID file.
+        log_dir: Directory for daemon log files.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        config: Path to the ProductionSystem configuration file.
+        debug_mode: If True, run in the foreground.
+        mock_mode: If True, install mocked DIRAC modules before startup.
+        extension: Optional installed extension name to activate.
+    """
+    _run(ctx, "dirac", locals() | {"debug_mode": debug_mode}, start)
+
+
+@app.command("stop")
+def stop_command(
+        ctx: typer.Context,
+        pid_file: str = typer.Option(DEFAULT_PID_FILE, "-p", "--pid-file"),
+        verbose: int = typer.Option(0, "-v", "--verbose", count=True),
+        config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
+):
+    """
+    Stop the DIRAC daemon.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        pid_file: Path to the daemon PID file.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        config: Path to the ProductionSystem configuration file.
+    """
+    values = locals() | {"debug_mode": True, "log_dir": ""}
+    _run(ctx, "dirac", values, stop)
+
+
 if __name__ == '__main__':
-    current_dir = os.getcwd()
-    app_name = os.path.splitext(os.path.basename(__file__))[0]
-
-    parser = argparse.ArgumentParser(description='Run the DIRAC environment daemon.')
-    subparser = parser.add_subparsers(title='subcommands', dest="subcommand",
-                                      help='use subcommand -h for additional help.')
-    start_parser = subparser.add_parser('start', help='start the monitoring daemon')
-    stop_parser = subparser.add_parser('stop', help='stop the monitoring daemon')
-    parser.set_defaults(app_name=app_name)
-    start_parser.set_defaults(func=start, extension=None)
-    stop_parser.set_defaults(func=stop, debug_mode=True, extension=None)
-
-    start_parser.add_argument('--socket-host', default='localhost',
-                              help="The dirac environment API host [default: %(default)s]")
-    start_parser.add_argument('--socket-port', default=18861, type=int,
-                              help="The dirac environment API port [default: %(default)s]")
-    start_parser.add_argument('-p', '--pid-file',
-                              default=os.path.join(current_dir, "%s.pid" % app_name),
-                              help="The pid file used by the daemon [default: %(default)s]")
-    stop_parser.add_argument('-p', '--pid-file',
-                             default=os.path.join(current_dir, "%s.pid" % app_name),
-                             help="The pid file used by the daemon [default: %(default)s]")
-    start_parser.add_argument('-l', '--log-dir', default=os.path.join(current_dir, 'log'),
-                              help="Path to the log directory. Will be created if doesn't exist "
-                                   "[default: %(default)s]")
-    start_parser.add_argument('-v', '--verbose', action='count',
-                              help="Increase the logged verbosite, can be used twice")
-    stop_parser.add_argument('-v', '--verbose', action='count',
-                             help="Increase the logged verbosite, can be used twice")
-    start_parser.add_argument('-c', '--config',
-                              default='~/.config/productionsystem/productionsystem.conf',
-                              help="The config file [default: %(default)s]")
-    stop_parser.add_argument('-c', '--config',
-                             default='~/.config/productionsystem/productionsystem.conf',
-                             help="The config file [default: %(default)s]")
-    start_parser.add_argument('--debug-mode', action='store_true', default=False,
-                              help="Run the daemon in a debug interactive monitoring mode. "
-                                   "(debugging only)")
-    start_parser.add_argument('--mock-mode', action='store_true', default=False,
-                              help="Run the daemon with the DIRAC API mocked away. "
-                                   "(debugging only)")
-    projects = set(entry_point.dist.project_name for entry_point in
-                   chain(pkg_resources.iter_entry_points('dbmodels'),
-                         pkg_resources.iter_entry_points('monitoring'),
-                         pkg_resources.iter_entry_points('webapp'),
-                         pkg_resources.iter_entry_points('webapp.services')))
-    projects -= {'productionsystem'}
-    if projects:
-        extensions = start_parser.add_argument_group("Extensions")
-        extensions.add_argument('--extension', choices=projects,
-                                help="Activate the chosen extension")
-    args = parser.parse_args()
-    cli_args = vars(args).copy()
-
-    # Config Setup
-    ###########################################################################
-    config_path = expand_path(args.config)
-    if not os.path.exists(config_path):
-        config_path = None
-    config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(config_path)
-    if config_path is not None:
-        arg_dict = vars(args)
-        # Lay the config params on top of default parser ones
-        arg_dict.update(config_instance.get_section("dirac"))
-        # Now parse again with the current namespace to lay non-default parsed params on top
-        args = subparser.choices[arg_dict['subcommand']] \
-                        .parse_args(sys.argv[2:], namespace=argparse.Namespace(**arg_dict))
-
-    # Logging setup
-    ###########################################################################
-    # setup the handler
-    fhandler = logging.StreamHandler()
-    if not args.debug_mode:
-        # check and create logging dir
-        log_dir = expand_path(args.log_dir)
-        if not os.path.isdir(log_dir):
-            if os.path.exists(log_dir):
-                raise ValueError("%s path already exists and isnt a directory so cant make log dir"
-                                 % log_dir)
-            os.makedirs(log_dir)
-
-        # use a filehandler
-        fhandler = TimedRotatingFileHandler(os.path.join(log_dir, '%s.log' % app_name),
-                                            when='midnight', backupCount=5)
-    fhandler.setFormatter(logging.Formatter("[%(asctime)s] %(name)15s : "
-                                            "%(levelname)8s : "
-                                            "%(message)s"))
-
-    # setup the root logger
-    root_logger = logging.getLogger()
-    root_logger.addHandler(fhandler)
-    root_logger.setLevel(max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG))
-
-    # setup the main app logger
-    logger = logging.getLogger(app_name)
-    logger.debug("Script called with args:\n%s", pformat(cli_args))
-    if config_path is None:
-        logger.warning("Config file '%s' does not exist", cli_args['config'])
-    logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
-    logger.debug("Runtime args:\n%s", pformat(vars(args)))
-
-    # Entry Point Setup
-    ###########################################################################
-    entry_point_map = pkg_resources.get_entry_map('productionsystem')
-    if args.extension is not None:
-        if args.extension not in projects:
-            logger.critical("Extension '%s' enabled in config file is not valid, "
-                            "expected one of: %s", args.extension, list(projects))
-            sys.exit(1)
-        for group, map in viewitems(entry_point_map):
-            map.update(pkg_resources.get_entry_map(args.extension, group))
-    config_instance.entry_point_map = entry_point_map
-    logger.debug("Starting with entry point map:\n%s", pformat(entry_point_map))
-
-    # Enact the subcommand
-    ###########################################################################
-    args.func(args)
+    app()

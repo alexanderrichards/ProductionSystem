@@ -110,7 +110,7 @@ function create_request(form=$("form"), excel_rows){
 	  });
     // delete form_data["parametricjobs"];
     {% block create_request %}
-    form_data["parametricjobs"] = excel_rows;
+    form_data["parametric_jobs"] = excel_rows;
     return form_data;
     {% endblock%}
 }
