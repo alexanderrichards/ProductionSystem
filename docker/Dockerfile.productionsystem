@@ -62,7 +62,7 @@ RUN --mount=type=secret,id=GLOBUS_CERT \
 	dirac-proxy-init -g gridpp_user -M --Cert /run/secrets/GLOBUS_CERT --Key /run/secrets/GLOBUS_KEY
 
 	# Update VOMS Users
-	#userdb-update.py --cert=/run/secrets/GLOBUS_CERT --key=/run/secrets/GLOBUS_KEY
+	userdb-update.py --cert=/run/secrets/GLOBUS_CERT --key=/run/secrets/GLOBUS_KEY
 
 	# Destroy the initial proxy to ensure a clean state
 	dirac-proxy-destroy
