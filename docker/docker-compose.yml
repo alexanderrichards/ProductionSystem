@@ -2,24 +2,32 @@ name: productionsystem
 
 services:
 
-    apache:
-        # image: alexanderrichards/apache-proxy:latest
-        build:
-            context: .
-            dockerfile: Dockerfile.apache
-        container_name: productionsystem-apache
+    mariadb:
+        image: mariadb:latest
+        container_name: productionsystem-mariadb
         restart: unless-stopped
-        depends_on:
-            dirac-daemon:
-                condition: service_healthy
-        ports:
-            # - 80:80  # only want cert authorised
-            - 443:443
+        healthcheck:
+            test: ["CMD-SHELL", "echo 'SELECT 1' | mariadb -h mariadb -u${MARIADB_USER} -p${MARIADB_PASSWORD}"]
+            interval: 30s
+            timeout: 5s
+            retries: 10
+            start_period: 10s
+        env_file: .env
         networks:
             - ps_net
+        ports:
+            - 3306:3306
+        # not needed if have .env file but as these take precedence over .env values, this way we can load shell env variables as well
+        # and have them take precidence over .env file values.
+        environment:
+            MARIADB_USER: ${MARIADB_USER}
+            MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+            MARIADB_DATABASE: ${MARIADB_DATABASE}
+            MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
         volumes:
-            - grid-security:/etc/grid-security:ro
-    # db:
+            - mariadb-data:/var/lib/mysql
+
+    # postgresdb:
     #     image: postgres:latest
     #     restart: unless-stopped
     #     container_name: productionsystem-db
@@ -41,59 +49,71 @@ services:
     #     volumes:
     #         - db-data:/var/lib/postgresql
 
-    mariadb:
-        image: mariadb:latest
+    dirac-daemon:
+        # image: alexanderrichards/productionsystem:latest?branch=modern_python3_update&subdir=docker
+        #https://github.com/alexanderrichards/productionsystem.git?branch=modern_python3_update&subdir=docker
+        build:
+            # for older docker buildx versions
+            # context: https://github.com/alexanderrichards/ProductionSystem.git#modern_python3_update:docker
+            # context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            context: .
+            dockerfile: Dockerfile.productionsystem
+            args:
+                DIRAC_VERSION: 8.0.74  # this is not coming through from env file !! why not
+                GIT_BRANCH: ${GIT_BRANCH}
+            secrets:
+                - GLOBUS_CERT
+                - GLOBUS_KEY
+        container_name: productionsystem-dirac-daemon
         restart: unless-stopped
-        container_name: productionsystem-mariadb
         healthcheck:
-            test: ["CMD-SHELL", "echo 'SELECT 1' | mariadb -h mariadb -u${MARIADB_USER} -p${MARIADB_PASSWORD}"]
+            test: ["CMD", "curl", "-f", "http://dirac-daemon:18861/health"]
             interval: 30s
             timeout: 5s
             retries: 10
             start_period: 10s
         env_file: .env
-        networks:
-            - ps_net
-        ports:
-            - 3306:3306
-        environment:
-            MARIADB_USER: ${MARIADB_USER}
-            MARIADB_PASSWORD: ${MARIADB_PASSWORD}
-            MARIADB_DATABASE: ${MARIADB_DATABASE}
-            MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
         volumes:
-            - mariadb-data:/var/lib/mysql
-
-    webapp:
-        # image: alexanderrichards/productionsystem:latest
-        build:
-            context: .
-            dockerfile: Dockerfile.productionsystem.lite
-            args:
-                PY_VERSION: ${PY_VERSION}
-                GIT_BRANCH: ${GIT_BRANCH}
-        container_name: productionsystem-webapp
-        env_file: .env
+            - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro
+            - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
+            - grid-security:/root/dirac_ui/diracos/etc/grid-security
         depends_on:
-            apache:
-                condition: service_started
             mariadb:
                 condition: service_healthy
-        # ports:
-        #     - 8080:8080
         networks:
             - ps_net
-        command: /bin/sh -c "source venv/bin/activate && webapp-daemon.py start -vvv --debug-mode"
+        command: ["/bin/sh", "-c", "/root/dirac_ui/diracos/bin/dirac-proxy-init -g gridpp_user -M && \
+                                    /root/dirac_ui/diracos/bin/dirac-daemon.py start --debug-mode"]
+
+    apache:
+        # image: alexanderrichards/apache-proxy:latest
+        build:
+            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            dockerfile: Dockerfile.apache
+        container_name: productionsystem-apache
+        restart: unless-stopped
+        depends_on:
+            dirac-daemon:
+                condition: service_healthy
+        ports:
+            # - 80:80  # only want cert authorised
+            - 443:443
+        networks:
+            - ps_net
+        volumes:
+            - grid-security:/etc/grid-security:ro
 
     monitoring-daemon:
         # image: alexanderrichards/productionsystem:latest
         build:
-            context: .
+            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.productionsystem.lite
             args:
                 PY_VERSION: ${PY_VERSION}
                 GIT_BRANCH: ${GIT_BRANCH}
+        env_file: .env
         container_name: productionsystem-monitoring-daemon
+        restart: unless-stopped
         volumes:
             - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro  # needed as monitoring daemon checks that Imperial DIRAC is running. Maybe the dirac daemon should be doing this. 
             - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
@@ -105,41 +125,46 @@ services:
                 condition: service_healthy
         networks:
             - ps_net
-        command: /bin/sh -c "source venv/bin/activate && monitoring-daemon.py start --debug-mode"
+        command: ["/root/venv/bin/monitoring-daemon.py", "start", "--debug-mode"]
+        # command: /bin/sh -c "source venv/bin/activate && monitoring-daemon.py start --debug-mode"
 
-    dirac-daemon:
-        # image: alexanderrichards/productionsystem:latest
+    webapp:
         build:
-            context: .
-            dockerfile: Dockerfile.productionsystem
-        container_name: productionsystem-dirac-daemon
-        healthcheck:
-            test: ["CMD", "curl", "-f", "http://dirac-daemon:18861/health"]
-            interval: 30s
-            timeout: 5s
-            retries: 10
-            start_period: 10s
-        volumes:
-            - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro
-            - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
-            - grid-security:/root/dirac_ui/diracos/etc/grid-security
+            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            dockerfile: Dockerfile.productionsystem.lite
+            args:
+                PY_VERSION: ${PY_VERSION}
+                GIT_BRANCH: ${GIT_BRANCH}
+        container_name: productionsystem-webapp
+        restart: unless-stopped
+        env_file: .env
         depends_on:
+            apache:
+                condition: service_started
             mariadb:
                 condition: service_healthy
+        # ports:
+        #     - 8080:8080
         networks:
             - ps_net
-        # entrypoint: ["./dirac-daemon-entrypoint.sh"]
+        command: ["/root/venv/bin/webapp-daemon.py", "start", "-vvv", "--debug-mode"]
+        # command: /bin/sh -c "source venv/bin/activate && webapp-daemon.py start -vvv --debug-mode"
 
 networks:
     ps_net:
         name: productionsystem-net
-#gcr.io/distroless/static-debian13 - use this to setup grid-security volume
+
 volumes:
     grid-security:
         name: grid-security
 
-    # db-data:
-    #     name: productionsystem-db-data
-
     mariadb-data:
         name: productionsystem-mariadb-data
+
+    # postgresdb-data:
+    #     name: productionsystem-postgresdb-data
+secrets:
+    GLOBUS_CERT:
+        file: ${GLOBUS_CERT}
+    GLOBUS_KEY:
+        file: ${GLOBUS_KEY}
