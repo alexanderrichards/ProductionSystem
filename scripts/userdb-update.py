@@ -23,8 +23,8 @@ def update_users(
         voms: str = typer.Option(
             "https://voms.gridpp.ac.uk:8443/voms/lz/services",
             help="Root URL of the VOMS services."),
-        cert: str = typer.Option(os.path.expanduser("~/.globus/usercert.pem")),
-        key: str = typer.Option(os.path.expanduser("~/.globus/userkey.pem")),
+        cert: str = typer.Option("~/.globus/usercert.pem"),
+        key: str = typer.Option("~/.globus/userkey.pem"),
         verbose: int = typer.Option(0, "-v", "--verbose", count=True),
         dburl: str = typer.Option(
             "sqlite:///" + os.path.join(os.getcwd(), "requests.db"), "-d", "--dburl"),
@@ -69,11 +69,12 @@ def update_users(
     headers = {"Content-Type": "text/xml;charset=UTF-8",
                "SOAPAction": "",
                'X-VOMS-CSRF-GUARD': '1'}
+    cert_key = (os.path.expandvars(os.path.expanduser(args.cert)), os.path.expandvars(os.path.expanduser(args.key)))
     vomsAdmin = CertClient(os.path.join(args.voms, 'VOMSAdmin?wsdl'),
-                           cert=(args.cert, args.key),
+                           cert=cert_key,
                            headers=headers, verify=args.verify)
     vomsCompat = CertClient(os.path.join(args.voms, 'VOMSCompatibility?wsdl'),
-                            cert=(args.cert, args.key),
+                            cert=cert_key,
                             headers=headers, verify=args.verify)
 
     voms_users_info = vomsAdmin.service.listMembers(vomsAdmin.service.getVOName())
