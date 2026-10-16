@@ -56,7 +56,8 @@ services:
             # for older docker buildx versions
             # context: https://github.com/alexanderrichards/ProductionSystem.git#modern_python3_update:docker
             # context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
-            context: .
+            # context: .
+            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.productionsystem
             args:
                 DIRAC_VERSION: 8.0.74  # this is not coming through from env file !! why not
