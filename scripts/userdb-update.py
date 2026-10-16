@@ -54,7 +54,7 @@ def update_users(
     args, cli_args, config_instance, config_path = prepare_options(
         ctx, "userdb", values, APP_NAME)
     if args.trusted_cas:
-        args.verify = args.trusted_cas
+        args.verify = os.path.expandvars(os.path.expanduser(args.trusted_cas))
     logger = setup_logging(
         args, cli_args, config_instance, config_path, daemon=False)
 
