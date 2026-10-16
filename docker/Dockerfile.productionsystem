@@ -1,0 +1,16 @@
+FROM rockylinux:9
+
+WORKDIR /root
+
+COPY dirac_ui_setup.sh .
+RUN chmod +x dirac_ui_setup.sh
+RUN ./dirac_ui_setup.sh
+RUN rm -f dirac_ui_setup.sh
+
+COPY dirac-daemon-entrypoint.sh .
+RUN chmod +x dirac-daemon-entrypoint.sh
+
+COPY productionsystem.conf /root/.config/productionsystem/productionsystem.conf
+
+ENTRYPOINT ["./dirac-daemon-entrypoint.sh"]
+
