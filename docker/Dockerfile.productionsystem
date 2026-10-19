@@ -37,13 +37,13 @@ RUN --mount=type=secret,id=GLOBUS_CERT \
 
 	# Ensure certs exist
 	if [[ ! -f /run/secrets/GLOBUS_CERT ]]; then
-					echo "Missing usercert.pem"
-					exit 1
+		echo "Missing usercert.pem"
+		exit 1
 	fi
 
 	if [[ ! -f /run/secrets/GLOBUS_KEY ]]; then
-					echo "Missing userkey.pem"
-					exit 1
+		echo "Missing userkey.pem"
+		exit 1
 	fi
 
 	cd dirac_ui
@@ -79,9 +79,9 @@ RUN <<-EOF
 	# check if the grid-security directory exists and if not, link it
 	echo "Checking if /etc/grid-security exists..."
 	if [[ ! -d /etc/grid-security  ]]; then
-					echo "Setting up /etc/grid-security..."
-					# Link DIRAC grid-security to expected location - This will fill the docker volume with the necessary grid-security files on first run
-					ln -s /root/dirac_ui/diracos/etc/grid-security /etc/grid-security
+		echo "Setting up /etc/grid-security..."
+		# Link DIRAC grid-security to expected location - This will fill the docker volume with the necessary grid-security files on first run
+		ln -s /root/dirac_ui/diracos/etc/grid-security /etc/grid-security
 	fi
 
 EOF
