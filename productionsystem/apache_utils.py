@@ -112,15 +112,15 @@ def get_verified_user(request: Request) -> User:
     Returns:
         User: Validated database user matching the verified client certificate.
     """
-    required_headers = {'Ssl-Client-S-Dn', 'Ssl-Client-I-Dn', 'Ssl-Client-Verify'}
+    required_headers = {'ssl-client-s-dn', 'ssl-client-i-dn', 'ssl-client-verify'}
     missing_headers = required_headers.difference(request.headers)
     if missing_headers:
         raise HTTPException(401, 'Unauthorized: Incomplete certificate information '
-                                 f'available, required: {list(missing_headers)}')
+                                 f'available, required: {sorted(missing_headers)}')
 
-    client_dn, client_ca = _apache_client_convert(request.headers['Ssl-Client-S-Dn'],
-                                                  request.headers['Ssl-Client-I-Dn'])
-    client_verified = request.headers['Ssl-Client-Verify']
+    client_dn, client_ca = _apache_client_convert(request.headers['ssl-client-s-dn'],
+                                                  request.headers['ssl-client-i-dn'])
+    client_verified = request.headers['ssl-client-verify']
     if client_verified != 'SUCCESS':
         raise HTTPException(401, f'Unauthorized: Cert not verified for user DN: {client_dn}, CA: {client_ca}.')
 
