@@ -46,7 +46,7 @@ def update_users(
         config: Path to the ProductionSystem configuration file.
         trusted_cas: CA bundle or directory overriding ``verify`` when provided.
     """
-    from sqlalchemy import select  # pylint: disable=import-outside-toplevel
+    from sqlalchemy import delete, select, update  # pylint: disable=import-outside-toplevel
     from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
 
     values = locals()
@@ -107,10 +107,11 @@ def update_users(
             logger.info("Removing user: DN='%s', CA='%s'", removed_user.dn, removed_user.ca)
             try:
                 session.execute(
-                    select(Users)
+                    delete(Users)
                     .where(Users.dn == removed_user.dn)
                     .where(Users.ca == removed_user.ca)
-                ).delete(synchronize_session=False)
+                    .execution_options(synchronize_session=False)
+                )
             except SQLAlchemyError as err:
                 logger.error("Error deleting user: %s", err)
 
@@ -129,10 +130,11 @@ def update_users(
                             voms_dn, voms_ca, db_email, voms_email)
                 try:
                     session.execute(
-                        select(Users)
+                        update(Users)
                         .where(Users.dn == voms_dn)
                         .where(Users.ca == voms_ca)
-                        ).update({'email': voms_email})
+                        .values(email=voms_email)
+                    )
                 except SQLAlchemyError as err:
                     logger.error("Error updateing user email: %s", err)
 
@@ -141,10 +143,11 @@ def update_users(
                             voms_dn, voms_ca, db_suspended, voms_suspended)
                 try:
                     session.execute(
-                        select(Users)
+                        update(Users)
                         .where(Users.dn == voms_dn)
                         .where(Users.ca == voms_ca)
-                        ).update({'suspended': voms_suspended})
+                        .values(suspended=voms_suspended)
+                    )
                 except SQLAlchemyError as err:
                     logger.error("Error updating user suspended status: %s", err)
 
