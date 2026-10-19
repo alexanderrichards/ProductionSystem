@@ -91,8 +91,9 @@ def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool |
             ``SSL_CERT_DIR``. A string naming an existing directory is loaded
             as an OpenSSL hashed CA directory using ``capath``; every other
             string is treated as a CA bundle filename using ``cafile``. These
-            explicit trust locations are used instead of automatically loading
-            the default roots. ``False`` disables both certificate-chain and
+            explicit trust locations are added to the default roots, allowing
+            both publicly trusted and grid-issued server certificates to verify.
+            ``False`` disables both certificate-chain and
             hostname verification. Defaults to ``True``.
 
     Returns:
@@ -141,7 +142,8 @@ def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool |
 
             context = create_ssl_context(cert="/etc/client/combined.pem")
 
-        Use separate client credentials and a hashed CA directory::
+        Use separate client credentials and add a hashed grid CA directory
+        alongside the default system roots::
 
             context = create_ssl_context(
                 cert=("/etc/client/cert.pem", "/etc/client/key.pem"),
@@ -156,10 +158,11 @@ def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool |
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
     elif isinstance(verify, str):
+        context = ssl.create_default_context()
         if os.path.isdir(verify):
-            context = ssl.create_default_context(capath=verify)
+            context.load_verify_locations(capath=verify)
         else:
-            context = ssl.create_default_context(cafile=verify)
+            context.load_verify_locations(cafile=verify)
     else:
         context = ssl.create_default_context()
 
