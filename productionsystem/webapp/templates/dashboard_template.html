@@ -51,7 +51,7 @@
 </nav>
 <nav class="navbar navbar-light bg-light justify-content-end border shadow rounded-bottom mb-5">
   <img alt="Monitoring daemon status" class="my-auto mx-1" src="{{monitoringd_service| service_badge_url('monitoringd')}}">
-  <a href="{% block dirac_job_monitor_url %}https://dirac.gridpp.ac.uk:8443/DIRAC/?view=tabs&theme=Grey&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:,{% endblock %}" target="_blank" title="Go to DIRAC job monitor page.">
+  <a href="{% block dirac_job_monitor_url %}https://dirac.gridpp.ac.uk/DIRAC/?theme=Classic&url_state=1|*DIRAC.JobMonitor.classes.JobMonitor:,{% endblock %}" target="_blank" title="Go to DIRAC job monitor page.">
     <img alt="DIRAC status" class="my-auto mx-1" src="{{dirac_service| service_badge_url('DIRAC')}}">
   </a>
   {% if user.admin %}
