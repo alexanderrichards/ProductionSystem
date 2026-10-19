@@ -46,8 +46,8 @@ def update_users(
         config: Path to the ProductionSystem configuration file.
         trusted_cas: CA bundle or directory overriding ``verify`` when provided.
     """
-    from sqlalchemy import delete, select, update  # pylint: disable=import-outside-toplevel
-    from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
+    from sqlalchemy import exists, or_, select, update  # pylint: disable=import-outside-toplevel
+    from sqlalchemy.exc import IntegrityError, SQLAlchemyError  # pylint: disable=import-outside-toplevel
 
     values = locals()
     values.pop("ctx")
@@ -62,6 +62,9 @@ def update_users(
     ###########################################################################
     registry = importlib.import_module('productionsystem.sql.registry')
     Users = importlib.import_module('productionsystem.sql.models.Users').Users
+    Requests = importlib.import_module('productionsystem.sql.models.Requests').Requests
+    ParametricJobs = importlib.import_module('productionsystem.sql.models.ParametricJobs').ParametricJobs
+    DiracJobs = importlib.import_module('productionsystem.sql.models.DiracJobs').DiracJobs
     CertClient = importlib.import_module('productionsystem.suds_utils').CertClient
 
     # Note if clients share the same transport we get a
@@ -79,6 +82,12 @@ def update_users(
 
     voms_users_info = vomsAdmin.service.listMembers(vomsAdmin.service.getVOName())
     voms_valid_users = set(vomsCompat.service.getGridmapUsers())
+
+    # Fetch both lists before writing; empty snapshots must not disable or delete every account.
+    if not voms_users_info or not voms_valid_users:
+        logger.error("VOMS returned an empty membership or gridmap list; "
+                     "aborting user synchronisation without database changes.")
+        raise typer.Exit(code=1)
 
     voms_users = {Users(dn=user_info['DN'],
                         ca=user_info['CA'],
@@ -102,18 +111,42 @@ def update_users(
             except SQLAlchemyError as err:
                 logger.error("Error Adding user: %s", err)
 
-        # Remove users removed from VOMS
+        # Retain owners of historical records, but prevent login when absent from VOMS.
         for removed_user in removed_users:
-            logger.info("Removing user: DN='%s', CA='%s'", removed_user.dn, removed_user.ca)
+            has_history = session.scalar(
+                select(or_(
+                    exists().where(Requests.requester_id == removed_user.id),
+                    exists().where(ParametricJobs.requester_id == removed_user.id),
+                    exists().where(DiracJobs.requester_id == removed_user.id),
+                ))
+            )
+            if has_history:
+                logger.info("Suspending user absent from VOMS with retained history: DN='%s', CA='%s'",
+                            removed_user.dn, removed_user.ca)
+                removed_user.suspended = True
+                continue
+
             try:
-                session.execute(
-                    delete(Users)
-                    .where(Users.dn == removed_user.dn)
-                    .where(Users.ca == removed_user.ca)
-                    .execution_options(synchronize_session=False)
+                # Keep foreign keys enforced; a savepoint isolates concurrent history creation.
+                with session.begin_nested():
+                    session.delete(removed_user)
+                    session.flush()
+            except IntegrityError as err:
+                original_error = err.orig
+                is_foreign_key_error = (
+                    original_error.args[:1] == (1451,)  # MySQL/MariaDB parent-row deletion
+                    or getattr(original_error, "sqlite_errorname", None) == "SQLITE_CONSTRAINT_FOREIGNKEY"
+                    or getattr(original_error, "sqlstate", None) == "23503"  # PostgreSQL
+                    or getattr(original_error, "pgcode", None) == "23503"
                 )
-            except SQLAlchemyError as err:
-                logger.error("Error deleting user: %s", err)
+                if not is_foreign_key_error:
+                    raise
+                logger.warning("User gained database references during deletion; suspending instead: "
+                               "DN='%s', CA='%s': %s", removed_user.dn, removed_user.ca, err)
+                removed_user.suspended = True
+            else:
+                logger.info("Deleted user absent from VOMS without history: DN='%s', CA='%s'",
+                            removed_user.dn, removed_user.ca)
 
         # Users with modified suspended status, update from VOMS
         for common_user in common_users:
