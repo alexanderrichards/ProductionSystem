@@ -83,8 +83,7 @@ services:
                 condition: service_healthy
         networks:
             - ps_net
-        command: ["/bin/sh", "-c", "/root/dirac_ui/diracos/bin/dirac-proxy-init -g gridpp_user -M && \
-                                    /root/dirac_ui/diracos/bin/dirac-daemon.py start --debug-mode"]
+        command: ["/root/entrypoint.sh", "/root/dirac_ui/diracos/bin/dirac-daemon.py", "start", "--debug-mode"]
 
     apache:
         # image: alexanderrichards/apache-proxy:latest

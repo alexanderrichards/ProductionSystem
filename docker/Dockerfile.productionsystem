@@ -8,6 +8,8 @@ SHELL ["/bin/bash", "-c"]
 WORKDIR /root
 
 COPY productionsystem.conf /root/.config/productionsystem/productionsystem.conf
+COPY entrypoint.sh /root/entrypoint.sh
+RUN chmod +x /root/entrypoint.sh
 
 # Install DIRAC and Production System
 RUN <<-EOF
@@ -54,15 +56,8 @@ RUN --mount=type=secret,id=GLOBUS_CERT \
 	# Initialise DIRAC proxy  -  must be unencrypted key.pem file
 	dirac-proxy-init -x -N --Cert /run/secrets/GLOBUS_CERT --Key /run/secrets/GLOBUS_KEY
 
-
 	# Configure DIRAC
 	dirac-configure -F -S GridPP -C dips://dirac01.grid.hep.ph.ic.ac.uk:9135/Configuration/Server -I
-
-	# Create vo based proxy
-	dirac-proxy-init -g gridpp_user -M --Cert /run/secrets/GLOBUS_CERT --Key /run/secrets/GLOBUS_KEY
-
-	# Update VOMS Users
-	userdb-update.py --cert=/run/secrets/GLOBUS_CERT --key=/run/secrets/GLOBUS_KEY
 
 	# Destroy the initial proxy to ensure a clean state
 	dirac-proxy-destroy
