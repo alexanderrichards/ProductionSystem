@@ -144,8 +144,13 @@ class HTMLPageServer(object):
             services = {}
         elif monitoring_service.status != ServiceStatus.UP:
             services = {"monitoringd": monitoring_service}
-        elif (datetime.now(timezone.utc) - monitoring_service.timestamp).total_seconds() > 1800.:  # 30 mins
-            services = {}
+        else:
+            monitoring_timestamp = monitoring_service.timestamp
+            if monitoring_timestamp.tzinfo is None:
+                # Database timestamps without timezone information represent UTC.
+                monitoring_timestamp = monitoring_timestamp.replace(tzinfo=timezone.utc)
+            if (datetime.now(timezone.utc) - monitoring_timestamp).total_seconds() > 1800.:  # 30 mins
+                services = {}
 
         return HTMLResponse(self._render('dashboard_template.html',
                                          user=user,
