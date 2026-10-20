@@ -1,4 +1,4 @@
-FROM rockylinux:9
+FROM rockylinux:9 AS dirac_daemon_base
 ARG DIRAC_VERSION=8.0.74
 ARG GIT_BRANCH=master
 
@@ -29,7 +29,6 @@ RUN <<-EOF
 	source diracos/diracosrc
 	pip install "DIRAC==${DIRAC_VERSION}"
 
-	python -m pip install --no-cache-dir --upgrade "git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}"
 EOF
 
 # Configure DIRAC to get the necessary certificates and proxies - needs secrets for GLOBUS_CERT and GLOBUS_KEY
@@ -81,5 +80,17 @@ RUN <<-EOF
 
 EOF
 
+
+FROM dirac_daemon_base AS dirac_daemon_prod
+
+RUN . /root/dirac_ui/diracos/diracosrc && python -m pip install --no-cache-dir --upgrade "git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}"
+
+CMD ["/bin/sh"]
+
+
+FROM dirac_daemon_base AS dirac_daemon_dev
+
+COPY install-local.sh /root/install-local.sh
+RUN chmod +x /root/install-local.sh
 
 CMD ["/bin/sh"]

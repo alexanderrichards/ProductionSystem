@@ -59,6 +59,7 @@ services:
             # context: .
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.productionsystem
+            target: dirac_daemon_prod
             args:
                 DIRAC_VERSION: 8.0.74  # this is not coming through from env file !! why not
                 GIT_BRANCH: ${GIT_BRANCH}
@@ -108,6 +109,7 @@ services:
         build:
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.productionsystem.lite
+            target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
                 GIT_BRANCH: ${GIT_BRANCH}
@@ -132,6 +134,7 @@ services:
         build:
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.productionsystem.lite
+            target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
                 GIT_BRANCH: ${GIT_BRANCH}

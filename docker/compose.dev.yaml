@@ -9,7 +9,7 @@ services:
     webapp:
         build:
             context: .
-            dockerfile: Dockerfile.productionsystem.local.lite
+            target: productionsystem_dev
         volumes:
             - ../:/root/ProductionSystem:cached
         command: ["/root/install-local.sh", "webapp-daemon.py", "start", "-vvv", "--debug-mode"]
@@ -17,7 +17,7 @@ services:
     monitoring-daemon:
         build:
             context: .
-            dockerfile: Dockerfile.productionsystem.local.lite
+            target: productionsystem_dev
         volumes:
             - ../:/root/ProductionSystem:cached
         command: ["/root/install-local.sh", "monitoring-daemon.py", "start", "--debug-mode"]
@@ -25,7 +25,9 @@ services:
     dirac-daemon:
         build:
             context: .
-            dockerfile: Dockerfile.productionsystem.local
+            target: dirac_daemon_dev
+        environment:
+            - PYTHON_ENV_ACTIVATE=/root/dirac_ui/diracos/diracosrc
         volumes:
             - ../:/root/ProductionSystem:cached
         command: ["/root/install-local.sh", "/root/entrypoint.sh", "dirac-daemon.py", "start", "--debug-mode"]
