@@ -50,15 +50,9 @@ services:
     #         - db-data:/var/lib/postgresql
 
     dirac-daemon:
-        # image: alexanderrichards/productionsystem:latest?branch=modern_python3_update&subdir=docker
-        #https://github.com/alexanderrichards/productionsystem.git?branch=modern_python3_update&subdir=docker
         build:
-            # for older docker buildx versions
-            # context: https://github.com/alexanderrichards/ProductionSystem.git#modern_python3_update:docker
-            # context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
-            # context: .
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
-            dockerfile: Dockerfile.productionsystem
+            dockerfile: Dockerfile.diracdaemon
             target: dirac_daemon_prod
             args:
                 DIRAC_VERSION: 8.0.74  # this is not coming through from env file !! why not
@@ -87,7 +81,6 @@ services:
         command: ["/root/entrypoint.sh", "/root/dirac_ui/diracos/bin/dirac-daemon.py", "start", "--debug-mode"]
 
     apache:
-        # image: alexanderrichards/apache-proxy:latest
         build:
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
             dockerfile: Dockerfile.apache
@@ -105,10 +98,9 @@ services:
             - grid-security:/etc/grid-security:ro
 
     monitoring-daemon:
-        # image: alexanderrichards/productionsystem:latest
         build:
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
-            dockerfile: Dockerfile.productionsystem.lite
+            dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
@@ -128,12 +120,11 @@ services:
         networks:
             - ps_net
         command: ["/root/venv/bin/monitoring-daemon.py", "start", "--debug-mode"]
-        # command: /bin/sh -c "source venv/bin/activate && monitoring-daemon.py start --debug-mode"
 
     webapp:
         build:
             context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
-            dockerfile: Dockerfile.productionsystem.lite
+            dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
@@ -151,7 +142,6 @@ services:
         networks:
             - ps_net
         command: ["/root/venv/bin/webapp-daemon.py", "start", "-vvv", "--debug-mode"]
-        # command: /bin/sh -c "source venv/bin/activate && webapp-daemon.py start -vvv --debug-mode"
 
 networks:
     ps_net:
