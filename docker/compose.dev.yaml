@@ -1,0 +1,31 @@
+name: productionsystem
+
+services:
+
+    apache:
+        build:
+            context: .
+
+    webapp:
+        build:
+            context: .
+            dockerfile: Dockerfile.productionsystem.local.lite
+        volumes:
+            - ../:/root/ProductionSystem:cached
+        command: ["/root/install-local.sh", "webapp-daemon.py", "start", "-vvv", "--debug-mode"]
+
+    monitoring-daemon:
+        build:
+            context: .
+            dockerfile: Dockerfile.productionsystem.local.lite
+        volumes:
+            - ../:/root/ProductionSystem:cached
+        command: ["/root/install-local.sh", "monitoring-daemon.py", "start", "--debug-mode"]
+
+    dirac-daemon:
+        build:
+            context: .
+            dockerfile: Dockerfile.productionsystem.local
+        volumes:
+            - ../:/root/ProductionSystem:cached
+        command: ["/root/install-local.sh", "/root/entrypoint.sh", "dirac-daemon.py", "start", "--debug-mode"]

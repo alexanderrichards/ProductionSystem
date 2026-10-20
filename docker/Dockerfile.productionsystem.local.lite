@@ -1,0 +1,21 @@
+
+ARG PY_VERSION=3.14.3-alpine3.23
+
+FROM python:${PY_VERSION}
+ARG GIT_BRANCH
+
+# FROM python:3.14.3-alpine3.23
+
+RUN apk add --no-cache curl git
+
+WORKDIR /root
+
+RUN python -m venv venv
+RUN . ./venv/bin/activate && python -m pip install --upgrade pip setuptools wheel
+COPY dev/install-local.sh /root/install-local.sh
+# RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}
+# RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}
+# RUN less /root/install-local.sh
+
+
+CMD ["/bin/sh"]
