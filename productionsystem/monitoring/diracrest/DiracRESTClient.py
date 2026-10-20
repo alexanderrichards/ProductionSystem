@@ -103,7 +103,6 @@ class DiracAPIJob:
 
 
 # Need a compatability was of defining new type as DIRAC is still running python 3.11.
-# type DiracAPIJobClass = DiracAPIJob
 # type DiracAPIJobClass = type[DiracAPIJob]
 DiracAPIJobClass = type(DiracAPIJob)
 
