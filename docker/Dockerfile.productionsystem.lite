@@ -13,7 +13,7 @@ RUN python -m venv venv
 RUN . ./venv/bin/activate && python -m pip install --upgrade pip setuptools wheel
 
 
-FROM productionsystem_base as productionsystem_prod
+FROM productionsystem_base AS productionsystem_prod
 
 RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}
 
@@ -21,7 +21,7 @@ RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade git+
 CMD ["/bin/sh"]
 
 
-FROM productionsystem_base as productionsystem_dev
+FROM productionsystem_base AS productionsystem_dev
 
 COPY install-local.sh /root/install-local.sh
 RUN chmod +x /root/install-local.sh
