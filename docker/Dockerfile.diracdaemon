@@ -1,4 +1,4 @@
-FROM rockylinux:9
+FROM rockylinux:9 AS dirac_daemon_base
 ARG DIRAC_VERSION=8.0.74
 ARG GIT_BRANCH=master
 
@@ -7,8 +7,7 @@ SHELL ["/bin/bash", "-c"]
 
 WORKDIR /root
 
-COPY dev/install-local-dirac.sh /root/install-local.sh
-RUN chmod +x /root/install-local.sh
+COPY productionsystem.conf /root/.config/productionsystem/productionsystem.conf
 COPY entrypoint.sh /root/entrypoint.sh
 RUN chmod +x /root/entrypoint.sh
 
@@ -81,5 +80,17 @@ RUN <<-EOF
 
 EOF
 
+
+FROM dirac_daemon_base AS dirac_daemon_prod
+
+RUN . /root/dirac_ui/diracos/diracosrc && python -m pip install --no-cache-dir --upgrade "git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}"
+
+CMD ["/bin/sh"]
+
+
+FROM dirac_daemon_base AS dirac_daemon_dev
+
+COPY install-local.sh /root/install-local.sh
+RUN chmod +x /root/install-local.sh
 
 CMD ["/bin/sh"]
