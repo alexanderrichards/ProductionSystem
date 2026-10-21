@@ -158,6 +158,7 @@ def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool |
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
     elif isinstance(verify, str):
+        verify = os.path.expandvars(os.path.expanduser(verify))
         context = ssl.create_default_context()
         if os.path.isdir(verify):
             context.load_verify_locations(capath=verify)
@@ -167,7 +168,7 @@ def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool |
         context = ssl.create_default_context()
 
     if isinstance(cert, tuple):
-        context.load_cert_chain(*cert)
+        context.load_cert_chain(*(os.path.expandvars(os.path.expanduser(c)) for c in cert))
     elif cert is not None:
-        context.load_cert_chain(cert)
+        context.load_cert_chain(os.path.expandvars(os.path.expanduser(cert)))
     return context

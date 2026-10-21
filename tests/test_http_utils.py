@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from productionsystem.api import JSI
+from productionsystem.api import JSI, LocalStatus
 from productionsystem.http_utils import create_ssl_context
 from productionsystem.suds_utils import HttpCertAuthenticated
 
@@ -79,7 +79,7 @@ def test_jsi_gets_request_and_parametric_jobs(http_transport):
     ("method", "args", "verb", "body"),
     [
         ("create_request", ({"description": "test"},), "POST", {"request": {"description": "test"}}),
-        ("modify_request_status", (1, "approved"), "PUT", "status=Approved"),
+        ("modify_request_status", (1, LocalStatus.APPROVED), "PUT", "status=Approved"),
         ("approve_request", (1,), "PUT", "status=Approved"),
         ("mark_checked", (1,), "PUT", "status=Checked"),
         ("mark_closed", (1,), "PUT", "status=Closed"),

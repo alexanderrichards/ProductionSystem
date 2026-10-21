@@ -3,10 +3,17 @@ Client side Python wrapped REST API.
 """
 import logging
 import urllib.parse as up
+from typing import Any
 
 import httpx
 
-from productionsystem.http_utils import create_ssl_context
+from productionsystem.sql.enums import LocalStatus
+from productionsystem.http_utils import HTTPMethod, create_ssl_context
+
+type RequestsList = list[dict[str, Any]]
+type RequestDict = dict[str, Any]
+
+__all__ = ("JSI", "LocalStatus")
 
 
 class JSI:
@@ -38,12 +45,14 @@ class JSI:
         self._verify = verify
         self._logger = logging.getLogger("JSI_API")
 
-    def _request(self, method, url, **kwargs):
+    def _request(self, method: HTTPMethod, endpoint: str, **kwargs) -> httpx.Response:
         """Send a buffered request using the configured X509 credentials."""
         with httpx.Client(verify=create_ssl_context(self._cert, self._verify)) as client:
-            return client.request(method, url, **kwargs)
+            return client.request(method=method.value,
+                                  url=up.urlunsplit(self._url._replace(path=endpoint)),
+                                  **kwargs)
 
-    def get_requests(self, request_id=None):
+    def get_requests(self, request_id: int | None = None) -> RequestsList:
         """
         Get JSI requests.
 
@@ -67,7 +76,7 @@ class JSI:
                                         requests are returned.
 
         Returns:
-            list: List of requests (represented as dictionaries).
+            RequestsList: List of requests (represented as dictionaries).
 
         Raises:
             httpx.HTTPStatusError: Problem with the request
@@ -75,26 +84,23 @@ class JSI:
         """
         if not isinstance(request_id, (int, type(None))):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests"
+        endpoint = "api/requests"
         if request_id is None:
-            url = up.urlunsplit(self._url._replace(path=path))
-            ret = self._request("GET", url)
+            ret = self._request(HTTPMethod.GET, endpoint=endpoint)
             ret.raise_for_status()
             return ret.json()
 
-        path += "/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("GET", url)
+        endpoint += f"/{request_id}"
+        ret = self._request(HTTPMethod.GET, endpoint=endpoint)
         ret.raise_for_status()
         request = ret.json()
 
-        path += "/parametricjobs"
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("GET", url)
+        endpoint += "/parametricjobs"
+        ret = self._request(HTTPMethod.GET, endpoint=endpoint)
         ret.raise_for_status()
         return [dict(request, parametricjobs=ret.json())]
 
-    def create_request(self, request):
+    def create_request(self, request: RequestDict) -> httpx.Response:
         """
         Create JSI Request.
 
@@ -105,15 +111,15 @@ class JSI:
         JSI.
 
         Args:
-            request (dict): Dictionary representation of the request,
-                            inlcuding all necessary parameters.
-                            e.g. {
-                                  "description": "Hello world",
-                                  "parametric_jobs": [
-                                                     {"site": "ANY", "priority": 3},
-                                                     {"site": "ANY", "priority": 2}
-                                                    ]
-                                 }
+            request (dict[str, Any]): Dictionary representation of the request,
+                                      inlcuding all necessary parameters.
+                                      e.g. {
+                                            "description": "Hello world",
+                                            "parametric_jobs": [
+                                                                {"site": "ANY", "priority": 3},
+                                                                {"site": "ANY", "priority": 2}
+                                                               ]
+                                           }
 
         Raises:
             httpx.HTTPStatusError: Problem with the request
@@ -124,18 +130,17 @@ class JSI:
         """
         if not isinstance(request, dict):
             raise TypeError("request parameter should be of type dict, received %r" % request)
-        url = up.urlunsplit(self._url._replace(path="api/requests"))
-        ret = self._request("POST", url, json={"request": request})
+        ret = self._request(HTTPMethod.POST, endpoint="api/requests", json={"request": request})
         ret.raise_for_status()
         return ret
 
-    def modify_request_status(self, request_id, status):
+    def modify_request_status(self, request_id: int, status: LocalStatus) -> httpx.Response:
         """
         Change the status of an existing JSI request.
 
         Args:
             request_id (int): Identifier of the request to update.
-            status (str): New request status.
+            status (LocalStatus): New request status.
 
         Returns:
             httpx.Response: The response returned by the JSI service.
@@ -144,17 +149,17 @@ class JSI:
             TypeError: If ``request_id`` or ``status`` has an invalid type.
             httpx.HTTPStatusError: If the service rejects the update.
         """
-        if not isinstance(status, str):
-            raise TypeError("status parameter should be of type str, received %r" % status)
+        if not isinstance(status, LocalStatus):
+            raise TypeError("status parameter should be of type LocalStatus, received %r" % status)
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("PUT", url, data={"status": status.capitalize()})
+        ret = self._request(HTTPMethod.PUT,
+                            endpoint=f"api/requests/{request_id}",
+                            data={"status": status.name.capitalize()})
         ret.raise_for_status()
-        return ret        
+        return ret
 
-    def approve_request(self, request_id):
+    def approve_request(self, request_id: int) -> httpx.Response:
         """
         Approve JSI request.
 
@@ -176,13 +181,11 @@ class JSI:
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("PUT", url, data={"status": "Approved"})
+        ret = self._request(HTTPMethod.PUT, endpoint=f"api/requests/{request_id}", data={"status": "Approved"})
         ret.raise_for_status()
         return ret
 
-    def mark_checked(self, request_id):
+    def mark_checked(self, request_id: int) -> httpx.Response:
         """
         Mark JSI request as checked.
 
@@ -203,13 +206,11 @@ class JSI:
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("PUT", url, data={"status": "Checked"})
+        ret = self._request(HTTPMethod.PUT, endpoint=f"api/requests/{request_id}", data={"status": "Checked"})
         ret.raise_for_status()
         return ret
 
-    def mark_closed(self, request_id):
+    def mark_closed(self, request_id: int) -> httpx.Response:
         """
         Mark JSI request as closed.
 
@@ -230,13 +231,11 @@ class JSI:
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("PUT", url, data={"status": "Closed"})
+        ret = self._request(HTTPMethod.PUT, endpoint=f"api/requests/{request_id}", data={"status": "Closed"})
         ret.raise_for_status()
         return ret
 
-    def delete_request(self, request_id):
+    def delete_request(self, request_id: int) -> httpx.Response:
         """
         Delete JSI request.
 
@@ -260,9 +259,7 @@ class JSI:
         """
         if not isinstance(request_id, int):
             raise TypeError("request_id parameter should be of type int, received %r" % request_id)
-        path = "api/requests/%d" % request_id
-        url = up.urlunsplit(self._url._replace(path=path))
-        ret = self._request("DELETE", url)
+        ret = self._request(HTTPMethod.DELETE, endpoint=f"api/requests/{request_id}")
         ret.raise_for_status()
         return ret
 
