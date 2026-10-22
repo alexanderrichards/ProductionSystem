@@ -73,6 +73,7 @@ services:
             - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro
             - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
             - grid-security:/root/dirac_ui/diracos/etc/grid-security
+            - tmp-inputsandbox-dir:/tmp  # need to share inputsandbox dir with monitoring daemon
         depends_on:
             mariadb:
                 condition: service_healthy
@@ -112,6 +113,7 @@ services:
             - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro  # needed as monitoring daemon checks that Imperial DIRAC is running. Maybe the dirac daemon should be doing this. 
             - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
             - grid-security:/etc/grid-security:ro
+            - tmp-inputsandbox-dir:/tmp  # need to share inputsandbox dir with dirac daemon
         depends_on:
             dirac-daemon:
                 condition: service_healthy
@@ -150,6 +152,9 @@ networks:
 volumes:
     grid-security:
         name: grid-security
+
+    tmp-inputsandbox-dir:
+        name: tmp-inputsandbox-dir
 
     mariadb-data:
         name: productionsystem-mariadb-data
