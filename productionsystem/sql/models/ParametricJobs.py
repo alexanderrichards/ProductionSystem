@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from operator import attrgetter
 from typing import TYPE_CHECKING, overload
 if TYPE_CHECKING:
-    from io import TextIOWrapper
+    from typing import Any, IO
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from sqlalchemy import (TEXT,
@@ -32,7 +32,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from productionsystem.config import getConfig
 from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client,dirac_api_job_client
-from productionsystem.utils import TemporaryFileManagerContext, igroup, timestamp
+from productionsystem.utils import TemporaryManagerContext, ManagerAwareTemporaryDirectory, igroup, timestamp
 if TYPE_CHECKING:
     from productionsystem.monitoring.diracrest.DiracRESTClient import DiracAPIJobClass
 
@@ -188,15 +188,16 @@ class ParametricJobs(SQLTableBase):
 #    @abstractmethod
     def _setup_dirac_job(self,
                          DiracJobClass: DiracAPIJobClass,
-                         tmp_runscript: TextIOWrapper,
-                         tmp_filemanager: TemporaryFileManagerContext):
+                         tmp_runscript: IO[Any],
+                         tmp_dir: ManagerAwareTemporaryDirectory):
         """
         Define the DIRAC parametric job.
 
         Args:
             DiracJobClass: Recorder class used to build DIRAC job definitions.
             tmp_runscript: Writable temporary shell script included in the DIRAC job sandbox.
-            tmp_filemanager: Context manager for additional temporary job files.
+            tmp_dir: TemporaryManagerContext aware TemporaryDirectory where run script is located manager for
+                     additional temporary job files.
 
         Returns:
             list[DiracAPIJob]: Recorded DIRAC job definitions to submit.
@@ -216,13 +217,14 @@ class ParametricJobs(SQLTableBase):
             None. Submits DIRAC jobs, records created IDs, and updates counters/status on failure.
         """
         with (dirac_api_job_client() as (dirac, dirac_job_class),
-              TemporaryFileManagerContext() as tmp_filemanager,
-              open(os.path.join(tmp_filemanager.new_dir(), "runscript.sh"), "w") as tmp_runscript):
-            os.chmod(tmp_runscript.name, 0o755)
+              TemporaryManagerContext() as tmpmanager):
+
+            tmp_dir = tmpmanager.new_dir()
+            tmp_runscript = tmp_dir.new_file("runscript.sh", mode="w", permissions=0o755)
             try:
                 dirac_jobs = self._setup_dirac_job(dirac_job_class,
                                                    tmp_runscript,
-                                                   tmp_filemanager)
+                                                   tmp_dir)
             except Exception as err:
                 self._clientlog("Error setting up DIRAC jobs for parametric job %d.%d"
                                 % (self.request_id, self.id))
