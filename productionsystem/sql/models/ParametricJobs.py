@@ -202,11 +202,13 @@ class ParametricJobs(SQLTableBase):
         Returns:
             list[DiracAPIJob]: Recorded DIRAC job definitions to submit.
         """
+        tmp_runscript.write("#!/bin/bash\n")
         tmp_runscript.write("echo HelloWorld\n")
         tmp_runscript.flush()
         job = DiracJobClass()
         job.setName("Test DIRAC Job")
         job.setExecutable(os.path.basename(tmp_runscript.name))
+        job.setInputSandbox([tmp_runscript.name])
         return [job]
 
     def submit(self):
