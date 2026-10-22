@@ -7,7 +7,7 @@ the DIRAC daemon. Context-manager helpers close their HTTP pools on exit.
 from __future__ import annotations
 
 import logging
-from typing import Generator
+from typing import Generator, TypeAlias
 from contextlib import contextmanager
 
 import httpx
@@ -118,8 +118,9 @@ class DiracAPIJob:
 
 
 # Need a compatability was of defining new type as DIRAC is still running python 3.11.
+# TODO: Uncomment below if we can set Python 3.12 as the minimum version.
 # type DiracAPIJobClass = type[DiracAPIJob]
-DiracAPIJobClass = type(DiracAPIJob)
+DiracAPIJobClass: TypeAlias = type[DiracAPIJob]
 
 
 

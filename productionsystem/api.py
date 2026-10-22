@@ -6,7 +6,7 @@ requests use HTTPX with the client's configured TLS credentials.
 """
 import logging
 import urllib.parse as up
-from typing import Any
+from typing import Any  # , TypeAlias
 
 import httpx
 
@@ -15,6 +15,10 @@ from productionsystem.http_utils import HTTPMethod, create_ssl_context
 
 type RequestsList = list[dict[str, Any]]
 type RequestDict = dict[str, Any]
+# If need Python 3.11 compatability - prob dont as only our current version of DIRAC is using it.
+# TODO: Remove the below if we can set Python 3.12 as the minimum Python version.
+# RequestsList: TypeAlias = list[dict[str, Any]]
+# RequestDict: TypeAlias = dict[str, Any]
 
 __all__ = ("JSI", "LocalStatus")
 

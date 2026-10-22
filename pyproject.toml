@@ -12,20 +12,18 @@ authors = [
 license = "MIT"
 keywords = ["production"]
 urls = { Homepage = "https://github.com/alexanderrichards/ProductionSystem" }
+requires-python = ">=3.11"
 dependencies = [
     "future",
     "jinja2",
     "daemonize",
-    "enum34; python_version < '3.4'",
-    "configparser; python_version < '3'",
     "httpx",
     "SQLAlchemy",
     "pymysql",
     "fastapi",
     "uvicorn",
     "python-multipart",
-    "suds; python_version < '3'",
-    "suds-py3; python_version > '3'",
+    "suds-py3",
     "gitpython",
     "psutil",
     "typer",
