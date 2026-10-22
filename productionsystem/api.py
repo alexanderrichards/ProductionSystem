@@ -134,14 +134,15 @@ class JSI:
 
         Args:
             request (dict[str, Any]): Dictionary representation of the request,
-                                      inlcuding all necessary parameters.
-                                      e.g. {
-                                            "description": "Hello world",
-                                            "parametric_jobs": [
-                                                                {"site": "ANY", "priority": 3},
-                                                                {"site": "ANY", "priority": 2}
-                                                               ]
-                                           }
+                                      including all necessary parameters. For example::
+
+                                          {
+                                              "description": "Hello world",
+                                              "parametric_jobs": [
+                                                  {"site": "ANY", "priority": 3},
+                                                  {"site": "ANY", "priority": 2}
+                                              ]
+                                          }
 
         Raises:
             httpx.HTTPStatusError: Problem with the request

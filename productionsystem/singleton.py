@@ -29,12 +29,15 @@ class SingletonMeta(type):
     """
     Singleton MetaClass.
 
-    This can be used either with the static variable __metaclass__
-    or indirectly through the singleton class decorator see help(singleton).
+    Specify this metaclass on a class definition or apply it indirectly through
+    the ``singleton`` class decorator see help(singleton).
 
     Examples:
-        >>> class test(object):
-        >>>     __metaclass__ = SingletonMeta
+        >>> from productionsystem.singleton import SingletonMeta
+        >>> class Example(metaclass=SingletonMeta):
+        ...     pass
+        >>> Example.get_instance() is Example.get_instance()
+        True
 
     """
 
@@ -95,9 +98,12 @@ def singleton(cls):
     A class decorator rendering the decorated class a singleton.
 
     Examples:
+        >>> from productionsystem.singleton import singleton
         >>> @singleton
-        >>> class test(object):
-        >>>     pass
+        ... class Settings:
+        ...     pass
+        >>> Settings.get_instance() is Settings.get_instance()
+        True
 
     Returns:
         type: Replacement class using ``SingletonMeta``.
