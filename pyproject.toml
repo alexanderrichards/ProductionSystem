@@ -82,3 +82,11 @@ productionsystem = [
     "webapp/static_resources/*",
     "webapp/templates/*",
 ]
+
+[tool.pytest]
+testpaths = "tests"
+addopts = "-vv --cov=productionsystem --cov-report=term-missing --cov-fail-under=2"
+
+[tool.mypy]
+plugins = ["sqlmypy", "pydantic.mypy"]
+ignore_missing_imports = true
