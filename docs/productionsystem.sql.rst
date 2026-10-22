@@ -2,9 +2,6 @@ productionsystem.sql package
 ============================
 
 .. automodule:: productionsystem.sql
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Subpackages
 -----------
@@ -22,4 +19,3 @@ Submodules
    productionsystem.sql.SQLTableBase
    productionsystem.sql.enums
    productionsystem.sql.registry
-

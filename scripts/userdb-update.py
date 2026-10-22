@@ -1,95 +1,74 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
-"""Script to read users info from VOMS and update locat SQL table."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Read user information from VOMS and update the local SQL table.
 
-import os
-import logging
-import argparse
+Synchronize certificate identities, email addresses, and suspension flags.
+Retain absent users with production history as suspended accounts, and abort
+without database changes if either VOMS membership snapshot is empty.
+"""
+from __future__ import annotations
+
 import importlib
-from pprint import pformat
-import pkg_resources
+import os
 
-from sqlalchemy.exc import SQLAlchemyError
+import typer
 
-from productionsystem.utils import expand_path
+from productionsystem.cli import prepare_options, setup_logging
 
-if __name__ == '__main__':
-    current_dir = os.getcwd()
-    app_name = os.path.splitext(os.path.basename(__file__))[0]
+app = typer.Typer(help="Read users from VOMS and update the local database.")
+APP_NAME = "userdb-update"
+DEFAULT_CONFIG = "~/.config/productionsystem/productionsystem.conf"
 
-    parser = argparse.ArgumentParser(description='Read list of users from VOMS and update '
-                                                 'local table.')
-    parser.add_argument('--voms', default='https://voms.hep.wisc.edu:8443/voms/lz/services',
-                        help='Root path of VOMS server services. [default: %(default)s]')
-    parser.add_argument('--cert', default=os.path.expanduser('~/.globus/usercert.pem'),
-                        help='Path to cert .pem file [default: %(default)s]')
-    parser.add_argument('--key', default=os.path.expanduser('~/.globus/userkey.pem'),
-                        help='Path to key .pem file. Note must be an unencrypted key. '
-                             '[default: %(default)s]')
-    parser.add_argument('-v', '--verbose', action='count',
-                        help="Increase the logged verbosite, can be used twice")
-    parser.add_argument('-d', '--dburl',
-                        default="sqlite:///" + os.path.join(current_dir, 'requests.db'),
-                        help="URL for the requests DB. Note can use the prefix 'mysql+pymysql://' "
-                             "if you have a problem with MySQLdb.py [default: %(default)s]")
-    parser.add_argument('--verify', default=False, action="store_true",
-                        help="Verify the VOMS server.")
-    parser.add_argument('-c', '--config',
-                        default='~/.config/productionsystem/productionsystem.conf',
-                        help="The config file [default: %(default)s]")
-    parser.add_argument('--trusted-cas', default='',
-                        help="Path to the trusted CA_BUNDLE file or directory containing the "
-                             "certificates of trusted CAs. Note if set to a directory, the "
-                             "directory must have been processed using the c_rehash utility "
-                             "supplied with OpenSSL. If using a CA_BUNDLE file can also consider "
-                             "using the REQUESTS_CA_BUNDLE environment variable instead (this may "
-                             "cause pip to fail to validate against PyPI). This option implies and "
-                             "supersedes --verify")
-    args = parser.parse_args()
-    cli_args = vars(args).copy()
 
-    # Config Setup
-    ###########################################################################
-    config_path = expand_path(args.config)
-    if not os.path.exists(config_path):
-        config_path = None
-    config = importlib.import_module('productionsystem.config')
-    config_instance = config.ConfigSystem.setup(config_path)
-    if config_path is not None:
-        arg_dict = vars(args)
-        arg_dict.update(config_instance.get_section("userdb"))
-        args = parser.parse_args(namespace=argparse.Namespace(**arg_dict))
+@app.command()
+def update_users(
+        ctx: typer.Context,
+        voms: str = typer.Option(
+            "https://voms.gridpp.ac.uk:8443/voms/lz/services",
+            help="Root URL of the VOMS services."),
+        cert: str = typer.Option("~/.globus/usercert.pem"),
+        key: str = typer.Option("~/.globus/userkey.pem"),
+        verbose: int = typer.Option(0, "-v", "--verbose", count=True),
+        dburl: str = typer.Option(
+            "sqlite:///" + os.path.join(os.getcwd(), "requests.db"), "-d", "--dburl"),
+        verify: bool = typer.Option(False, help="Verify the VOMS server."),
+        config: str = typer.Option(DEFAULT_CONFIG, "-c", "--config"),
+        trusted_cas: str = typer.Option("", help="Trusted CA bundle or directory."),
+):
+    """
+    Synchronize the user database with VOMS.
+
+    Args:
+        ctx: Typer context used when applying config-file defaults.
+        voms: Root URL of the VOMS SOAP services.
+        cert: Client certificate path for VOMS requests.
+        key: Client private-key path paired with ``cert``.
+        verbose: Count of ``-v`` flags controlling log verbosity.
+        dburl: SQLAlchemy database URL for the user table.
+        verify: Whether to verify the VOMS server certificate.
+        config: Path to the ProductionSystem configuration file.
+        trusted_cas: CA bundle or directory overriding ``verify`` when provided.
+    """
+    from sqlalchemy import exists, or_, select, update  # pylint: disable=import-outside-toplevel
+    from sqlalchemy.exc import IntegrityError, SQLAlchemyError  # pylint: disable=import-outside-toplevel
+
+    values = locals()
+    values.pop("ctx")
+    args, cli_args, config_instance, config_path = prepare_options(
+        ctx, "userdb", values, APP_NAME)
     if args.trusted_cas:
-        args.verify = args.trusted_cas
-
-    # Logging setup
-    ###########################################################################
-    # setup the root logger
-    logging.basicConfig(level=max(logging.WARNING - 10 * (args.verbose or 0), logging.DEBUG),
-                        format="[%(asctime)s] %(name)15s : %(levelname)8s : %(message)s")
-
-    # setup the main app logger
-    logger = logging.getLogger(app_name)
-    logger.debug("Script called with args:\n%s", pformat(cli_args))
-    if config_path is None:
-        logger.warning("Config file '%s' does not exist", cli_args['config'])
-    logger.debug("Active config looks like:\n%s", pformat(config_instance.config))
-    logger.debug("Runtime args:\n%s", pformat(vars(args)))
-
-    # Entry Point Setup
-    ###########################################################################
-    entry_point_map = pkg_resources.get_entry_map('productionsystem')
-    config_instance.entry_point_map = entry_point_map
-    logger.debug("Starting with entry point map: %s", entry_point_map)
+        args.verify = os.path.expandvars(os.path.expanduser(args.trusted_cas))
+    logger = setup_logging(
+        args, cli_args, config_instance, config_path, daemon=False)
 
     # Do work
     ###########################################################################
     registry = importlib.import_module('productionsystem.sql.registry')
     Users = importlib.import_module('productionsystem.sql.models.Users').Users
+    Requests = importlib.import_module('productionsystem.sql.models.Requests').Requests
+    ParametricJobs = importlib.import_module('productionsystem.sql.models.ParametricJobs').ParametricJobs
+    DiracJobs = importlib.import_module('productionsystem.sql.models.DiracJobs').DiracJobs
     CertClient = importlib.import_module('productionsystem.suds_utils').CertClient
 
     # Note if clients share the same transport we get a
@@ -97,15 +76,22 @@ if __name__ == '__main__':
     headers = {"Content-Type": "text/xml;charset=UTF-8",
                "SOAPAction": "",
                'X-VOMS-CSRF-GUARD': '1'}
+    cert_key = (os.path.expandvars(os.path.expanduser(args.cert)), os.path.expandvars(os.path.expanduser(args.key)))
     vomsAdmin = CertClient(os.path.join(args.voms, 'VOMSAdmin?wsdl'),
-                           cert=(args.cert, args.key),
+                           cert=cert_key,
                            headers=headers, verify=args.verify)
     vomsCompat = CertClient(os.path.join(args.voms, 'VOMSCompatibility?wsdl'),
-                            cert=(args.cert, args.key),
+                            cert=cert_key,
                             headers=headers, verify=args.verify)
 
     voms_users_info = vomsAdmin.service.listMembers(vomsAdmin.service.getVOName())
     voms_valid_users = set(vomsCompat.service.getGridmapUsers())
+
+    # Fetch both lists before writing; empty snapshots must not disable or delete every account.
+    if not voms_users_info or not voms_valid_users:
+        logger.error("VOMS returned an empty membership or gridmap list; "
+                     "aborting user synchronisation without database changes.")
+        raise typer.Exit(code=1)
 
     voms_users = {Users(dn=user_info['DN'],
                         ca=user_info['CA'],
@@ -115,7 +101,7 @@ if __name__ == '__main__':
 
     registry.SessionRegistry.setup(args.dburl)
     with registry.managed_session() as session:
-        db_users = set(session.query(Users).all())
+        db_users = set(session.scalars(select(Users)).all())
 
         new_users = voms_users.difference(db_users)
         removed_users = db_users.difference(voms_users)
@@ -127,44 +113,84 @@ if __name__ == '__main__':
             try:
                 session.add(new_user)
             except SQLAlchemyError as err:
-                logger.error("Error Adding user: %s", err.message)
+                logger.error("Error Adding user: %s", err)
 
-        # Remove users removed from VOMS
+        # Retain owners of historical records, but prevent login when absent from VOMS.
         for removed_user in removed_users:
-            logger.info("Removing user: DN='%s', CA='%s'", removed_user.dn, removed_user.ca)
+            has_history = session.scalar(
+                select(or_(
+                    exists().where(Requests.requester_id == removed_user.id),
+                    exists().where(ParametricJobs.requester_id == removed_user.id),
+                    exists().where(DiracJobs.requester_id == removed_user.id),
+                ))
+            )
+            if has_history:
+                logger.info("Suspending user absent from VOMS with retained history: DN='%s', CA='%s'",
+                            removed_user.dn, removed_user.ca)
+                removed_user.suspended = True
+                continue
+
             try:
-                session.query(Users)\
-                       .filter_by(dn=removed_user.dn, ca=removed_user.ca)\
-                       .delete(synchronize_session=False)
-            except SQLAlchemyError as err:
-                logger.error("Error deleting user: %s", err.message)
+                # Keep foreign keys enforced; a savepoint isolates concurrent history creation.
+                with session.begin_nested():
+                    session.delete(removed_user)
+                    session.flush()
+            except IntegrityError as err:
+                original_error = err.orig
+                is_foreign_key_error = (
+                    original_error.args[:1] == (1451,)  # MySQL/MariaDB parent-row deletion
+                    or getattr(original_error, "sqlite_errorname", None) == "SQLITE_CONSTRAINT_FOREIGNKEY"
+                    or getattr(original_error, "sqlstate", None) == "23503"  # PostgreSQL
+                    or getattr(original_error, "pgcode", None) == "23503"
+                )
+                if not is_foreign_key_error:
+                    raise
+                logger.warning("User gained database references during deletion; suspending instead: "
+                               "DN='%s', CA='%s': %s", removed_user.dn, removed_user.ca, err)
+                removed_user.suspended = True
+            else:
+                logger.info("Deleted user absent from VOMS without history: DN='%s', CA='%s'",
+                            removed_user.dn, removed_user.ca)
 
         # Users with modified suspended status, update from VOMS
         for common_user in common_users:
             voms_dn, voms_ca = common_user.dn, common_user.ca
             voms_email, voms_suspended = common_user.email, common_user.suspended
-            db_email, db_suspended = session.query(Users.email, Users.suspended)\
-                                            .filter_by(dn=voms_dn, ca=voms_ca)\
-                                            .one()
+            db_email, db_suspended = session.execute(
+                                        select(Users.email, Users.suspended)
+                                        .where(Users.dn == voms_dn)
+                                        .where(Users.ca == voms_ca)
+                                        ).one()
 
             if voms_email != db_email:
                 logger.info("Updating user: DN='%s', CA='%s', Email=%s->%s",
                             voms_dn, voms_ca, db_email, voms_email)
                 try:
-                    session.query(Users)\
-                           .filter_by(dn=voms_dn, ca=voms_ca)\
-                           .update({'email': voms_email})
+                    session.execute(
+                        update(Users)
+                        .where(Users.dn == voms_dn)
+                        .where(Users.ca == voms_ca)
+                        .values(email=voms_email)
+                    )
                 except SQLAlchemyError as err:
-                    logger.error("Error updateing user email: %s", err.message)
+                    logger.error("Error updateing user email: %s", err)
 
             if voms_suspended != db_suspended:
                 logger.info("Updating user: DN='%s', CA='%s', Suspended=%s->%s",
                             voms_dn, voms_ca, db_suspended, voms_suspended)
                 try:
-                    session.query(Users)\
-                           .filter_by(dn=voms_dn, ca=voms_ca)\
-                           .update({'suspended': voms_suspended})
+                    session.execute(
+                        update(Users)
+                        .where(Users.dn == voms_dn)
+                        .where(Users.ca == voms_ca)
+                        .values(suspended=voms_suspended)
+                    )
                 except SQLAlchemyError as err:
-                    logger.error("Error updating user suspended status: %s", err.message)
+                    logger.error("Error updating user suspended status: %s", err)
 
+    import logging  # pylint: disable=import-outside-toplevel
     logging.shutdown()
+
+
+if __name__ == '__main__':
+    app()

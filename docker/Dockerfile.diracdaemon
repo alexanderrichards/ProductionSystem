@@ -1,0 +1,96 @@
+FROM rockylinux:9 AS dirac_daemon_base
+ARG DIRAC_VERSION=8.0.74
+ARG GIT_BRANCH=master
+
+SHELL ["/bin/bash", "-c"]
+
+
+WORKDIR /root
+
+COPY productionsystem.conf /root/.config/productionsystem/productionsystem.conf
+COPY entrypoint.sh /root/entrypoint.sh
+RUN chmod +x /root/entrypoint.sh
+
+# Install DIRAC and Production System
+RUN <<-EOF
+	set -euo pipefail
+
+
+	echo "Using DIRAC version: ${DIRAC_VERSION}"
+	echo "Using Production System version: ${GIT_BRANCH}"
+
+	mkdir dirac_ui
+	cd dirac_ui
+
+	curl -LO https://github.com/DIRACGrid/DIRACOS2/releases/latest/download/DIRACOS-Linux-$(uname -m).sh
+	bash DIRACOS-Linux-$(uname -m).sh
+	rm -f DIRACOS-Linux-$(uname -m).sh
+
+	source diracos/diracosrc
+	pip install "DIRAC==${DIRAC_VERSION}"
+
+EOF
+
+# Configure DIRAC to get the necessary certificates and proxies - needs secrets for GLOBUS_CERT and GLOBUS_KEY
+RUN --mount=type=secret,id=GLOBUS_CERT \
+    --mount=type=secret,id=GLOBUS_KEY <<-EOF
+	set -euo pipefail
+
+	# Ensure certs exist
+	if [[ ! -f /run/secrets/GLOBUS_CERT ]]; then
+		echo "Missing usercert.pem"
+		exit 1
+	fi
+
+	if [[ ! -f /run/secrets/GLOBUS_KEY ]]; then
+		echo "Missing userkey.pem"
+		exit 1
+	fi
+
+	cd dirac_ui
+
+	# Source DIRAC environment
+	source diracos/diracosrc
+
+	# Initialise DIRAC proxy  -  must be unencrypted key.pem file
+	dirac-proxy-init -x -N --Cert /run/secrets/GLOBUS_CERT --Key /run/secrets/GLOBUS_KEY
+
+	# Configure DIRAC
+	dirac-configure -F -S GridPP -C dips://dirac01.grid.hep.ph.ic.ac.uk:9135/Configuration/Server -I
+
+	# Destroy the initial proxy to ensure a clean state
+	dirac-proxy-destroy
+
+EOF
+
+# Generate self-signed host certificate and set up standard /etc/grid-security directory
+RUN <<-EOF
+	set -euo pipefail
+
+	# Generate self-signed host certificate for grid-security
+	openssl req -x509 -newkey rsa:2048 -keyout /root/dirac_ui/diracos/etc/grid-security/hostkey.pem -out /root/dirac_ui/diracos/etc/grid-security/hostcert.pem -days 365 -nodes -subj "/CN=myhost.test"
+
+	# check if the grid-security directory exists and if not, link it
+	echo "Checking if /etc/grid-security exists..."
+	if [[ ! -d /etc/grid-security  ]]; then
+		echo "Setting up /etc/grid-security..."
+		# Link DIRAC grid-security to expected location - This will fill the docker volume with the necessary grid-security files on first run
+		ln -s /root/dirac_ui/diracos/etc/grid-security /etc/grid-security
+	fi
+
+EOF
+
+
+FROM dirac_daemon_base AS dirac_daemon_prod
+
+RUN . /root/dirac_ui/diracos/diracosrc && python -m pip install --no-cache-dir --upgrade "git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}"
+
+CMD ["/bin/sh"]
+
+
+FROM dirac_daemon_base AS dirac_daemon_dev
+
+COPY install-local.sh /root/install-local.sh
+RUN chmod +x /root/install-local.sh
+
+CMD ["/bin/sh"]

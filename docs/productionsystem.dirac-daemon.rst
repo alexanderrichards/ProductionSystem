@@ -1,7 +1,10 @@
 productionsystem.dirac\-daemon module
 =====================================
 
-.. automodule:: productionsystem.dirac-daemon
-    :members:
-    :undoc-members:
-    :show-inheritance:
+This installed script is not a Python package submodule. See
+:doc:`user/operations` for lifecycle usage and
+:doc:`user/configuration` for its options.
+
+.. literalinclude:: ../scripts/dirac-daemon.py
+   :language: python
+   :caption: scripts/dirac-daemon.py

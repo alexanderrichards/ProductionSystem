@@ -1,19 +1,26 @@
-"""Status enums for use in SQL tables."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Status enums for use in SQL tables.
 
-from enum import unique, Enum, IntEnum
+Define service health, external DIRAC states, and local request states. Map
+DIRAC states to the local lifecycle through ``STATUS_MAP``.
+"""
+from __future__ import annotations
 
+from enum import Enum, IntEnum, unique
 
 __all__ = ('ServiceStatus', 'DiracStatus', 'LocalStatus', 'STATUS_MAP')
 
 
 @unique
 class ServiceStatus(Enum):
-    """Service Status Enum."""
+    """
+    Service Status Enum.
 
+    Attributes:
+        UNKNOWN (str): Unavailable health information; badge color light grey.
+        DOWN (str): Unhealthy service; badge color red.
+        UP (str): Healthy service; badge color bright green.
+    """
     UNKNOWN = 'lightgrey'
     DOWN = 'red'
     UP = 'brightgreen'  # pylint: disable=invalid-name
@@ -21,8 +28,14 @@ class ServiceStatus(Enum):
 
 @unique
 class DiracStatus(IntEnum):
-    """DIRAC Status Enum."""
+    """
+    DIRAC Status Enum.
 
+    Represent external job states with stable integer values. The
+    ``local_status`` property groups these detailed states into the local
+    request lifecycle using ``STATUS_MAP``; in particular, ``DONE`` is locally
+    completed while DIRAC's ``COMPLETED`` still maps to running.
+    """
     UNKNOWN = 0
     DELETED = 1
     KILLED = 2
@@ -38,17 +51,28 @@ class DiracStatus(IntEnum):
     CHECKING = 12
     MATCHED = 13
     COMPLETING = 14
+    RESCHEDULED = 15
 
     @property
     def local_status(self):
-        """Convert to LocalStatus."""
+        """
+        Convert to LocalStatus.
+
+        Returns:
+            LocalStatus: Local request status corresponding to this DIRAC status.
+        """
         return STATUS_MAP[self]
 
 
 @unique
 class LocalStatus(IntEnum):
-    """Local Status Enum."""
+    """
+    Local Status Enum.
 
+    Represent request and parametric-job lifecycle states with stable integers.
+    Include approval, submission, execution, removal, and post-production
+    checking and closure states used by the database and API.
+    """
     REQUESTED = 0
     UNKNOWN = 1
     DELETED = 2
@@ -78,4 +102,5 @@ STATUS_MAP = {DiracStatus.UNKNOWN: LocalStatus.UNKNOWN,
               DiracStatus.QUEUED: LocalStatus.SUBMITTED,
               DiracStatus.WAITING: LocalStatus.SUBMITTED,
               DiracStatus.CHECKING: LocalStatus.SUBMITTED,
-              DiracStatus.MATCHED: LocalStatus.SUBMITTED}
+              DiracStatus.MATCHED: LocalStatus.SUBMITTED,
+              DiracStatus.RESCHEDULED: LocalStatus.SUBMITTING}
