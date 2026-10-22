@@ -203,7 +203,7 @@ class ParametricJobs(SQLTableBase):
         if not self.dirac_jobs:
             return
 
-        dirac_ids = {job.id for job in self.dirac_jobs}
+        dirac_ids = [job.id for job in self.dirac_jobs]
         for ids in igroup(dirac_ids, 1000):
             try:
                 with dirac_api_client() as dirac:
