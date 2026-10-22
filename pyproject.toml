@@ -84,8 +84,8 @@ productionsystem = [
 ]
 
 [tool.pytest]
-testpaths = "tests"
-addopts = "-vv --cov=productionsystem --cov-report=term-missing --cov-fail-under=2"
+testpaths = ["tests"]
+addopts = ["-vv", "--cov=productionsystem", "--cov-report=term-missing", "--cov-fail-under=2"]
 
 [tool.mypy]
 plugins = ["sqlmypy", "pydantic.mypy"]

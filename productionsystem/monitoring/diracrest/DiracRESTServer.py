@@ -17,7 +17,7 @@ try:
     from DIRAC.Core.DISET.RPCClient import RPCClient  # type: ignore[import-not-found]
     from DIRAC.Interfaces.API.Dirac import Dirac  # type: ignore[import-not-found]
     from DIRAC.Interfaces.API.Job import Job  # type: ignore[import-not-found]
-except ImportError as err:
+except (ModuleNotFoundError, ImportError) as err:
     logger.error("Failed to import DIRAC modules: %s", err)
     raise ImportError("Failed to import DIRAC modules") from err
 
