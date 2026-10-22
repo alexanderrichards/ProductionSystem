@@ -1,5 +1,8 @@
 """
 CVMFS Directory Listing Service.
+
+Provide authenticated directory listings from the mounted CVMFS tree, with
+regular-expression filtering and optional name or version sorting.
 """
 from __future__ import annotations
 
@@ -16,6 +19,12 @@ from ._http import http_error_handle
 class CVMFSDirectoryListing(object):
     """
     CVMFS Directory listing service.
+
+    Expose a POST route for paths below the CVMFS mount. Validate filtering and
+    sorting options before returning matching file and directory names.
+
+    Attributes:
+        sort_type_map (dict): Supported sort modes and their key functions.
     """
     sort_type_map = {None: None,
                      'versions': Version}

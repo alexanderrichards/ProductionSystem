@@ -1,5 +1,8 @@
 """
 Requests Table.
+
+Define production request persistence and API schemas, coordinate parametric
+job operations, and log request status transitions.
 """
 from __future__ import annotations
 
@@ -24,6 +27,17 @@ from .Users import User, Users
 class Request(BaseModel):
     """
     JSON-serialisable schema for a Requests row.
+
+    Attributes:
+        id (int): Production request identifier.
+        description (str): User-supplied request description.
+        requester_id (int): Requesting user's identifier.
+        request_date (datetime): Creation time, serialized in UTC.
+        status (LocalStatus): Local state, serialized as a capitalized name.
+        timestamp (datetime): Last update time, serialized in UTC.
+        log (str): Timestamped client-visible messages.
+        parametric_jobs (list[ParametricJob]): Nested job summaries.
+        requester (User): Nested requester details.
     """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -73,6 +87,11 @@ class Request(BaseModel):
 class RequestCreate(BaseModel):
     """
     Input schema for creating a request and its parametric jobs.
+
+    Attributes:
+        description (str): User-supplied description. Defaults to an empty string.
+        parametric_jobs (list[ParametricJobCreate]): Job definitions to create.
+                                                     Defaults to an empty list.
     """
     description: str = ""
     parametric_jobs: list[ParametricJobCreate] = Field(default_factory=list)
@@ -81,6 +100,10 @@ class RequestCreate(BaseModel):
 class Requests(SQLTableBase):
     """
     Requests SQL Table.
+
+    Own parametric jobs with delete-orphan cascading and associate each request
+    with its requester. Coordinate submission and monitoring while storing
+    lifecycle state, timestamps, and a client-visible log.
     """
     __tablename__ = 'requests'
     classtype: Mapped[str] = mapped_column(TEXT)
@@ -113,6 +136,9 @@ class Requests(SQLTableBase):
     def add(self):
         """
         Add self to the DB.
+
+        Insert this request in a managed transaction, then flush and refresh it
+        so database-generated identifiers and defaults are available locally.
         """
         with managed_session() as session:
             session.add(self)
@@ -122,6 +148,9 @@ class Requests(SQLTableBase):
     def remove(self):
         """
         Remove self from the DB.
+
+        Delete this request in a managed transaction. Its parametric jobs and
+        their DIRAC job records follow the configured relationship cascades.
         """
         with managed_session() as session:
             session.delete(self)
@@ -129,6 +158,9 @@ class Requests(SQLTableBase):
     def update(self):
         """
         Update the DB with current values.
+
+        Merge this request into a managed session. The transaction commits on
+        success and rolls back and re-raises database failures.
         """
         with managed_session() as session:
             session.merge(self)
@@ -136,6 +168,10 @@ class Requests(SQLTableBase):
     def submit(self):
         """
         Submit Request.
+
+        Submit each associated parametric job in order and append a client-log
+        entry. Submission failures are logged and change the request state to
+        ``FAILED``; this method does not persist the request itself.
         """
         self._clientlog("Submitting request %s" % self.id)
         self.logger.info("Submitting request %s", self.id)
@@ -271,14 +307,39 @@ class Requests(SQLTableBase):
     def get(cls,
             *,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve all requests with optional eager-loaded relationships.
+
+        Args:
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Requests sorted by identifier.
+        """
+        ...
 
     @overload
     @classmethod
     def get(cls,
             *,
             request_id: list[int],
-            load_user: bool = False, load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_user: bool = False, load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve requests whose identifiers occur in a list.
+
+        Args:
+            request_id (list[int]): Request identifiers to include.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Matching requests sorted by identifier.
+        """
+        ...
 
     @overload
     @classmethod
@@ -286,7 +347,24 @@ class Requests(SQLTableBase):
             *,
             request_id: int,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> Requests: ...
+            load_parametricjobs: bool = False) -> Requests:
+        """
+        Retrieve one request by identifier.
+
+        Args:
+            request_id (int): Request identifier to match.
+            load_user (bool): Eager-load the requester. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            Requests: The uniquely matching request.
+
+        Raises:
+            NoResultFound: If no request matches.
+            MultipleResultsFound: If multiple requests match.
+        """
+        ...
 
     @overload
     @classmethod
@@ -294,7 +372,20 @@ class Requests(SQLTableBase):
             *,
             user_id: int,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve requests belonging to one user.
+
+        Args:
+            user_id (int): Requesting user's identifier.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Matching requests sorted by identifier.
+        """
+        ...
 
     @overload
     @classmethod
@@ -302,7 +393,20 @@ class Requests(SQLTableBase):
             *,
             user_id: None,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve requests without applying a requester filter.
+
+        Args:
+            user_id (None): Explicitly disable the requester filter.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: All requests sorted by identifier.
+        """
+        ...
 
     @overload
     @classmethod
@@ -310,7 +414,20 @@ class Requests(SQLTableBase):
             *,
             status: list[str],
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve requests in selected lifecycle states.
+
+        Args:
+            status (list[str]): Status values to include in the query.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Matching requests sorted by identifier.
+        """
+        ...
 
     @overload
     @classmethod
@@ -319,7 +436,25 @@ class Requests(SQLTableBase):
             request_id: int,
             user_id: int,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> Requests: ...
+            load_parametricjobs: bool = False) -> Requests:
+        """
+        Retrieve one request constrained to a specific requester.
+
+        Args:
+            request_id (int): Request identifier to match.
+            user_id (int): Requesting user's identifier.
+            load_user (bool): Eager-load the requester. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            Requests: The uniquely matching request.
+
+        Raises:
+            NoResultFound: If no request matches both identifiers.
+            MultipleResultsFound: If multiple requests match both identifiers.
+        """
+        ...
 
     @overload
     @classmethod
@@ -328,7 +463,25 @@ class Requests(SQLTableBase):
             request_id: int,
             user_id: None,
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> Requests: ...
+            load_parametricjobs: bool = False) -> Requests:
+        """
+        Retrieve one request without applying a requester filter.
+
+        Args:
+            request_id (int): Request identifier to match.
+            user_id (None): Explicitly disable the requester filter.
+            load_user (bool): Eager-load the requester. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            Requests: The uniquely matching request.
+
+        Raises:
+            NoResultFound: If no request matches.
+            MultipleResultsFound: If multiple requests match.
+        """
+        ...
 
     @overload
     @classmethod
@@ -337,7 +490,21 @@ class Requests(SQLTableBase):
             user_id: int,
             status: list[str],
             load_user: bool = False,
-            load_parametricjobs: bool = False) -> list[Requests]: ...
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve a user's requests in selected lifecycle states.
+
+        Args:
+            user_id (int): Requesting user's identifier.
+            status (list[str]): Status values to include in the query.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Matching requests sorted by identifier.
+        """
+        ...
 
     @classmethod
     def get(cls,
@@ -348,7 +515,7 @@ class Requests(SQLTableBase):
             load_user: bool = False,
             load_parametricjobs: bool = False) -> Requests | list[Requests]:
         """
-        Get requests from the database
+        Get requests from the database.
 
         Get all requests from the database or explicitly those with a given request_id, user_id or status.
        
@@ -367,7 +534,6 @@ class Requests(SQLTableBase):
         Returns:
             Requests | list[Requests]: the retrieved request(s) from the database.
         """
-
         if request_id is not None:
             try:
                 if isinstance(request_id, (list, tuple)):

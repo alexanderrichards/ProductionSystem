@@ -1,5 +1,8 @@
 """
 Shared helpers for ProductionSystem command-line applications.
+
+Discover extension entry points, merge configuration with Typer options, and
+configure logging before starting or stopping application daemons.
 """
 from __future__ import annotations
 
@@ -88,7 +91,10 @@ def prepare_options(ctx, section, values, app_name):
 def _is_default_source(source):
     """
     Return whether a Typer parameter source represents its default value.
-    
+
+    Args:
+        source: Parameter source reported by Typer, or None if unavailable.
+
     Returns:
         bool: True when Typer reports the parameter value came from its default.
     """

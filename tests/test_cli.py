@@ -1,5 +1,8 @@
 """
 Tests for the Typer command-line applications.
+
+Check help output, configuration precedence, model entry-point loading, and
+database query and serialization behavior without starting daemons.
 """
 from __future__ import annotations
 
@@ -15,6 +18,12 @@ SCRIPTS = Path(__file__).parents[1] / "scripts"
 def load_script(name):
     """
     Load a hyphenated script as a Python module.
+
+    Args:
+        name (str): Filename beneath the repository's scripts directory.
+
+    Returns:
+        types.ModuleType: Executed module with its Typer application available.
     """
     spec = importlib.util.spec_from_file_location(name.replace("-", "_"), SCRIPTS / name)
     module = importlib.util.module_from_spec(spec)
@@ -29,6 +38,9 @@ def load_script(name):
 def test_daemon_help_lists_start_and_stop_commands(script_name):
     """
     Daemon Typer applications expose their lifecycle commands.
+
+    Args:
+        script_name (str): Parametrized daemon script whose help is inspected.
     """
     result = CliRunner().invoke(load_script(script_name).app, ["--help"])
     assert result.exit_code == 0
@@ -39,6 +51,9 @@ def test_daemon_help_lists_start_and_stop_commands(script_name):
 def test_userdb_help_lists_options():
     """
     The user database updater remains a single-command application.
+
+    Invoke help without running synchronization and check that VOMS and trust
+    configuration options remain discoverable.
     """
     result = CliRunner().invoke(load_script("userdb-update.py").app, ["--help"])
     assert result.exit_code == 0
@@ -49,6 +64,9 @@ def test_userdb_help_lists_options():
 def test_config_file_values_override_command_defaults(tmp_path):
     """
     Config file values replace Typer defaults.
+
+    Args:
+        tmp_path (Path): Pytest directory holding the temporary INI file.
     """
     module = load_script("webapp-daemon.py")
     config = tmp_path / "productionsystem.conf"
@@ -61,7 +79,10 @@ def test_config_file_values_override_command_defaults(tmp_path):
     def fake_start(args, *, logger):
         """
         Capture the daemon start arguments for the test.
-       
+
+        Args:
+            args (types.SimpleNamespace): Prepared daemon options to inspect.
+            logger (logging.Logger): Lifecycle logger; unused by this stub.
         """
         seen["dburl"] = args.dburl
         seen["socket_port"] = args.socket_port
@@ -78,6 +99,9 @@ def test_config_file_values_override_command_defaults(tmp_path):
 def test_command_line_values_override_config_file(tmp_path):
     """
     Explicit command-line options keep precedence over config files.
+
+    Args:
+        tmp_path (Path): Pytest directory holding the temporary INI file.
     """
     module = load_script("webapp-daemon.py")
     config = tmp_path / "productionsystem.conf"
@@ -90,7 +114,10 @@ def test_command_line_values_override_config_file(tmp_path):
     def fake_start(args, *, logger):
         """
         Capture the daemon start arguments for the test.
-       
+
+        Args:
+            args (types.SimpleNamespace): Prepared daemon options to inspect.
+            logger (logging.Logger): Lifecycle logger; unused by this stub.
         """
         seen["dburl"] = args.dburl
 
@@ -113,6 +140,9 @@ def test_command_line_values_override_config_file(tmp_path):
 def test_model_entry_points_load_without_duplicate_mappers():
     """
     The daemon's real model entry points load with SQLAlchemy 2.
+
+    Resolve model classes through discovered entry points and configure their
+    mappers to expose duplicate registration or import-order failures.
     """
     from sqlalchemy.orm import configure_mappers
 
@@ -132,6 +162,9 @@ def test_model_entry_points_load_without_duplicate_mappers():
 def setup_database(url):
     """
     Point the session registry singleton at a fresh database.
+
+    Args:
+        url (str): SQLAlchemy URL used to initialize the replacement registry.
     """
     from productionsystem.sql.registry import SessionRegistry
 
@@ -143,6 +176,9 @@ def setup_database(url):
 def test_service_queries_return_mapped_entities(tmp_path):
     """
     ORM helpers return model instances rather than SQLAlchemy rows.
+
+    Args:
+        tmp_path (Path): Pytest directory containing the isolated SQLite file.
     """
     from productionsystem.sql.enums import ServiceStatus
     from productionsystem.sql.models import Services
@@ -160,6 +196,9 @@ def test_service_queries_return_mapped_entities(tmp_path):
 def test_request_json_keeps_enum_names_and_nested_requester(tmp_path):
     """
     Serialised requests expose the requester object and enum names.
+
+    Args:
+        tmp_path (Path): Pytest directory containing the isolated SQLite file.
     """
     import json
 

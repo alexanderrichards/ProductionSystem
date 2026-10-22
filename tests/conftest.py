@@ -1,5 +1,8 @@
 """
 Define necessary setup fixtures.
+
+Initialize extension discovery once per test session and reset lazy model
+package attributes before each test to prevent import-order contamination.
 """
 import pytest
 
@@ -11,6 +14,12 @@ from productionsystem.config import ConfigSystem
 def config():
     """
     Set up the config entrypoint map.
+
+    Discover installed entry points using the same loader as the command-line
+    applications and store them in the process-wide configuration.
+
+    Returns:
+        ConfigSystem: Initialized configuration singleton shared by the tests.
     """
     config_instance = ConfigSystem.setup(None)  # pylint: disable=no-member
     # Use the importlib.metadata-based entry point map (same as production code paths), rather

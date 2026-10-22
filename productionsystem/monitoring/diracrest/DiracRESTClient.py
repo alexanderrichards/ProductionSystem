@@ -1,5 +1,8 @@
 """
 HTTP clients for the DIRAC environment API.
+
+Record job configuration calls as JSON and send job or catalogue operations to
+the DIRAC daemon. Context-manager helpers close their HTTP pools on exit.
 """
 from __future__ import annotations
 
@@ -34,7 +37,11 @@ logger = logging.getLogger(__name__)
 def _json_value(value):
     """
     Convert nested container values to JSON-compatible structures.
-    
+
+    Args:
+        value (object): Value to convert; dictionary keys become strings and
+            tuples and sets become lists.
+
     Returns:
         object: JSON-compatible value with mappings, sequences, and set items converted recursively.
     """
@@ -48,11 +55,19 @@ def _json_value(value):
 class DiracAPIJob:
     """
     Record DIRAC Job method calls for execution by the DIRAC daemon.
+
+    Public attribute access produces call recorders rather than contacting
+    DIRAC. Submit the resulting payload with ``DiracAPIClient.submitJob``.
+
+    Attributes:
+        calls (list[dict]): Ordered method names and JSON-compatible arguments.
     """
     def __init__(self):
         """
         Initialize an empty collection of recorded DIRAC method calls.
-       
+
+        The job remains local until explicitly submitted through an API client.
+        Each dynamically recorded call is appended in invocation order.
         """
         self.calls = []
 
@@ -111,12 +126,20 @@ DiracAPIJobClass = type(DiracAPIJob)
 class _RESTClient:
     """
     Shared HTTP transport for DIRAC REST clients.
-   
+
+    Resolve the base URL from monitoring configuration and own a reusable HTTPX
+    connection pool. Call ``close`` when the client is no longer needed.
+
+    Attributes:
+        api_url (str): Configured service URL without a trailing slash.
+        session (httpx.Client): HTTP client used for all requests.
     """
     def __init__(self):
         """
         Initialize the HTTP client using the configured DIRAC API URL.
-       
+
+        Read ``dirac_api_url`` from the monitoring section and log a warning
+        before using ``DEFAULT_API_URL`` when no URL is configured.
         """
         self.api_url = getConfig("monitoring").get("dirac_api_url", "").rstrip("/")
         if not self.api_url:
@@ -127,6 +150,9 @@ class _RESTClient:
     def close(self):
         """
         Close the underlying HTTP connection pool.
+
+        Release the resources owned by this client's HTTPX session. Subsequent
+        requests through the same session are not supported.
         """
         self.session.close()
 
@@ -155,6 +181,9 @@ class _RESTClient:
 class DiracAPIClient(_RESTClient):
     """
     Client for DIRAC job resources.
+
+    Submit recorded jobs, query statuses, and request rescheduling, cancellation,
+    or deletion. Responses retain DIRAC's ``OK`` and ``Value`` result envelope.
     """
     def activeConnection(self):
         """
@@ -237,6 +266,12 @@ class DiracAPIClient(_RESTClient):
 class DiracCatalogueClient(_RESTClient):
     """
     Client for DIRAC catalogue resources.
+
+    Route directory-listing calls through the REST service to a selected DIRAC
+    RPC endpoint, using the shared JSON transport and connection pool.
+
+    Attributes:
+        rpc_endpoint (str): Catalogue RPC service used for directory operations.
     """
     def __init__(self, rpc_endpoint: str):
         """
@@ -269,6 +304,13 @@ class DiracCatalogueClient(_RESTClient):
 def dirac_rpc_client(rpc_endpoint: str) -> Generator[DiracCatalogueClient]:
     """
     Yield a DIRAC catalogue REST client.
+
+    Args:
+        rpc_endpoint (str): DIRAC RPC endpoint used for catalogue calls.
+
+    Yields:
+        DiracCatalogueClient: Client whose HTTP pool is closed on context exit,
+        including when the context body raises an exception.
     """
     client = DiracCatalogueClient(rpc_endpoint)
     try:
@@ -281,6 +323,10 @@ def dirac_rpc_client(rpc_endpoint: str) -> Generator[DiracCatalogueClient]:
 def dirac_api_client() -> Generator[DiracAPIClient]:
     """
     Yield a DIRAC job REST client.
+
+    Yields:
+        DiracAPIClient: Client for job and health operations. Its HTTP pool is
+        closed on context exit, including when the context body raises.
     """
     client = DiracAPIClient()
     try:
@@ -293,6 +339,10 @@ def dirac_api_client() -> Generator[DiracAPIClient]:
 def dirac_api_job_client() -> Generator[tuple[DiracAPIClient, DiracAPIJobClass]]:
     """
     Yield a DIRAC job REST client and a job definition class.
+
+    Yields:
+        tuple[DiracAPIClient, DiracAPIJobClass]: Job client and local job recorder
+        class. The client's HTTP pool is closed when the context exits.
     """
     client = DiracAPIClient()
     try:

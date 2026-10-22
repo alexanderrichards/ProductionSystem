@@ -1,5 +1,8 @@
 """
 HTML Page Server.
+
+Render authenticated dashboard, administration, request, and log pages with
+Jinja2. Register formatting filters used by the packaged templates.
 """
 from __future__ import annotations
 
@@ -33,6 +36,7 @@ def gravitar_hash(email_add):
     Hash an email address.
 
     Generate a gravitar compatible hash from an email address.
+
     Args:
         email_add (str): The target email address
     Returns:
@@ -68,6 +72,9 @@ def log_splitter(log):
     """
     Split up the log string by line.
 
+    Args:
+        log (str | None): Client-visible log text, or None when unavailable.
+
     Returns:
         list[str]: Log lines, or an empty list for missing logs.
     """
@@ -98,6 +105,10 @@ def utc_datetime(value: datetime) -> str:
 class HTMLPageServer(object):
     """
     The Web server.
+
+    Build HTML routes backed by database models and a Jinja2 environment.
+    Optional extension templates are searched alongside the packaged templates;
+    authentication dependencies restrict access to user and administrator views.
     """
     def __init__(self, extra_jinja2_loader=None):
         """

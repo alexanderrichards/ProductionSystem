@@ -1,5 +1,8 @@
 """
 Test api.py.
+
+Check JSI argument validation and outgoing HTTP calls using mocks. A separate
+live-server case requires locally installed, registered X.509 credentials.
 """
 import os
 from unittest import TestCase
@@ -11,10 +14,16 @@ import productionsystem.api as api
 class TestJSI(TestCase):
     """
     Test case for api.py.
+
+    Exercise client construction, request queries, lifecycle operations, and
+    propagation of HTTP status errors without contacting a real server.
     """
     def test__init__(self):
         """
         Test JSI Instantiation.
+
+        Check required and invalid arguments, accepted certificate and trust
+        settings, and storage of the normalized service URL.
         """
         with self.assertRaisesRegex(TypeError, "missing 1 required positional argument: 'url'"):
             api.JSI()
@@ -48,6 +57,12 @@ class TestJSI(TestCase):
     def test_get_requests(self, mock_get):
         """
         Test get_requests method.
+
+        Check collection and individual queries, nested parametric-job fetching,
+        identifier validation, and propagation of unsuccessful responses.
+
+        Args:
+            mock_get (MagicMock): Patched HTTPX request method.
         """
         # Testing getting all requests
         jsi = api.JSI("http://localhost:8080")
@@ -81,6 +96,12 @@ class TestJSI(TestCase):
     def test_create_request(self, mock_post):
         """
         Test create_requests method.
+
+        Check request-body wrapping, dictionary validation, and propagation of
+        server errors.
+
+        Args:
+            mock_post (MagicMock): Patched HTTPX request method.
         """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request parameter should be of type dict"):
@@ -98,6 +119,12 @@ class TestJSI(TestCase):
     def test_delete_request(self, mock_delete):
         """
         Test delete_requests method.
+
+        Check the deletion endpoint, identifier validation, and propagation of
+        unsuccessful responses.
+
+        Args:
+            mock_delete (MagicMock): Patched HTTPX request method.
         """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
@@ -115,6 +142,12 @@ class TestJSI(TestCase):
     def test_approve_request(self, mock_put):
         """
         Test approve_request method.
+
+        Check the approval form payload, identifier validation, and propagation
+        of unsuccessful responses.
+
+        Args:
+            mock_put (MagicMock): Patched HTTPX request method.
         """
         jsi = api.JSI("http://localhost:8080")
         with self.assertRaisesRegex(TypeError, "request_id parameter should be of type int"):
@@ -141,6 +174,10 @@ class TestLiveServer(TestCase):
     def test_get_requests(self):
         """
         Test get_requests method.
+
+        Contact the configured production host with the user's certificate and
+        assert that request retrieval returns a list. This is an authenticated
+        network integration test, not an isolated unit test.
         """
         jsi = api.JSI("https://lzprod01.grid.hep.ph.ic.ac.uk:8443",
                       verify=False,

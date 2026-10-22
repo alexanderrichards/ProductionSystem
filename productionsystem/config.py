@@ -1,5 +1,8 @@
 """
 Configuration System Module.
+
+Load INI values as Python literals into a process-wide configuration singleton.
+Accessors return copies so callers cannot mutate stored sections indirectly.
 """
 from __future__ import annotations
 
@@ -17,6 +20,10 @@ from .singleton import singleton
 class ConfigSystem(object):
     """
     Config system singleton.
+
+    Merge parsed configuration files into section dictionaries and retain the
+    extension entry-point map. Use ``setup`` or ``get_instance`` to access the
+    singleton rather than constructing it directly.
     """
     def __init__(self, configs=None):
         """

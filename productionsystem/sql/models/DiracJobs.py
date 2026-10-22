@@ -1,5 +1,8 @@
 """
 Dirac Jobs Table.
+
+Define the mapped DIRAC job records and their API schema. Query helpers filter
+by job, request, parametric job, or requester identifiers.
 """
 from __future__ import annotations
 
@@ -19,6 +22,14 @@ from ..SQLTableBase import SQLTableBase
 class DiracJob(BaseModel):
     """
     JSON-serialisable schema for a DiracJobs row.
+
+    Attributes:
+        id (int): DIRAC job identifier.
+        request_id (int): Owning production request identifier.
+        parametricjob_id (int): Owning parametric job identifier.
+        requester_id (int): Requesting user's identifier.
+        status (DiracStatus): Current state, serialized as a capitalized name.
+        reschedules (int): Recorded number of rescheduling attempts.
     """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -46,6 +57,9 @@ class DiracJob(BaseModel):
 class DiracJobs(SQLTableBase):
     """
     Dirac Jobs SQL Table.
+
+    Link each external job to its requester and composite parametric-job key.
+    Store the most recently observed DIRAC state and reschedule count.
     """
     __tablename__ = 'diracjobs'
     classtype = Column(TEXT)
@@ -65,43 +79,163 @@ class DiracJobs(SQLTableBase):
 
     @overload
     @classmethod
-    def get(cls) -> list[DiracJobs]: ...
+    def get(cls) -> list[DiracJobs]:
+        """
+        Retrieve all DIRAC job records.
+
+        Returns:
+            list[DiracJobs]: All stored jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, diracjob_id: int) -> DiracJobs: ...
+    def get(cls, *, diracjob_id: int) -> DiracJobs:
+        """
+        Retrieve a single DIRAC job by identifier.
+
+        Args:
+            diracjob_id (int): External job identifier.
+
+        Returns:
+            DiracJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If the job does not exist.
+            MultipleResultsFound: If the identifier is not unique.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id: int) -> list[DiracJobs]: ...
+    def get(cls, *, request_id: int) -> list[DiracJobs]:
+        """
+        Retrieve DIRAC jobs belonging to a request.
+
+        Args:
+            request_id (int): Owning request identifier.
+
+        Returns:
+            list[DiracJobs]: Matching jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, parametricjob_id: int) -> list[DiracJobs]: ...
+    def get(cls, *, parametricjob_id: int) -> list[DiracJobs]:
+        """
+        Retrieve DIRAC jobs by parametric job identifier.
+
+        Args:
+            parametricjob_id (int): Parametric job identifier across requests.
+
+        Returns:
+            list[DiracJobs]: Matching jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, user_id: int) -> list[DiracJobs]: ...
+    def get(cls, *, user_id: int) -> list[DiracJobs]:
+        """
+        Retrieve DIRAC jobs belonging to a requester.
+
+        Args:
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            list[DiracJobs]: Matching jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id: int, parametricjob_id: int) -> list[DiracJobs]: ...
+    def get(cls, *, request_id: int, parametricjob_id: int) -> list[DiracJobs]:
+        """
+        Retrieve the DIRAC jobs of a specific parametric job.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Parametric job identifier within the request.
+
+        Returns:
+            list[DiracJobs]: Matching jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id: int, parametricjob_id: int, user_id: int) -> list[DiracJobs]: ...
+    def get(cls, *, request_id: int, parametricjob_id: int, user_id: int) -> list[DiracJobs]:
+        """
+        Retrieve a requester's DIRAC jobs for a parametric job.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Parametric job identifier within the request.
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            list[DiracJobs]: Jobs matching all filters, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id: int, parametricjob_id: int, user_id: None) -> list[DiracJobs]: ...
+    def get(cls, *, request_id: int, parametricjob_id: int, user_id: None) -> list[DiracJobs]:
+        """
+        Retrieve a parametric job's DIRAC jobs without filtering users.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Parametric job identifier within the request.
+            user_id (None): Explicitly disable the requester filter.
+
+        Returns:
+            list[DiracJobs]: Matching jobs, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: int) -> DiracJobs: ...
+    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: int) -> DiracJobs:
+        """
+        Retrieve a single job matching its ownership identifiers.
+
+        Args:
+            diracjob_id (int): External job identifier.
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Owning parametric job identifier.
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            DiracJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If no job matches all filters.
+            MultipleResultsFound: If multiple jobs match all filters.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: None) -> DiracJobs: ...
+    def get(cls, *, diracjob_id: int, request_id: int, parametricjob_id: int, user_id: None) -> DiracJobs:
+        """
+        Retrieve a single job without filtering its requester.
+
+        Args:
+            diracjob_id (int): External job identifier.
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Owning parametric job identifier.
+            user_id (None): Explicitly disable the requester filter.
+
+        Returns:
+            DiracJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If no job matches all filters.
+            MultipleResultsFound: If multiple jobs match all filters.
+        """
+        ...
     
 
     @classmethod

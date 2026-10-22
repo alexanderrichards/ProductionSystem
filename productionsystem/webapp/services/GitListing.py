@@ -1,5 +1,8 @@
 """
 Github/lab Directory/Tag Listing Service.
+
+Expose authenticated repository tag and directory listings through FastAPI.
+Support GitHub, GitLab, and local checkouts with optional filtering and sorting.
 """
 from __future__ import annotations
 
@@ -38,6 +41,10 @@ SORT_TYPE_MAPPING = {None: None,
 class GitListingBase(object):
     """
     Base Git Listing Service.
+
+    Share provider configuration, authentication headers, and JSON request
+    handling between tag and directory services. Local listings use the same
+    configured base as a checkout root instead of an API URL.
     """
     def __init__(self,
                  api_base_url="https://api.github.com/repos",
@@ -94,6 +101,9 @@ class GitListingBase(object):
 class GitTagListing(GitListingBase):
     """
     Github/lab Tag listing service.
+
+    List tag names from the configured provider or local checkout. POST options
+    select ascending or descending order and optional version-aware sorting.
     """
     def post(self, owner: str, repo: str, user: VerifiedUser, data: dict = Body(...)):
         """
@@ -187,6 +197,10 @@ class GitTagListing(GitListingBase):
 class GitDirectoryListing(GitListingBase):
     """
     Github/lab Directory listing service.
+
+    List files and directories at a requested repository reference. POST
+    options constrain entry types, apply regular expressions, and control
+    ordering for GitHub, GitLab, or local repository results.
     """
     def post(self, owner: str, repo: str, user: VerifiedUser, path: str = '/', data: dict = Body(...)):
         """

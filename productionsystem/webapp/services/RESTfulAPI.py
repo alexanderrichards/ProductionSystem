@@ -1,5 +1,8 @@
 """
 RESTful API.
+
+Expose service, user, request, parametric-job, and DIRAC-job resources through
+FastAPI routers. Apply authorization dependencies and Pydantic response schemas.
 """
 from __future__ import annotations
 
@@ -22,6 +25,9 @@ from ._http import http_error_handle
 class ServicesAPI:
     """
     Services RESTful API.
+
+    Provide administrator-only service list and detail routes, translating
+    missing or ambiguous database results into HTTP errors.
     """
     logger = logging.getLogger(__name__).getChild("ServicesAPI")
 
@@ -71,6 +77,9 @@ class ServicesAPI:
 class UsersAPI:
     """
     Users RESTful API.
+
+    Provide administrator-only user queries and updates to administrative
+    access flags. Serialize database rows through the user response schema.
     """
     logger = logging.getLogger(__name__).getChild("UsersAPI")
 
@@ -141,6 +150,9 @@ class UsersAPI:
 class DiracJobsAPI:
     """
     Dirac Jobs RESTful API.
+
+    Expose DIRAC jobs nested beneath requests and parametric jobs. Non-admin
+    users can only retrieve jobs associated with their own requester ID.
     """
     logger = logging.getLogger(__name__).getChild("DiracJobsAPI")
 
@@ -203,12 +215,21 @@ class DiracJobsAPI:
 class ParametricJobsAPI:
     """
     Parametric Jobs RESTful API.
+
+    Expose request-scoped job queries and rescheduling operations, restricting
+    non-admin users to their own jobs. Include nested DIRAC-job routes.
+
+    Attributes:
+        diracjobs (DiracJobsAPI): Handler for nested external job resources.
     """
     logger = logging.getLogger(__name__).getChild("ParametricJobsAPI")
 
     def __init__(self):
         """
-        Initialise.
+        Initialize the parametric-job resource handler.
+
+        Create the DIRAC-job handler used when assembling nested routes.
+        No database query is performed during initialization.
         """
         self.diracjobs = DiracJobsAPI()
 
@@ -303,12 +324,21 @@ class ParametricJobsAPI:
 class RequestsAPI:
     """
     Requests RESTful API.
+
+    Provide request creation and owner-scoped queries, with administrator-only
+    status updates and removal requests. Include nested parametric-job routes.
+
+    Attributes:
+        parametricjobs (ParametricJobsAPI): Handler for nested job resources.
     """
     logger = logging.getLogger(__name__).getChild("RequestsAPI")
 
     def __init__(self):
         """
-        Initialise.
+        Initialize the request resource handler.
+
+        Create the parametric-job handler used when assembling nested routes.
+        No database query is performed during initialization.
         """
         self.parametricjobs = ParametricJobsAPI()
 

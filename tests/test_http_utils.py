@@ -1,4 +1,9 @@
-"""Regression tests for HTTPX arguments and X509 configuration."""
+"""
+Test HTTPX request arguments and X.509 TLS configuration.
+
+Exercise TLS context construction and client integrations using a mocked
+network transport while retaining HTTPX's real request validation.
+"""
 
 import importlib
 import json
@@ -16,6 +21,12 @@ from productionsystem.suds_utils import HttpCertAuthenticated
 
 @pytest.mark.parametrize("verify", [True, False])
 def test_ssl_verification_flags(verify):
+    """
+    Check that the verification flag controls both TLS checks.
+
+    Args:
+        verify (bool): Parametrized server verification setting.
+    """
     context = create_ssl_context(verify=verify)
     assert context.check_hostname is verify
     assert context.verify_mode == (ssl.CERT_REQUIRED if verify else ssl.CERT_NONE)
@@ -23,6 +34,13 @@ def test_ssl_verification_flags(verify):
 
 @pytest.mark.parametrize("directory", [False, True])
 def test_custom_ca_paths(tmp_path, directory):
+    """
+    Check selection of CA directory and bundle arguments.
+
+    Args:
+        tmp_path (Path): Pytest directory used to construct a trust-store path.
+        directory (bool): Whether to supply the existing directory or a filename.
+    """
     path = tmp_path if directory else tmp_path / "ca.pem"
     with patch("productionsystem.http_utils.ssl.create_default_context") as factory:
         assert create_ssl_context(verify=str(path)) is factory.return_value
@@ -32,6 +50,13 @@ def test_custom_ca_paths(tmp_path, directory):
 @pytest.mark.parametrize("verify", [True, False])
 @pytest.mark.parametrize("cert", ["combined.pem", ("cert.pem", "key.pem"), None])
 def test_client_certificate_loading(cert, verify):
+    """
+    Check optional combined and separate client credential loading.
+
+    Args:
+        cert (str | tuple[str, str] | None): Parametrized client credentials.
+        verify (bool): Parametrized server verification setting.
+    """
     with patch.object(ssl.SSLContext, "load_cert_chain", autospec=True) as load:
         create_ssl_context(cert, verify)
     if cert is None:
@@ -41,6 +66,12 @@ def test_client_certificate_loading(cert, verify):
 
 
 def test_invalid_tls_files_are_not_silently_ignored(tmp_path):
+    """
+    Check that missing credential and CA files raise filesystem errors.
+
+    Args:
+        tmp_path (Path): Pytest directory used to construct nonexistent paths.
+    """
     with pytest.raises(OSError):
         create_ssl_context(cert=str(tmp_path / "missing.pem"), verify=False)
     with pytest.raises(OSError):
@@ -49,10 +80,27 @@ def test_invalid_tls_files_are_not_silently_ignored(tmp_path):
 
 @pytest.fixture
 def http_transport(monkeypatch):
-    """Replace only the network layer, retaining real HTTPX argument validation."""
+    """
+    Replace only the network layer, retaining real HTTPX argument validation.
+
+    Args:
+        monkeypatch (pytest.MonkeyPatch): Fixture replacing the HTTPX transport.
+
+    Returns:
+        list[httpx.Request]: Mutable list populated with intercepted requests.
+    """
     requests = []
 
     def respond(request):
+        """
+        Capture an outgoing request and synthesize its JSON response.
+
+        Args:
+            request (httpx.Request): Request received by the mock transport.
+
+        Returns:
+            httpx.Response: Successful response with endpoint-specific test data.
+        """
         requests.append(request)
         if request.url.path.endswith("/parametricjobs"):
             data = [{"id": 2}]
@@ -67,6 +115,12 @@ def http_transport(monkeypatch):
 
 
 def test_jsi_gets_request_and_parametric_jobs(http_transport):
+    """
+    Check request retrieval and nested parametric-job endpoint paths.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+    """
     client = JSI("https://example.test")
     assert client.get_requests() == []
     assert client.get_requests(1) == [{"id": 1, "parametricjobs": [{"id": 2}]}]
@@ -87,6 +141,16 @@ def test_jsi_gets_request_and_parametric_jobs(http_transport):
     ],
 )
 def test_jsi_write_methods_use_valid_httpx_arguments(http_transport, method, args, verb, body):
+    """
+    Check write-operation verbs, payloads, headers, and response buffering.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+        method (str): Parametrized JSI method name.
+        args (tuple): Positional arguments passed to the JSI method.
+        verb (str): Expected HTTP method.
+        body (dict | str): Expected JSON object or encoded form body.
+    """
     response = getattr(JSI("https://example.test"), method)(*args)
     assert response.status_code == 200
     request, = http_transport
@@ -101,12 +165,24 @@ def test_jsi_write_methods_use_valid_httpx_arguments(http_transport, method, arg
 
 
 def test_jsi_configures_certificate_on_ssl_context(http_transport):
+    """
+    Check that JSI loads client credentials through the TLS context.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture preventing real HTTP traffic.
+    """
     with patch.object(ssl.SSLContext, "load_cert_chain", autospec=True) as load:
         JSI("https://example.test", cert=("cert.pem", "key.pem")).get_requests()
     load.assert_called_once_with("cert.pem", "key.pem")
 
 
 def test_suds_transport_uses_valid_httpx_arguments(http_transport):
+    """
+    Check buffered WSDL and SOAP responses and outgoing SOAP content.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+    """
     transport = HttpCertAuthenticated(None, verify=False)
     try:
         request = SimpleNamespace(
@@ -126,6 +202,14 @@ def test_suds_transport_uses_valid_httpx_arguments(http_transport):
 
 
 def test_monitoring_health_check_uses_valid_httpx_arguments(http_transport):
+    """
+    Check monitoring health requests and persisted service states.
+
+    Skip when POSIX daemon support is unavailable.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+    """
     pytest.importorskip("fcntl", reason="The monitoring daemon requires POSIX daemonize support")
     module = importlib.import_module("productionsystem.monitoring.MonitoringDaemon")
     daemon = object.__new__(module.MonitoringDaemon)
@@ -146,6 +230,12 @@ def test_monitoring_health_check_uses_valid_httpx_arguments(http_transport):
 
 
 def test_git_listing_uses_valid_httpx_arguments(http_transport):
+    """
+    Check provider query parameters and token authentication headers.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+    """
     from productionsystem.webapp.services.GitListing import GitListingBase
 
     listing = GitListingBase(access_token="test-token")
@@ -157,6 +247,13 @@ def test_git_listing_uses_valid_httpx_arguments(http_transport):
 
 @pytest.mark.parametrize("method", ["GET", "POST", "DELETE"])
 def test_dirac_rest_uses_valid_httpx_arguments(http_transport, method):
+    """
+    Check DIRAC JSON conversion, HTTP verbs, and request timeout settings.
+
+    Args:
+        http_transport (list[httpx.Request]): Fixture collecting outgoing requests.
+        method (str): Parametrized HTTP verb used for the DIRAC request.
+    """
     from productionsystem.monitoring.diracrest.DiracRESTClient import DiracAPIClient, REQUEST_TIMEOUT
 
     client = DiracAPIClient()

@@ -19,6 +19,10 @@ from productionsystem.http_utils import create_ssl_context
 class HttpCertAuthenticated(HttpAuthenticated):
     """
     Certificate authenticated http transport.
+
+    Use an HTTPX client with the configured TLS context for WSDL downloads and
+    SOAP posts. Buffer response bodies into the file and reply objects expected
+    by Suds.
     """
     def __init__(self, cert, verify=True, **kwargs):
         """
@@ -78,6 +82,10 @@ class HttpCertAuthenticated(HttpAuthenticated):
 class CertClient(Client):
     """
     Certificate authenticated suds client.
+
+    Install ``HttpCertAuthenticated`` as the default transport and explicitly
+    apply configured headers. A caller-supplied transport takes precedence over
+    the default when initializing the Suds client.
     """
     def __init__(self, url, cert, verify=True, **kwargs):
         """

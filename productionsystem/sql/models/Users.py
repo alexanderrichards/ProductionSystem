@@ -1,5 +1,8 @@
 """
 Users Table.
+
+Map certificate identities and authorization flags to user records. Provide
+lookup helpers and a read-only API schema including the derived display name.
 """
 from __future__ import annotations
 
@@ -19,6 +22,15 @@ from ..SQLTableBase import SQLTableBase
 class User(BaseModel):
     """
     JSON-serialisable schema for a Users row.
+
+    Attributes:
+        id (int): User record identifier.
+        dn (str): Certificate distinguished name.
+        ca (str): Issuing certificate authority.
+        email (str): Registered email address.
+        suspended (bool): Whether access is suspended.
+        admin (bool): Whether administrative access is granted.
+        name (str): Display name derived from the distinguished name.
     """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -34,6 +46,9 @@ class User(BaseModel):
 class Users(SQLTableBase):
     """
     Users SQL Table.
+
+    Store certificate identities and access flags. Equality and hashing use
+    the distinguished name and certificate authority rather than the row ID.
     """
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
@@ -87,17 +102,41 @@ class Users(SQLTableBase):
     def update(self):
         """
         Update the DB record from this Users object.
+
+        Merge this instance into a managed transaction. Changes commit on
+        success; database failures roll back and propagate to the caller.
         """
         with managed_session() as session:
             session.merge(self)
 
     @overload
     @classmethod
-    def get_users(cls) -> list[Users]: ...
+    def get_users(cls) -> list[Users]:
+        """
+        Retrieve all registered users.
+
+        Returns:
+            list[Users]: All user records, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get_users(cls, *, user_id: int) -> Users: ...
+    def get_users(cls, *, user_id: int) -> Users:
+        """
+        Retrieve one registered user by identifier.
+
+        Args:
+            user_id (int): User record identifier.
+
+        Returns:
+            Users: The uniquely matching user.
+
+        Raises:
+            NoResultFound: If no user matches.
+            MultipleResultsFound: If multiple users match.
+        """
+        ...
 
     @classmethod
     def get_users(cls, user_id: int | None = None) -> Users | list[Users]:

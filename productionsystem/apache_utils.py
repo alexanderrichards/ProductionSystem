@@ -45,15 +45,21 @@ def _apache_client_convert(client_dn, client_ca=None):
 
 def get_requested_status(status: str = Form(...)) -> LocalStatus:
     """
-    FastAPI dependency: parse the requested status from the form data.
+    Parse the requested status from form data as a FastAPI dependency.
    
     This would usually be in the form of a string like "APPROVED" or "RUNNING" so
     convert to a LocalStatus enum member. Since LocalStatus is an IntEnum, the default FastAPI
     conversion would only work if the client passed an integer value corresponding to the enum member
     e.g. 1 for LocalStatus.APPROVED. This is not as user friendly as passing a string like "APPROVED" directly.
 
+    Args:
+        status (str): Case-insensitive local status name submitted as form data.
+
     Returns:
         LocalStatus: Status enum member named by the submitted form value.
+
+    Raises:
+        HTTPException: If the status name is unknown, with HTTP status 400.
     """
     try:
         return LocalStatus[status.upper()]
@@ -107,10 +113,17 @@ def _get_db_user(client_dn: str, client_ca: str) -> User:
 
 def get_verified_user(request: Request) -> User:
     """
-    FastAPI dependency: verify the client's certificate headers and return the DB user.
+    Verify certificate headers and return the DB user as a FastAPI dependency.
+
+    Args:
+        request (Request): Request containing certificate headers set by Apache.
 
     Returns:
         User: Validated database user matching the verified client certificate.
+
+    Raises:
+        HTTPException: If certificate headers are incomplete or unverified
+            (401), the user is unknown or suspended (403), or lookup fails (500).
     """
     required_headers = {'ssl-client-s-dn', 'ssl-client-i-dn', 'ssl-client-verify'}
     missing_headers = required_headers.difference(request.headers)
@@ -132,10 +145,16 @@ VerifiedUser = Annotated[User, Depends(get_verified_user)]
 
 def admin_only(user: VerifiedUser) -> User:
     """
-    FastAPI dependency: enforce that the verified user is an admin.
+    Enforce administrator access as a FastAPI dependency.
+
+    Args:
+        user (User): Authenticated user resolved by the verification dependency.
 
     Returns:
         User: The verified admin user.
+
+    Raises:
+        HTTPException: If the user is not an administrator, with HTTP status 403.
     """
     if not user.admin:
         raise HTTPException(403, 'Forbidden: Admin users only')

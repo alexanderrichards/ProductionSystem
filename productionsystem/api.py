@@ -1,5 +1,8 @@
 """
 Client side Python wrapped REST API.
+
+Expose request retrieval and lifecycle operations through ``JSI``. Outbound
+requests use HTTPX with the client's configured TLS credentials.
 """
 import logging
 import urllib.parse as up
@@ -19,6 +22,10 @@ __all__ = ("JSI", "LocalStatus")
 class JSI:
     """
     Object providing Pythonic access to the HTTP RESTful API used by the backend server.
+
+    Store a service URL and TLS settings for request operations. Each operation
+    creates a short-lived HTTP client and returns buffered responses or decoded
+    request data, so callers do not need to manage a connection pool.
     """
     __slots__ = ("_url", "_cert", "_verify", "_logger")
 
@@ -46,7 +53,22 @@ class JSI:
         self._logger = logging.getLogger("JSI_API")
 
     def _request(self, method: HTTPMethod, endpoint: str, **kwargs) -> httpx.Response:
-        """Send a buffered request using the configured X509 credentials."""
+        """
+        Send a buffered request using the configured X509 credentials.
+
+        Args:
+            method (HTTPMethod): HTTP verb to send.
+            endpoint (str): Path replacing the path in the configured URL.
+            **kwargs: Additional request options forwarded to HTTPX.
+
+        Returns:
+            httpx.Response: Buffered response, available after the client closes.
+                HTTP error statuses are not checked by this helper.
+
+        Raises:
+            OSError: If TLS credentials or trust material cannot be loaded.
+            httpx.RequestError: If the HTTP request cannot be completed.
+        """
         with httpx.Client(verify=create_ssl_context(self._cert, self._verify)) as client:
             return client.request(method=method.value,
                                   url=up.urlunsplit(self._url._replace(path=endpoint)),

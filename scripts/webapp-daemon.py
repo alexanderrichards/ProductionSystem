@@ -2,6 +2,9 @@
 # pylint: disable=invalid-name
 """
 Script to start the Production web server.
+
+Provide Typer start and stop commands, loading the configured web daemon and
+optional template extensions. Mock startup resets the local request database.
 """
 from __future__ import annotations
 

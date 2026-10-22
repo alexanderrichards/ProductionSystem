@@ -1,5 +1,8 @@
 """
 Monitoring Daemon.
+
+Poll external service health and advance production requests through submission,
+monitoring, rescheduling, and removal using the configured database.
 """
 from __future__ import annotations
 
@@ -22,6 +25,10 @@ MINS = 60
 class MonitoringDaemon(Daemonize):
     """
     Monitoring Daemon.
+
+    Run periodic service and request checks as a ``Daemonize`` action. Startup
+    verifies DIRAC API connectivity; each monitoring pass persists status
+    changes through the registered SQLAlchemy session.
     """
     def __init__(self, dburl, delay, cert, verify=False, **kwargs):
         """
@@ -51,6 +58,12 @@ class MonitoringDaemon(Daemonize):
     def exit(self):
         """
         Update the monitoringd status on exit.
+
+        Mark the service down, creating its record if necessary, before invoking
+        daemon cleanup. Database failures are logged without preventing cleanup.
+
+        Raises:
+            SystemExit: If the parent daemon exits with a nonzero status.
         """
         try:
             monitoring_service = Services.get_services(service_name="monitoringd")
@@ -78,6 +91,10 @@ class MonitoringDaemon(Daemonize):
     def main(self):
         """
         Daemon main function.
+
+        Initialize the database registry, then check services and requests at
+        the configured minute interval. Keyboard interrupts and unexpected
+        loop failures are logged before the action returns.
         """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 

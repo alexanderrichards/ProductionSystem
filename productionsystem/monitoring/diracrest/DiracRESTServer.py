@@ -1,5 +1,8 @@
 """
 FastAPI server for the DIRAC environment.
+
+Validate recorded job definitions and forward job lifecycle and catalogue calls
+to the installed DIRAC APIs. This module must run in a DIRAC environment.
 """
 from __future__ import annotations
 
@@ -25,7 +28,9 @@ except (ModuleNotFoundError, ImportError) as err:
 class FixedJob(Job):
     """
     DIRAC job subclass that exposes the supported priority setter.
-   
+
+    Supply the setter expected by production job definitions by writing DIRAC's
+    ``Priority`` parameter through the inherited parameter helper.
     """
     def setPriority(self, priority):
         """
@@ -39,6 +44,11 @@ class FixedJob(Job):
 class JobCall(BaseModel):
     """
     A method call used to construct a DIRAC job.
+
+    Attributes:
+        method (str): Public job method name to invoke.
+        args (list[Any]): Positional arguments, empty by default.
+        kwargs (dict[str, Any]): Keyword arguments, empty by default.
     """
     method: str
     args: list[Any] = Field(default_factory=list)
@@ -48,6 +58,10 @@ class JobCall(BaseModel):
 class JobDefinition(BaseModel):
     """
     A serializable DIRAC job definition.
+
+    Attributes:
+        calls (list[JobCall]): Job configuration calls in execution order.
+            Defaults to an empty list.
     """
     calls: list[JobCall] = Field(default_factory=list)
 
@@ -55,6 +69,9 @@ class JobDefinition(BaseModel):
 class JobIds(BaseModel):
     """
     A collection of DIRAC job IDs.
+
+    Attributes:
+        job_ids (list[int]): Identifiers supplied to a job lifecycle operation.
     """
     job_ids: list[int]
 
@@ -62,6 +79,10 @@ class JobIds(BaseModel):
 class DirectoryRequest(BaseModel):
     """
     A request to list a DIRAC catalogue directory.
+
+    Attributes:
+        rpc_endpoint (str): RPC service to receive the directory request.
+        args (list[Any]): Positional arguments for ``listDirectory``.
     """
     rpc_endpoint: str
     args: list[Any] = Field(default_factory=list)
@@ -70,7 +91,10 @@ class DirectoryRequest(BaseModel):
 def _exception_handling(api):
     """
     Wrap an endpoint and translate unexpected errors to HTTP 502 responses.
-    
+
+    Args:
+        api (callable): Synchronous endpoint to invoke inside the error wrapper.
+
     Returns:
         callable: Endpoint wrapper that preserves explicit HTTP errors and converts unexpected failures to 502 responses.
     """
@@ -123,9 +147,16 @@ def create_app():
     def submit_job(definition: JobDefinition):
         """
         Construct and submit a DIRAC job from recorded method calls.
-        
+
+        Args:
+            definition (JobDefinition): Ordered method calls configuring the job.
+
         Returns:
             dict: DIRAC submitJob response.
+
+        Raises:
+            HTTPException: If a method is private or unknown (400), or a DIRAC
+                operation fails unexpectedly (502).
         """
         job = FixedJob()
         for call in definition.calls:
@@ -142,7 +173,10 @@ def create_app():
     def get_job_status(request: JobIds):
         """
         Return DIRAC status information for the requested job IDs.
-        
+
+        Args:
+            request (JobIds): Identifiers of jobs whose statuses are requested.
+
         Returns:
             dict: DIRAC job status response.
         """
@@ -154,7 +188,10 @@ def create_app():
     def reschedule_jobs(request: JobIds):
         """
         Reschedule the requested DIRAC jobs.
-        
+
+        Args:
+            request (JobIds): Identifiers of jobs to reschedule.
+
         Returns:
             dict: DIRAC rescheduleJob response.
         """
@@ -165,7 +202,10 @@ def create_app():
     def kill_jobs(request: JobIds):
         """
         Kill the requested DIRAC jobs.
-        
+
+        Args:
+            request (JobIds): Identifiers of jobs to kill.
+
         Returns:
             dict: DIRAC killJob response.
         """
@@ -176,7 +216,10 @@ def create_app():
     def delete_jobs(request: JobIds):
         """
         Delete the requested DIRAC jobs.
-        
+
+        Args:
+            request (JobIds): Identifiers of jobs to delete.
+
         Returns:
             dict: DIRAC deleteJob response.
         """
@@ -187,7 +230,10 @@ def create_app():
     def list_directory(request: DirectoryRequest):
         """
         List a catalogue directory through the configured RPC endpoint.
-        
+
+        Args:
+            request (DirectoryRequest): RPC endpoint and directory-call arguments.
+
         Returns:
             dict: DIRAC catalogue listDirectory response.
         """

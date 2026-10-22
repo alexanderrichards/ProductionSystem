@@ -1,4 +1,9 @@
-"""Sphinx configuration for the Production System documentation."""
+"""
+Configure the Production System Sphinx documentation build.
+
+Define project metadata, documentation extensions, source discovery, and
+HTML, LaTeX, manual-page, Texinfo, and EPUB output settings.
+"""
 # -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.

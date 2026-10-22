@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # pylint: disable=invalid-name
 """
-Script to read users info from VOMS and update locat SQL table.
+Read user information from VOMS and update the local SQL table.
+
+Synchronize certificate identities, email addresses, and suspension flags.
+Retain absent users with production history as suspended accounts, and abort
+without database changes if either VOMS membership snapshot is empty.
 """
 from __future__ import annotations
 

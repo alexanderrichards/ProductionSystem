@@ -1,5 +1,9 @@
 """
 SQL Models.
+
+Lazily resolve ORM classes and API schemas in dependency order. Configured
+entry points may replace overridable models; built-in identity and service
+models remain fixed.
 """
 from __future__ import annotations
 
@@ -63,8 +67,14 @@ def __getattr__(name):
     time any single one of them is requested, so every name ends up correctly self-healed to
     its class and no further access falls back to this function.
 
+    Args:
+        name (str): Exported model or schema name to resolve.
+
     Returns:
         type: Lazily resolved model class exposed by this package.
+
+    Raises:
+        AttributeError: If the name is not an exported model or schema.
     """
     if name not in __all__:
         raise AttributeError("module %r has no attribute %r" % (__name__, name))

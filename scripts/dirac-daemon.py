@@ -2,6 +2,10 @@
 # pylint: disable=invalid-name
 """
 Dirac daemon run script.
+
+Provide Typer start and stop commands with configuration and logging setup.
+Initialize DIRAC command-line handling before loading the REST daemon, or
+install mock DIRAC modules when explicitly requested.
 """
 from __future__ import annotations
 

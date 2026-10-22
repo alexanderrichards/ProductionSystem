@@ -1,5 +1,8 @@
 """
 LZ Production Web Server.
+
+Assemble HTML, REST, repository-listing, and static-resource routes into a
+FastAPI application hosted by a Uvicorn-backed daemon.
 """
 from __future__ import annotations
 
@@ -18,6 +21,10 @@ from .services import CVMFSDirectoryListing, GitDirectoryListing, GitSchema, Git
 class WebApp(Daemonize):
     """
     LZ Production Web Server Daemon.
+
+    Configure database access, Git listing providers, templates, and listener
+    settings for the production web application. Mock mode substitutes dummy
+    authentication and seeds a test user when the daemon action starts.
     """
     def __init__(self,
                  dburl="sqlite:///",
@@ -106,6 +113,10 @@ class WebApp(Daemonize):
     def main(self):
         """
         Daemon main.
+
+        Initialize the database registry, optionally seed the mock user, and
+        serve the assembled application. Keep packaged static resources
+        available for the lifetime of the blocking Uvicorn server.
         """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 

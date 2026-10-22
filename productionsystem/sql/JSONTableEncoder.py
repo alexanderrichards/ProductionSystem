@@ -1,5 +1,8 @@
 """
 JSON Utilities Module.
+
+Adapt mapped table instances to standard-library JSON encoding using their
+``jsonable_dict`` representation.
 """
 from __future__ import annotations
 
@@ -11,6 +14,10 @@ from .SQLTableBase import SQLTableBase
 class JSONTableEncoder(json.JSONEncoder):
     """
     JSON encoder for SQLAlchemy tables.
+
+    Serialize ``SQLTableBase`` instances through their JSON-ready mappings.
+    Delegate other unsupported objects to the standard encoder, which raises
+    ``TypeError`` when no default conversion exists.
     """
     # pylint: disable=method-hidden
     def default(self, obj):

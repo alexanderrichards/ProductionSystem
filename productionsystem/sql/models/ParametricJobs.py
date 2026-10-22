@@ -1,5 +1,8 @@
 """
 ParametricJobs Table.
+
+Model groups of DIRAC jobs, expose API schemas, and implement submission,
+monitoring, and rescheduling of the external jobs owned by each group.
 """
 from __future__ import annotations
 
@@ -45,6 +48,22 @@ from .DiracJobs import DiracJobs
 class ParametricJob(BaseModel):
     """
     JSON-serialisable schema for a ParametricJobs row.
+
+    Attributes:
+        request_id (int): Owning request identifier.
+        id (int): Parametric job identifier within the request.
+        requester_id (int): Requesting user's identifier.
+        priority (int): Configured scheduling priority.
+        site (str): Requested execution site.
+        status (LocalStatus): Local state, serialized as a capitalized name.
+        reschedule (bool): Whether another submission attempt is requested.
+        timestamp (datetime): Last update time, serialized in UTC.
+        num_jobs (int): Total external job count.
+        num_completed (int): Completed external job count.
+        num_failed (int): Failed external job count.
+        num_submitted (int): Submitted external job count.
+        num_running (int): Running external job count.
+        log (str): Timestamped client-visible messages.
     """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -98,6 +117,10 @@ class ParametricJob(BaseModel):
 class ParametricJobCreate(BaseModel):
     """
     Input schema for creating a parametric job with a request.
+
+    Attributes:
+        priority (int): Scheduling priority. Defaults to 3.
+        site (str): Requested execution site. Defaults to ``"ANY"``.
     """
     priority: int = 3
     site: str = "ANY"
@@ -106,6 +129,10 @@ class ParametricJobCreate(BaseModel):
 class ParametricJobs(SQLTableBase):
     """
     Jobs SQL Table.
+
+    Identify each group by its request and local job ID, and maintain its DIRAC
+    jobs with delete-orphan cascading. Aggregate external job counts and local
+    status for request monitoring.
     """
     __tablename__ = 'parametricjobs'
     classtype: Mapped[str] = mapped_column(TEXT)
@@ -148,6 +175,9 @@ class ParametricJobs(SQLTableBase):
     def update(self):
         """
         Update DB with current values.
+
+        Merge this instance into a managed session. The session commits on
+        success and rolls back and re-raises database failures.
         """
         with managed_session() as session:
             session.merge(self)
@@ -429,43 +459,160 @@ class ParametricJobs(SQLTableBase):
 
     @overload
     @classmethod
-    def get(cls) -> list[ParametricJobs]: ...
+    def get(cls) -> list[ParametricJobs]:
+        """
+        Retrieve all parametric jobs.
+
+        Returns:
+            list[ParametricJobs]: All jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, request_id:int) -> list[ParametricJobs]:
+        """
+        Retrieve the parametric jobs belonging to a request.
+
+        Args:
+            request_id (int): Owning request identifier.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, parametricjob_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, parametricjob_id:int) -> list[ParametricJobs]:
+        """
+        Retrieve jobs with a local identifier across requests.
+
+        Args:
+            parametricjob_id (int): Local job identifier to match.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, user_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, user_id:int) -> list[ParametricJobs]:
+        """
+        Retrieve a requester's parametric jobs.
+
+        Args:
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, user_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, request_id:int, user_id:int) -> list[ParametricJobs]:
+        """
+        Retrieve a request's parametric jobs for a specific user.
+
+        Args:
+            request_id (int): Owning request identifier.
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, user_id: None) -> list[ParametricJobs]: ...
+    def get(cls, *, request_id:int, user_id: None) -> list[ParametricJobs]:
+        """
+        Retrieve a request's jobs without filtering the requester.
+
+        Args:
+            request_id (int): Owning request identifier.
+            user_id (None): Explicitly disable the requester filter.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, parametricjob_id:int, user_id:int) -> list[ParametricJobs]: ...
+    def get(cls, *, parametricjob_id:int, user_id:int) -> list[ParametricJobs]:
+        """
+        Retrieve a user's jobs sharing a local identifier.
+
+        Args:
+            parametricjob_id (int): Local job identifier to match.
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            list[ParametricJobs]: Matching jobs sorted by local job ID.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, parametricjob_id:int) -> ParametricJobs: ...
+    def get(cls, *, request_id:int, parametricjob_id:int) -> ParametricJobs:
+        """
+        Retrieve one parametric job by its composite key.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Local job identifier within the request.
+
+        Returns:
+            ParametricJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If no job matches.
+            MultipleResultsFound: If multiple jobs match.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> ParametricJobs: ...
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id:int) -> ParametricJobs:
+        """
+        Retrieve one parametric job constrained to its requester.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Local job identifier within the request.
+            user_id (int): Requesting user's identifier.
+
+        Returns:
+            ParametricJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If no job matches all filters.
+            MultipleResultsFound: If multiple jobs match all filters.
+        """
+        ...
 
     @overload
     @classmethod
-    def get(cls, *, request_id:int, parametricjob_id:int, user_id: None) -> ParametricJobs: ...
+    def get(cls, *, request_id:int, parametricjob_id:int, user_id: None) -> ParametricJobs:
+        """
+        Retrieve one parametric job without filtering the requester.
+
+        Args:
+            request_id (int): Owning request identifier.
+            parametricjob_id (int): Local job identifier within the request.
+            user_id (None): Explicitly disable the requester filter.
+
+        Returns:
+            ParametricJobs: The uniquely matching job.
+
+        Raises:
+            NoResultFound: If no job matches the composite key.
+            MultipleResultsFound: If multiple jobs match the composite key.
+        """
+        ...
 
     @classmethod
     def get(cls,

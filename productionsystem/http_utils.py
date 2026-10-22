@@ -1,4 +1,5 @@
-"""Provide HTTP method names and TLS contexts for outbound HTTPS requests.
+"""
+Provide HTTP method names and TLS contexts for outbound HTTPS requests.
 
 This module centralizes the TLS configuration used by HTTP clients that may
 authenticate with an X.509 client certificate. It uses Python's standard
@@ -43,7 +44,8 @@ from enum import StrEnum
 
 
 class HTTPMethod(StrEnum):
-    """Represent the HTTP request methods supported by this enumeration.
+    """
+    Represent the HTTP request methods supported by this enumeration.
 
     Each member is a string-valued enumeration constant whose value and string
     representation are the uppercase HTTP method token. Members can therefore
@@ -67,7 +69,8 @@ class HTTPMethod(StrEnum):
 
 
 def create_ssl_context(cert: str | tuple[str, str] | None = None, verify: bool | str = True) -> ssl.SSLContext:
-    """Build a TLS client context with optional X.509 client authentication.
+    """
+    Build a TLS client context with optional X.509 client authentication.
 
     Create a new context on each call, configure server certificate verification,
     and then load a client certificate and private key if supplied. The returned

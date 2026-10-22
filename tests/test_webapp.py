@@ -1,5 +1,8 @@
 """
 Tests for the FastAPI-based webapp services (HTML pages + RESTful API).
+
+Mount real service routers against an isolated SQLite database and substitute
+the dummy administrator for certificate authentication.
 """
 from __future__ import annotations
 
@@ -11,6 +14,9 @@ from fastapi.testclient import TestClient
 def setup_database(url):
     """
     Point the session registry singleton at a fresh database.
+
+    Args:
+        url (str): SQLAlchemy URL used to initialize the replacement registry.
     """
     from productionsystem.sql.registry import SessionRegistry
 
@@ -23,6 +29,13 @@ def setup_database(url):
 def app_and_db(tmp_path):
     """
     Build a FastAPI app wired with the real service routers, backed by a fresh sqlite DB.
+
+    Args:
+        tmp_path (Path): Pytest directory containing the isolated SQLite file.
+
+    Returns:
+        tuple[FastAPI, Users]: Application with dummy authentication and the
+        seeded administrator, whose initial request is stored in the database.
     """
     from sqlalchemy.orm import make_transient
 
@@ -54,6 +67,9 @@ def app_and_db(tmp_path):
 def test_index_page_renders(app_and_db):
     """
     The dashboard page renders successfully for a verified user.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, _ = app_and_db
     client = TestClient(app)
@@ -65,6 +81,9 @@ def test_index_page_renders(app_and_db):
 def test_requests_list_keeps_enum_names_and_nested_requester(app_and_db):
     """
     The /api/requests endpoint returns enum names and a nested requester object.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, user = app_and_db
     client = TestClient(app)
@@ -79,6 +98,9 @@ def test_requests_list_keeps_enum_names_and_nested_requester(app_and_db):
 def test_requests_post_creates_request(app_and_db):
     """
     POSTing a new request creates a row visible via the list endpoint.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, _ = app_and_db
     client = TestClient(app)
@@ -91,6 +113,9 @@ def test_requests_post_creates_request(app_and_db):
 def test_requests_put_status_transition(app_and_db):
     """
     PUT can transition a request's status through the allowed states.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, _ = app_and_db
     client = TestClient(app)
@@ -103,6 +128,9 @@ def test_requests_put_status_transition(app_and_db):
 def test_requests_delete_marks_for_removal(app_and_db):
     """
     DELETE marks a request as REMOVING rather than deleting outright.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, _ = app_and_db
     client = TestClient(app)
@@ -115,6 +143,9 @@ def test_requests_delete_marks_for_removal(app_and_db):
 def test_services_requires_admin_and_lists(app_and_db):
     """
     The /api/services endpoint is reachable by the (admin) dummy user.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, _ = app_and_db
     client = TestClient(app)
@@ -126,6 +157,9 @@ def test_services_requires_admin_and_lists(app_and_db):
 def test_users_list_returns_dummy_user(app_and_db):
     """
     The /api/users endpoint returns the seeded dummy user.
+
+    Args:
+        app_and_db (tuple): Fixture containing the application and seeded user.
     """
     app, user = app_and_db
     client = TestClient(app)

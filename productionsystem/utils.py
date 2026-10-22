@@ -1,5 +1,8 @@
 """
 Package utility module.
+
+Provide UTC timestamps, path expansion, sequence grouping, and context-managed
+temporary resources whose cleanup is coordinated by an exit stack.
 """
 from __future__ import annotations
 
@@ -14,6 +17,15 @@ try:
     from typing import override
 except ImportError:  # unfortunately DIRAC we are using is on Python 3.11 still.
     def override(func):
+        """
+        Provide a no-op override decorator on older Python versions.
+
+        Args:
+            func (callable): Method marked as overriding a base implementation.
+
+        Returns:
+            callable: The original method, unchanged.
+        """
         return func
 
 
@@ -48,8 +60,12 @@ def igroup(sequence: Sequence[Any], nentries: int) -> Generator[Sequence[Any]]:
         sequence (Sequence[Any]): The sequence to be split
         nentries (int): The number of entries per group
 
-    Returns:
-        Generator[Sequence[Any]]: Groups of the sequence with the specified number of entries.
+    Yields:
+        Sequence[Any]: Consecutive groups of at most ``nentries`` items,
+                       including a final partial group when necessary.
+
+    Raises:
+        ValueError: If ``nentries`` is zero.
 
     """
     for i in range(0, len(sequence), nentries):
@@ -57,12 +73,48 @@ def igroup(sequence: Sequence[Any], nentries: int) -> Generator[Sequence[Any]]:
 
 
 class ITemporaryManager(ABC):
+    """
+    Define creation of temporary resources owned by a manager.
+
+    Implementations choose the resource location and register cleanup. Both
+    top-level contexts and managed directories implement this interface.
+    """
+
     @abstractmethod
     def new_file(self, filename: str | Path | None = None, *, permissions: int | None = None, **kwargs) -> IO[Any]:
+        """
+        Create a file whose lifetime is controlled by the manager.
+
+        Args:
+            filename (str | Path | None): Explicit filename or ``None`` to
+                generate a name.
+            permissions (int | None): Optional filesystem permission mode.
+            **kwargs: File creation options accepted by the implementation.
+
+        Returns:
+            IO[Any]: Open file registered for cleanup.
+
+        Raises:
+            NotImplementedError: If the abstract implementation is invoked.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def new_dir(self, *, ignore_cleanup_errors: bool = True, **kwargs) -> ManagerAwareTemporaryDirectory:
+        """
+        Create a directory whose lifetime is controlled by the manager.
+
+        Args:
+            ignore_cleanup_errors (bool): Whether cleanup should tolerate
+                removal errors. Defaults to True.
+            **kwargs: Directory creation options accepted by the implementation.
+
+        Returns:
+            ManagerAwareTemporaryDirectory: Managed temporary directory.
+
+        Raises:
+            NotImplementedError: If the abstract implementation is invoked.
+        """
         raise NotImplementedError()
 
 
@@ -70,6 +122,10 @@ class ITemporaryManager(ABC):
 class TemporaryManagerContext(ExitStack, ITemporaryManager):
     """
     Temporary file/dir manager context.
+
+    Register new files and directories on an ``ExitStack`` for cleanup when
+    the context exits or is explicitly closed. Managed directories delegate
+    creation of their children back to this same stack.
     """
 
     def _cleanup_named_file(self, fileobj: IO[Any], filepath: Path):
@@ -153,6 +209,14 @@ class TemporaryManagerContext(ExitStack, ITemporaryManager):
         return dir_manager
 
 class ManagerAwareTemporaryDirectory(TemporaryDirectory, ITemporaryManager):
+    """
+    Create temporary children through the directory's owning manager.
+
+    Child files and directories are placed beneath this directory and registered
+    with the parent manager for cleanup. Inherited ``TemporaryDirectory`` context
+    entry still returns the directory path rather than this object.
+    """
+
     def __init__(self, *args, manager, **kwargs):
         """
         Initialize a ManagerAwareTemporaryDirectory.

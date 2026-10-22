@@ -1,5 +1,8 @@
 """
-Daembn process hosting the DIRAC FastAPI application.
+Daemon process hosting the DIRAC FastAPI application.
+
+Bridge ``Daemonize`` lifecycle management to Uvicorn so the DIRAC environment
+can expose its job and catalogue operations over HTTP.
 """
 from __future__ import annotations
 
@@ -12,6 +15,9 @@ from .DiracRESTServer import create_app
 class DiracDaemon(Daemonize):
     """
     DIRAC daemon hosting the FastAPI application.
+
+    Bind Uvicorn to the configured host and port when the daemon action starts.
+    Logging is shared with the daemon rather than reconfigured by Uvicorn.
     """
     def __init__(self, address, **kwargs):
         """
@@ -40,6 +46,9 @@ class DiracDaemon(Daemonize):
     def main(self):
         """
         Run the HTTP server.
+
+        Create the DIRAC FastAPI application and serve it at the stored address.
+        This action blocks until Uvicorn shuts down.
         """
         host, port = self._address
         self.logger.info(f"Starting DIRAC REST daemon on {host}:{port}")

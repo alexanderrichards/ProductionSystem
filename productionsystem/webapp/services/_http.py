@@ -1,5 +1,8 @@
 """
 Shared FastAPI HTTP helpers for the webapp services.
+
+Translate selected exceptions into chained HTTP errors while optionally logging
+the original failure, so resource handlers share consistent error handling.
 """
 from __future__ import annotations
 
@@ -18,11 +21,17 @@ def http_error_handle(exc_type, status_code, detail, *, logger=None):
     code and detail message, chained from the original exception.
 
     Args:
-        exc_type (Exception or tuple): The exception type(s) to catch.
+        exc_type (type[Exception] | tuple[type[Exception], ...]): Exception type or types to catch.
         status_code (int): The HTTP status code to respond with.
         detail (str): The error detail message.
         logger (logging.Logger | None): Logger to use for logging the exception. Defaults to None.
 
+    Yields:
+        None: Control to the protected context body.
+
+    Raises:
+        HTTPException: If the context body raises a matching exception, using
+            the supplied status and detail and chaining the original error.
     """
     try:
         yield

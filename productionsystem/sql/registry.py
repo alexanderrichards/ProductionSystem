@@ -1,5 +1,8 @@
 """
 SQLAlchemy global session registry.
+
+Initialize the database engine and mapped tables once, then supply independent
+sessions and a transactional context manager for database operations.
 """
 from __future__ import annotations
 
@@ -55,6 +58,13 @@ class SessionRegistry:
 def managed_session():
     """
     Transactional scoped DB session context.
+
+    Commit after a successful context body. On any body or commit failure,
+    log the error, roll back, and re-raise; always close the session.
+
+    Yields:
+        Session: New session from the process-wide registry. Committed objects
+                 retain their loaded values because expiration on commit is disabled.
     """
     logger = logging.getLogger(__name__)
     # Get a new session instance

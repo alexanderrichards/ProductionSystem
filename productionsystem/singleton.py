@@ -1,5 +1,8 @@
 """
 Singleton Utility Module.
+
+Provide a metaclass and decorator for explicit, process-local singleton setup.
+Normal construction and repeated setup raise ``InstantiationError``.
 """
 from __future__ import annotations
 
@@ -7,6 +10,9 @@ from __future__ import annotations
 class InstantiationError(RuntimeError):
     """
     Instantiation exception.
+
+    Signal attempts to construct a singleton normally or initialize an already
+    configured singleton. Access an existing instance with ``get_instance``.
     """
     def __init__(self, *args, **kwargs):
         """

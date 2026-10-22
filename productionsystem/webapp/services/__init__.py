@@ -1,5 +1,9 @@
 """
 Services sub-package.
+
+Export directory and tag listing services and resolve the HTML page server
+from the configured service entry point. Configuration must be initialized
+before importing this package.
 """
 from __future__ import annotations
 

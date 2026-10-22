@@ -1,5 +1,8 @@
 """
-Status enums for use in SQo tables.
+Status enums for use in SQL tables.
+
+Define service health, external DIRAC states, and local request states. Map
+DIRAC states to the local lifecycle through ``STATUS_MAP``.
 """
 from __future__ import annotations
 
@@ -12,6 +15,11 @@ __all__ = ('ServiceStatus', 'DiracStatus', 'LocalStatus', 'STATUS_MAP')
 class ServiceStatus(Enum):
     """
     Service Status Enum.
+
+    Attributes:
+        UNKNOWN (str): Unavailable health information; badge color light grey.
+        DOWN (str): Unhealthy service; badge color red.
+        UP (str): Healthy service; badge color bright green.
     """
     UNKNOWN = 'lightgrey'
     DOWN = 'red'
@@ -22,6 +30,11 @@ class ServiceStatus(Enum):
 class DiracStatus(IntEnum):
     """
     DIRAC Status Enum.
+
+    Represent external job states with stable integer values. The
+    ``local_status`` property groups these detailed states into the local
+    request lifecycle using ``STATUS_MAP``; in particular, ``DONE`` is locally
+    completed while DIRAC's ``COMPLETED`` still maps to running.
     """
     UNKNOWN = 0
     DELETED = 1
@@ -55,6 +68,10 @@ class DiracStatus(IntEnum):
 class LocalStatus(IntEnum):
     """
     Local Status Enum.
+
+    Represent request and parametric-job lifecycle states with stable integers.
+    Include approval, submission, execution, removal, and post-production
+    checking and closure states used by the database and API.
     """
     REQUESTED = 0
     UNKNOWN = 1

@@ -1,5 +1,8 @@
 """
 Services Table.
+
+Persist named service health checks and expose their identifiers, statuses,
+and update timestamps through a JSON-serializable API schema.
 """
 from __future__ import annotations
 
@@ -20,6 +23,12 @@ from ..SQLTableBase import SQLTableBase
 class Service(BaseModel):
     """
     JSON-serialisable schema for a Services row.
+
+    Attributes:
+        id (int): Service record identifier.
+        name (str): Unique service name.
+        status (ServiceStatus): Health state, serialized as a capitalized name.
+        timestamp (datetime): Last check time, serialized with a space separator.
     """
     model_config = ConfigDict(from_attributes=True, validate_assignment=True)
 
@@ -58,6 +67,9 @@ class Service(BaseModel):
 class Services(SQLTableBase):
     """
     Services SQL Table.
+
+    Track one health state per unique service name. Explicit updates refresh
+    the check timestamp even when the state has not changed.
     """
     __tablename__ = 'services'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # pylint: disable=invalid-name
@@ -69,6 +81,9 @@ class Services(SQLTableBase):
     def add(self):
         """
         Add self to the DB.
+
+        Insert the service in a managed transaction, flush pending changes, and
+        refresh this instance with database-generated identifiers and defaults.
         """
         with managed_session() as session:
             session.add(self)
@@ -78,6 +93,9 @@ class Services(SQLTableBase):
     def update(self):
         """
         Update the DB with current values.
+
+        Set the check timestamp to the current UTC time before merging this
+        instance, ensuring unchanged health states still record a new check.
         """
         with managed_session() as session:
             # Onupdate doesn't trigger if setting status field to same as current value as it's
@@ -88,15 +106,50 @@ class Services(SQLTableBase):
 
     @overload
     @classmethod
-    def get_services(cls) -> list[Services]: ...
+    def get_services(cls) -> list[Services]:
+        """
+        Retrieve all monitored services.
+
+        Returns:
+            list[Services]: All service records, or an empty list.
+        """
+        ...
 
     @overload
     @classmethod
-    def get_services(cls, *, service_id: int) -> Services: ...
+    def get_services(cls, *, service_id: int) -> Services:
+        """
+        Retrieve one monitored service by identifier.
+
+        Args:
+            service_id (int): Service record identifier.
+
+        Returns:
+            Services: The uniquely matching service.
+
+        Raises:
+            NoResultFound: If no service matches.
+            MultipleResultsFound: If multiple services match.
+        """
+        ...
 
     @overload
     @classmethod
-    def get_services(cls, *, service_name: str) -> Services: ...
+    def get_services(cls, *, service_name: str) -> Services:
+        """
+        Retrieve one monitored service by name.
+
+        Args:
+            service_name (str): Unique service name.
+
+        Returns:
+            Services: The uniquely matching service.
+
+        Raises:
+            NoResultFound: If no service matches.
+            MultipleResultsFound: If multiple services match.
+        """
+        ...
 
     @classmethod
     def get_services(cls,
