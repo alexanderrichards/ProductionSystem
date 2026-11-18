@@ -142,6 +142,11 @@ On each pass the monitor updates service records and processes approved,
 submitting, submitted, running, and removing requests. Failed requests with
 pending reschedules can also be selected.
 
+Submission and removal are queued on a single background thread, so slow
+operations do not block monitoring of other requests or service health checks.
+Queued and active requests are not monitored concurrently. Normal shutdown
+waits for the active operation; queued operations are left for the next run.
+
 Automatic rescheduling considers failed or stalled DIRAC jobs whose retry
 count is below ``parametricjobs.reschedules``. It only selects that automatic
 retry set when at least one other job in the group is already ``DONE``.

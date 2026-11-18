@@ -7,6 +7,7 @@ monitoring, rescheduling, and removal using the configured database.
 from __future__ import annotations
 
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 
 import httpx
 from daemonize import Daemonize
@@ -54,6 +55,7 @@ class MonitoringDaemon(Daemonize):
             except Exception as err:
                 self.logger.exception("Error while testing connection to DIRAC API daemon: %s", err)
                 raise RuntimeError("Failed to connect to DIRAC API daemon.") from err
+        self._request_operations: dict[int, Future[None]] = {}
 
     def exit(self):
         """
@@ -98,15 +100,49 @@ class MonitoringDaemon(Daemonize):
         """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="request-operations") as executor:
+            self._request_executor = executor
+            try:
+                while True:
+                    self.check_services()
+                    self.monitor_requests()
+                    time.sleep(self._delay * MINS)
+            except KeyboardInterrupt:
+                self.logger.warning("keyboard interrupt!")  # match the dirac-daemon rpyc SIGINT handler
+            except Exception:
+                self.logger.exception("Unhandled exception while running daemon.")
+            finally:
+                executor.shutdown(wait=True, cancel_futures=True)
+                self._reap_request_operations()  # primarily to log any exceptions from background request operations
+
+    def _reap_request_operations(self):
+        """Release completed work and log background failures."""
+        for request_id, operation in list(self._request_operations.items()):
+            if operation.done():
+                del self._request_operations[request_id]
+                if not operation.cancelled():
+                    try:
+                        operation.result()
+                    except BaseException:
+                        self.logger.exception("Unhandled exception while processing request %d", request_id)
+
+    def _process_request(self, request_id: int):
+        """Reload and submit or remove a request using worker-local sessions."""
         try:
-            while True:
-                self.check_services()
-                self.monitor_requests()
-                time.sleep(self._delay * MINS)
-        except KeyboardInterrupt:
-            self.logger.warning("keyboard interrupt!")  # match the dirac-daemon rpyc SIGINT handler
-        except Exception:
-            self.logger.exception("Unhandled exception while running daemon.")
+            request = Requests.get(request_id=request_id, load_parametricjobs=True)
+        except NoResultFound:
+            self.logger.warning("Request %d disappeared before background processing", request_id)
+            return
+
+        if request.status == LocalStatus.REMOVING:
+            request.remove()
+        elif request.status == LocalStatus.APPROVED:
+            request.status = LocalStatus.SUBMITTING
+            request.update()
+            request.submit()
+            request.update()
+            request.monitor()
+            request.update()
 
     def check_services(self):
         """
@@ -159,9 +195,11 @@ class MonitoringDaemon(Daemonize):
         """
         Monitor the DB requests.
 
-        Check the status of ongoing DB requests and either update them or
-        create new Ganga tasks for new requests.
+        Queue submission and removal on a single worker. Monitor other requests
+        synchronously, skipping requests with queued or active background work.
         """
+        # clear out completed submissions or removals first so that they can be monitored and not skipped below
+        self._reap_request_operations()
         monitored_requests = Requests.get(status=[LocalStatus.APPROVED,
                                                   LocalStatus.SUBMITTING,
                                                   LocalStatus.SUBMITTED,
@@ -171,14 +209,12 @@ class MonitoringDaemon(Daemonize):
         monitored_requests.extend(Requests.get_reschedules())
 
         for request in monitored_requests:
+            if request.id in self._request_operations:
+                continue
             try:
-                if request.status == LocalStatus.APPROVED:
-                    request.status = LocalStatus.SUBMITTING
-                    request.update()
-                    request.submit()
-                    request.update()
-                if request.status == LocalStatus.REMOVING:
-                    request.remove()
+                if request.status in (LocalStatus.APPROVED, LocalStatus.REMOVING):
+                    self._request_operations[request.id] = self._request_executor.submit(self._process_request,
+                                                                                         request.id)
                     continue
                 request.monitor()
                 request.update()

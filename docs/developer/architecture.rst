@@ -102,7 +102,8 @@ Approval and monitoring
 ------------------------
 
 An administrator sets a requested request to ``Approved`` using a form PUT.
-On a later pass, monitoring marks it submitting, persists the transition,
+On a later pass, monitoring queues it for a single background worker. The
+worker reloads the request, marks it submitting, persists the transition,
 calls request submission, and persists the resulting state.
 Each parametric job generates recorded DIRAC calls and creates temporary
 sandbox files. The private API replays the calls on a real DIRAC job, submits
@@ -114,10 +115,15 @@ For example, a submission may succeed and the next database update may fail.
 Do not add unconditional retries around that sequence without a reconciliation
 or idempotency design.
 
-The loop is synchronous. Submission, HTTP timeouts, health checks, and request
-processing all contribute to pass duration. Running multiple independent
-monitors against the same database is not established as safe: there is no
-included distributed claim/lease mechanism preventing duplicate submission.
+Submission and removal run serially on the background worker, with independent
+database sessions. Queued and active requests are skipped by the monitoring
+loop to avoid duplicate operations and concurrent updates. Other requests and
+service health checks continue on the main thread; their HTTP timeouts still
+contribute to pass duration. Normal loop shutdown waits for active work and
+cancels queued work, leaving those requests for a subsequent daemon run.
+Running multiple independent monitors against the same database is not
+established as safe: there is no included distributed claim/lease mechanism
+preventing duplicate submission.
 
 Authentication boundaries
 --------------------------
