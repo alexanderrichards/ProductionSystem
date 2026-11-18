@@ -433,6 +433,27 @@ class Requests(SQLTableBase):
     @classmethod
     def get(cls,
             *,
+            status: list[LocalStatus],
+            load_user: bool = False,
+            load_parametricjobs: bool = False) -> list[Requests]:
+        """
+        Retrieve requests in selected lifecycle states.
+
+        Args:
+            status (list[LocalStatus]): Status values to include in the query.
+            load_user (bool): Eager-load requesters. Defaults to False.
+            load_parametricjobs (bool): Eager-load parametric and DIRAC jobs.
+                Defaults to False.
+
+        Returns:
+            list[Requests]: Matching requests sorted by identifier.
+        """
+        ...
+
+    @overload
+    @classmethod
+    def get(cls,
+            *,
             request_id: int,
             user_id: int,
             load_user: bool = False,
@@ -511,7 +532,7 @@ class Requests(SQLTableBase):
             *,
             request_id: int | list[int] | None = None,
             user_id: int | None = None,
-            status: list[str] | None = None,
+            status: list[str] | list[LocalStatus] | None = None,
             load_user: bool = False,
             load_parametricjobs: bool = False) -> Requests | list[Requests]:
         """
@@ -522,7 +543,7 @@ class Requests(SQLTableBase):
         Args:
             request_id (int | list[int] | None): request id/ids to extract. Defaults to None.
             user_id (int | None): user id to extract. Defaults to None.
-            status (list[str] | None): status values to filter by. Defaults to None.
+            status (list[str] | list[LocalStatus] | None): status values to filter by. Defaults to None.
             load_user (bool): whether to load the user information. Defaults to False.
             load_parametricjobs (bool): whether to load the parametric jobs. Defaults to False.
 

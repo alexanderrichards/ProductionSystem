@@ -162,11 +162,11 @@ class MonitoringDaemon(Daemonize):
         Check the status of ongoing DB requests and either update them or
         create new Ganga tasks for new requests.
         """
-        monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
+        monitored_requests = Requests.get(status=[LocalStatus.APPROVED,
                                                   LocalStatus.SUBMITTING,
                                                   LocalStatus.SUBMITTED,
                                                   LocalStatus.RUNNING,
-                                                  LocalStatus.REMOVING),
+                                                  LocalStatus.REMOVING],
                                           load_parametricjobs=True)
         monitored_requests.extend(Requests.get_reschedules())
 

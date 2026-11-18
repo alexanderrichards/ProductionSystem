@@ -7,6 +7,7 @@ the DIRAC daemon. Context-manager helpers close their HTTP pools on exit.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Generator, TypeAlias
 from contextlib import contextmanager
 
@@ -212,7 +213,7 @@ class DiracAPIClient(_RESTClient):
             raise TypeError("job must be an instance of DiracAPIJob")
         return self._request("POST", "/jobs", job.as_payload())
 
-    def getJobStatus(self, job_ids: set[int]):
+    def getJobStatus(self, job_ids: Iterable[int]):
         """
         Return statuses for the supplied DIRAC job IDs.
 
@@ -227,7 +228,7 @@ class DiracAPIClient(_RESTClient):
             result["Value"] = {int(key): value for key, value in result["Value"].items()}
         return result
 
-    def rescheduleJob(self, job_ids: set[int]):
+    def rescheduleJob(self, job_ids: Iterable[int]):
         """
         Reschedule the supplied DIRAC jobs.
 
@@ -239,7 +240,7 @@ class DiracAPIClient(_RESTClient):
         """
         return self._request("POST", "/jobs/reschedule", {"job_ids": list(job_ids)})
 
-    def killJob(self, job_ids: set[int]):
+    def killJob(self, job_ids: Iterable[int]):
         """
         Kill the supplied DIRAC jobs.
 
@@ -251,7 +252,7 @@ class DiracAPIClient(_RESTClient):
         """
         return self._request("POST", "/jobs/kill", {"job_ids": list(job_ids)})
 
-    def deleteJob(self, job_ids: set[int]):
+    def deleteJob(self, job_ids: Iterable[int]):
         """
         Delete the supplied DIRAC jobs.
 
