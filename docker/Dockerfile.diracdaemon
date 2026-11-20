@@ -1,6 +1,5 @@
 FROM rockylinux:9 AS dirac_daemon_base
 ARG DIRAC_VERSION=8.0.74
-ARG GIT_BRANCH=master
 
 SHELL ["/bin/bash", "-c"]
 
@@ -17,7 +16,6 @@ RUN <<-EOF
 
 
 	echo "Using DIRAC version: ${DIRAC_VERSION}"
-	echo "Using Production System version: ${GIT_BRANCH}"
 
 	mkdir dirac_ui
 	cd dirac_ui
@@ -82,8 +80,12 @@ EOF
 
 
 FROM dirac_daemon_base AS dirac_daemon_prod
+ARG GIT_BRANCH=master
+ARG GIT_REPO=https://github.com/alexanderrichards/ProductionSystem.git
 
-RUN . /root/dirac_ui/diracos/diracosrc && python -m pip install --no-cache-dir --upgrade "git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}"
+RUN echo "Using Production System version: ${GIT_BRANCH}"
+
+RUN . /root/dirac_ui/diracos/diracosrc && python -m pip install --no-cache-dir --upgrade "git+${GIT_REPO}@${GIT_BRANCH}"
 
 CMD ["/bin/sh"]
 

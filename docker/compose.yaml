@@ -55,7 +55,8 @@ services:
             dockerfile: Dockerfile.diracdaemon
             target: dirac_daemon_prod
             args:
-                DIRAC_VERSION: 8.0.74  # this is not coming through from env file !! why not
+                DIRAC_VERSION: ${DIRAC_VERSION}
+                GIT_REPO: ${GIT_REPO}
                 GIT_BRANCH: ${GIT_BRANCH}
             secrets:
                 - GLOBUS_CERT
@@ -105,6 +106,7 @@ services:
             target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
+                GIT_REPO: ${GIT_REPO}
                 GIT_BRANCH: ${GIT_BRANCH}
         env_file: .env
         container_name: productionsystem-monitoring-daemon
@@ -130,6 +132,7 @@ services:
             target: productionsystem_prod
             args:
                 PY_VERSION: ${PY_VERSION}
+                GIT_REPO: ${GIT_REPO}
                 GIT_BRANCH: ${GIT_BRANCH}
         container_name: productionsystem-webapp
         restart: unless-stopped

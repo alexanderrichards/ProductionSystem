@@ -2,7 +2,6 @@
 ARG PY_VERSION=3.14.3-alpine3.23
 
 FROM python:${PY_VERSION} AS productionsystem_base
-ARG GIT_BRANCH
 
 RUN apk add --no-cache curl git
 
@@ -14,8 +13,10 @@ RUN . ./venv/bin/activate && python -m pip install --upgrade pip setuptools whee
 
 
 FROM productionsystem_base AS productionsystem_prod
+ARG GIT_BRANCH=master
+ARG GIT_REPO=https://github.com/alexanderrichards/ProductionSystem.git
 
-RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade git+https://github.com/alexanderrichards/ProductionSystem.git@${GIT_BRANCH}
+RUN . ./venv/bin/activate && python -m pip install --no-cache-dir --upgrade "git+${GIT_REPO}@${GIT_BRANCH}"
 
 
 CMD ["/bin/sh"]
