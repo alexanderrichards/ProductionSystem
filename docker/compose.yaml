@@ -51,7 +51,7 @@ services:
 
     dirac-daemon:
         build:
-            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            context: ${GIT_BUILD_CONTEXT_REPO:-https://github.com/alexanderrichards/productionsystem.git}?subdir=docker&branch=${GIT_BUILD_CONTEXT_BRANCH:-master}
             dockerfile: Dockerfile.diracdaemon
             target: dirac_daemon_prod
             args:
@@ -84,7 +84,7 @@ services:
 
     apache:
         build:
-            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            context: ${GIT_BUILD_CONTEXT_REPO:-https://github.com/alexanderrichards/productionsystem.git}?subdir=docker&branch=${GIT_BUILD_CONTEXT_BRANCH:-master}
             dockerfile: Dockerfile.apache
         container_name: productionsystem-apache
         restart: unless-stopped
@@ -101,7 +101,7 @@ services:
 
     monitoring-daemon:
         build:
-            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            context: ${GIT_BUILD_CONTEXT_REPO:-https://github.com/alexanderrichards/productionsystem.git}?subdir=docker&branch=${GIT_BUILD_CONTEXT_BRANCH:-master}
             dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
@@ -127,7 +127,7 @@ services:
 
     webapp:
         build:
-            context: https://github.com/alexanderrichards/productionsystem.git?subdir=docker&branch=${GIT_BRANCH}
+            context: ${GIT_BUILD_CONTEXT_REPO:-https://github.com/alexanderrichards/productionsystem.git}?subdir=docker&branch=${GIT_BUILD_CONTEXT_BRANCH:-master}
             dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
