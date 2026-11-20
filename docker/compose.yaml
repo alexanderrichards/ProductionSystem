@@ -7,7 +7,7 @@ services:
         container_name: productionsystem-mariadb
         restart: unless-stopped
         healthcheck:
-            test: ["CMD-SHELL", "echo 'SELECT 1' | mariadb -h mariadb -u${MARIADB_USER} -p${MARIADB_PASSWORD}"]
+            test: ["CMD-SHELL", "echo 'SELECT 1' | mariadb -h mariadb -u${MARIADB_USER:-lzprod} -p${MARIADB_PASSWORD:-password}"]
             interval: 30s
             timeout: 5s
             retries: 10
@@ -20,10 +20,10 @@ services:
         # not needed if have .env file but as these take precedence over .env values, this way we can load shell env variables as well
         # and have them take precidence over .env file values.
         environment:
-            MARIADB_USER: ${MARIADB_USER}
-            MARIADB_PASSWORD: ${MARIADB_PASSWORD}
-            MARIADB_DATABASE: ${MARIADB_DATABASE}
-            MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+            MARIADB_USER: ${MARIADB_USER:-lzprod}
+            MARIADB_PASSWORD: ${MARIADB_PASSWORD:-password}
+            MARIADB_DATABASE: ${MARIADB_DATABASE:-lzprod}
+            MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-rootpassword}
         volumes:
             - mariadb-data:/var/lib/mysql
 
@@ -55,9 +55,9 @@ services:
             dockerfile: Dockerfile.diracdaemon
             target: dirac_daemon_prod
             args:
-                DIRAC_VERSION: ${DIRAC_VERSION}
-                GIT_REPO: ${GIT_REPO}
-                GIT_BRANCH: ${GIT_BRANCH}
+                DIRAC_VERSION: ${DIRAC_VERSION:-8.0.74}
+                GIT_REPO: ${GIT_REPO:-https://github.com/alexanderrichards/ProductionSystem.git}
+                GIT_BRANCH: ${GIT_BRANCH:-master}
             secrets:
                 - GLOBUS_CERT
                 - GLOBUS_KEY
@@ -71,8 +71,8 @@ services:
             start_period: 10s
         env_file: .env
         volumes:
-            - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro
-            - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
+            - ${GLOBUS_CERT:-${HOME}/.globus/usercert.pem}:/root/.globus/usercert.pem:ro
+            - ${GLOBUS_KEY:-${HOME}/.globus/userkey_unencrypted.pem}:/root/.globus/userkey.pem:ro
             - grid-security:/root/dirac_ui/diracos/etc/grid-security
             - tmp-inputsandbox-dir:/tmp  # need to share inputsandbox dir with monitoring daemon
         depends_on:
@@ -105,15 +105,15 @@ services:
             dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
-                PY_VERSION: ${PY_VERSION}
-                GIT_REPO: ${GIT_REPO}
-                GIT_BRANCH: ${GIT_BRANCH}
+                PY_VERSION: ${PY_VERSION:-3.14.3-alpine3.23}
+                GIT_REPO: ${GIT_REPO:-https://github.com/alexanderrichards/ProductionSystem.git}
+                GIT_BRANCH: ${GIT_BRANCH:-master}
         env_file: .env
         container_name: productionsystem-monitoring-daemon
         restart: unless-stopped
         volumes:
-            - ${GLOBUS_CERT}:/root/.globus/usercert.pem:ro  # needed as monitoring daemon checks that Imperial DIRAC is running. Maybe the dirac daemon should be doing this. 
-            - ${GLOBUS_KEY}:/root/.globus/userkey.pem:ro
+            - ${GLOBUS_CERT:-${HOME}/.globus/usercert.pem}:/root/.globus/usercert.pem:ro  # needed as monitoring daemon checks that Imperial DIRAC is running. Maybe the dirac daemon should be doing this. 
+            - ${GLOBUS_KEY:-${HOME}/.globus/userkey_unencrypted.pem}:/root/.globus/userkey.pem:ro
             - grid-security:/etc/grid-security:ro
             - tmp-inputsandbox-dir:/tmp  # need to share inputsandbox dir with dirac daemon
         depends_on:
@@ -131,9 +131,9 @@ services:
             dockerfile: Dockerfile.productionsystem
             target: productionsystem_prod
             args:
-                PY_VERSION: ${PY_VERSION}
-                GIT_REPO: ${GIT_REPO}
-                GIT_BRANCH: ${GIT_BRANCH}
+                PY_VERSION: ${PY_VERSION:-3.14.3-alpine3.23}
+                GIT_REPO: ${GIT_REPO:-https://github.com/alexanderrichards/ProductionSystem.git}
+                GIT_BRANCH: ${GIT_BRANCH:-master}
         container_name: productionsystem-webapp
         restart: unless-stopped
         env_file: .env
@@ -166,6 +166,6 @@ volumes:
     #     name: productionsystem-postgresdb-data
 secrets:
     GLOBUS_CERT:
-        file: ${GLOBUS_CERT}
+        file: ${GLOBUS_CERT:-${HOME}/.globus/usercert.pem}
     GLOBUS_KEY:
-        file: ${GLOBUS_KEY}
+        file: ${GLOBUS_KEY:-${HOME}/.globus/userkey_unencrypted.pem}
