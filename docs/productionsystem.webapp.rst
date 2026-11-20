@@ -7,7 +7,10 @@ productionsystem.webapp package
     :show-inheritance:
 
 Creating requests from Excel
----------------------------
+-----------------------------
+
+For the end-user workflow, see :doc:`user/requests`. For the extension hook
+contract, see :doc:`developer/extensions`.
 
 The new-request form still collects request-level information manually. Upload
 an ``.xlsx``, ``.xls`` or ``.csv`` workbook to configure its parametricjobs. The browser
@@ -29,17 +32,17 @@ arguments; this avoids accidental instance access but is not a sandbox.
 The template collects ``form_data`` using ``form.serializeArray()`` before
 running the hook block. Overrides of the ``create_request``
 Jinja block are responsible for transforming the rows into parametricjobs and
-assigning ``form_data["parametricjobs"]``. The default hook uses the rows
+assigning ``form_data["parametric_jobs"]``. The default hook uses the rows
 directly, preserving the existing API envelope. After upload and whenever
 named request inputs change, the hook is called to prepare the request. Hooks
 should be synchronous and free of external side effects. Each call receives a
 fresh copy of the uploaded rows so mutations do not alter later calls.
 
-The preview displays ``parametricjobs`` from the serialized request returned
+The preview displays ``parametric_jobs`` from the serialized request returned
 by the hook, not the raw Excel rows. The plain request is normalized through
 JSON serialization, deeply frozen, and stored in ``payload``. Submission adds
 the ``request`` envelope without calling the hook again. Hook
-errors, serialization errors or a missing/malformed ``parametricjobs`` array
+errors, serialization errors or a missing/malformed ``parametric_jobs`` array
 display an error and block submission until the request can be prepared.
 
 ``ParametricJobUpload`` takes ``(input, status, submit_button, summary, form,
@@ -79,8 +82,8 @@ produces the same API envelope as before when using the default hook:
 .. code-block:: json
 
    {"request": {"description": "Example request", "site": "ANY", "priority": "3",
-                "parametricjobs": [{"site": "ANY", "priority": 3},
-                                   {"site": "LCG.UKI-LT2-IC-HEP.uk", "priority": 5}]}}
+                "parametric_jobs": [{"site": "ANY", "priority": 3},
+                                    {"site": "LCG.UKI-LT2-IC-HEP.uk", "priority": 5}]}}
 
 The Excel reader uses SheetJS, loaded from the same CDN as the Excel example.
 An unreadable, empty, or invalid workbook blocks submission and displays an
@@ -98,7 +101,7 @@ or clearing the file removes the old preview while the new file is read.
 
 Enter a single job number and click "Show job" (or press Enter in the selector)
 to replace the default examples with that job. Numbers are 1-based positions
-in the generated ``parametricjobs`` list, not worksheet row numbers.
+in the generated ``parametric_jobs`` list, not worksheet row numbers.
 Ranges, fractions and out-of-bounds numbers display an error without changing
 the existing preview or submitted data. "Show first and last" restores the
 default preview. Each new upload or request-field change resets the selection.

@@ -1,3 +1,9 @@
+"""
+Configure the Production System Sphinx documentation build.
+
+Define project metadata, documentation extensions, source discovery, and
+HTML, LaTeX, manual-page, Texinfo, and EPUB output settings.
+"""
 # -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
@@ -15,6 +21,12 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
+
+from productionsystem.cli import load_entry_points
+from productionsystem.config import ConfigSystem
+
+config = ConfigSystem.get_instance()
+config.entry_point_map = load_entry_points()[0]
 
 
 # -- Project information -----------------------------------------------------
@@ -40,6 +52,7 @@ release = u'0.1'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
@@ -51,8 +64,11 @@ extensions = [
     'sphinxcontrib.httpdomain',
 ]
 
+autodoc_mock_imports = ['DIRAC', 'daemonize']
+napoleon_use_ivar = True
+
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = []
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -68,7 +84,7 @@ master_doc = 'index'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -95,7 +111,7 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -191,7 +207,7 @@ epub_exclude_files = ['search.html']
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 
 # -- Options for todo extension ----------------------------------------------
 

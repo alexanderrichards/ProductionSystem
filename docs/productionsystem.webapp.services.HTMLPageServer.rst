@@ -1,7 +1,10 @@
-productionsystem.webapp.services.HTMLPageServer module
-======================================================
+productionsystem.webapp.services.HTMLService module
+===================================================
 
-.. automodule:: productionsystem.webapp.services.HTMLPageServer
+The HTMLPageServer class is implemented in HTMLService. This page retains its
+historical filename for existing documentation links.
+
+.. automodule:: productionsystem.webapp.services.HTMLService
     :members:
     :undoc-members:
     :show-inheritance:

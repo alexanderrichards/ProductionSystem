@@ -37,7 +37,7 @@
             <div class="input-group-prepend">
                 <span class="input-group-text bg-primary text-light">request_date</span>
             </div>
-            <input type="text" class="form-control"style="text-align: right" value="{{request.request_date}}" readonly>
+            <input type="text" class="form-control"style="text-align: right" value="{{request.request_date | utc_datetime}}" readonly>
         </div>
         <div class="input-group mb-3">
             <div class="input-group-prepend">
@@ -55,7 +55,7 @@
             <div class="input-group-prepend">
                 <span class="input-group-text bg-primary text-light">timestamp</span>
             </div>
-            <input type="text" class="form-control" style="text-align: right" value="{{request.timestamp}}" readonly>
+            <input type="text" class="form-control" style="text-align: right" value="{{request.timestamp | utc_datetime}}" readonly>
         </div>
         <div class="input-group">
             <div class="input-group-prepend">
@@ -78,12 +78,14 @@
                     {% endif %}
                 <div class="card carousel-item {{parametricjob_active}}">
                     <div class="card-body text-left">
-                        {% for column in parametricjob.columns %}
+                        {% for column in parametricjob.model_dump() %}
                             {% if column == "id" %}
                                 id = {{parametricjob.id}} ({{parametricjob.request_id}}.{{parametricjob.id}})<br>
-                            {% elif column in ("request_id", "requester_id", "classtype") %}
+                            {% elif column in ("request_id", "requester_id", "classtype", "log") %}
                             {% elif column == "status"%}
                                 status = {{parametricjob.status.name}}<br>
+                            {% elif column == "timestamp" %}
+                                timestamp = {{parametricjob.timestamp | utc_datetime}}<br>
                             {% else %}
                                 {{column}} = {{parametricjob[column]}}<br>
                             {% endif %}
