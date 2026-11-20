@@ -55,8 +55,7 @@ def update_users(
 
     values = locals()
     values.pop("ctx")
-    args, cli_args, config_instance, config_path = prepare_options(
-        ctx, "userdb", values, APP_NAME)
+    args, cli_args, config_instance, config_path = prepare_options(ctx, "userdb", values, APP_NAME)
     if args.trusted_cas:
         args.verify = os.path.expandvars(os.path.expanduser(args.trusted_cas))
     logger = setup_logging(
@@ -65,11 +64,12 @@ def update_users(
     # Do work
     ###########################################################################
     registry = importlib.import_module('productionsystem.sql.registry')
-    Users = importlib.import_module('productionsystem.sql.models.Users').Users
-    Requests = importlib.import_module('productionsystem.sql.models.Requests').Requests
-    ParametricJobs = importlib.import_module('productionsystem.sql.models.ParametricJobs').ParametricJobs
-    DiracJobs = importlib.import_module('productionsystem.sql.models.DiracJobs').DiracJobs
     CertClient = importlib.import_module('productionsystem.suds_utils').CertClient
+    models = importlib.import_module("productionsystem.sql.models")
+    Users = models.Users
+    Requests = models.Requests
+    ParametricJobs = models.ParametricJobs
+    DiracJobs = models.DiracJobs
 
     # Note if clients share the same transport we get a
     # 'Duplicate domain "suds.options" found' exception.
