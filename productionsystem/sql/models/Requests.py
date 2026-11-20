@@ -581,7 +581,7 @@ class Requests(SQLTableBase):
             if load_user:
                 stmt = stmt.options(joinedload(cls.requester, innerjoin=True))
             if load_parametricjobs:
-                stmt = stmt.options(joinedload(cls.parametric_jobs)
+                stmt = stmt.options(joinedload(cls.parametric_jobs.of_type(ParametricJobs))
                                     .joinedload(ParametricJobs.dirac_jobs))
             if user_id is not None:
                 stmt = stmt.where(cls.requester_id == user_id)
@@ -623,9 +623,9 @@ class Requests(SQLTableBase):
         with managed_session() as session:
             requests = session.execute(
                 select(cls)
-                .options(joinedload(cls.parametric_jobs).joinedload(ParametricJobs.dirac_jobs))
+                .options(joinedload(cls.parametric_jobs.of_type(ParametricJobs)).joinedload(ParametricJobs.dirac_jobs))
                 .where(cls.status == LocalStatus.FAILED)
-                .join(cls.parametric_jobs)
+                .join(cls.parametric_jobs.of_type(ParametricJobs))
                 .where(ParametricJobs.reschedule == True)  # reschedule comes from joining the parametricjobs table.
             ).unique().scalars().all()
             return requests
