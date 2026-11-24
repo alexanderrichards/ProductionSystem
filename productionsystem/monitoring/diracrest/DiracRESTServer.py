@@ -182,6 +182,33 @@ def create_app():
         """
         return Dirac().getJobStatus(request.job_ids)
 
+    @app.post("/jobs/parameters")
+    @_exception_handling
+    def get_job_parameters(request: JobIds):
+        """
+        Return DIRAC job parameters for the requested job IDs.
+
+        Args:
+            request (JobIds): Identifiers of jobs whose parameters are requested.
+
+        Returns:
+            dict: DIRAC getJobParameters response.
+        """
+        return Dirac().getJobParameters(request.job_ids)
+
+    @app.post("/jobs/attributes")
+    @_exception_handling
+    def get_job_attributes(request: JobIds):
+        """
+        Return DIRAC job attributes for the requested job IDs.
+
+        Args:
+            request (JobIds): Identifiers of jobs whose attributes are requested.
+
+        Returns:
+            dict: DIRAC getJobAttributes response.
+        """
+        return Dirac().getJobAttributes(request.job_ids)
 
     @app.post("/jobs/reschedule")
     @_exception_handling

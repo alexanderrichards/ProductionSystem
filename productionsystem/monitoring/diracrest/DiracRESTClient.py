@@ -228,6 +228,30 @@ class DiracAPIClient(_RESTClient):
             result["Value"] = {int(key): value for key, value in result["Value"].items()}
         return result
 
+    def getJobParameters(self, job_ids: Iterable[int]):
+        """
+        Return parameters for the supplied DIRAC job IDs.
+
+        Args:
+            job_ids: DIRAC job IDs whose parameters should be queried.
+
+        Returns:
+            dict: Decoded DIRAC getJobParameters response.
+        """
+        return self._request("POST", "/jobs/parameters", {"job_ids": list(job_ids)})
+
+    def getJobAttributes(self, job_ids: Iterable[int]):
+        """
+        Return attributes for the supplied DIRAC job IDs.
+
+        Args:
+            job_ids: DIRAC job IDs whose attributes should be queried.
+
+        Returns:
+            dict: Decoded DIRAC getJobAttributes response.
+        """
+        return self._request("POST", "/jobs/attributes", {"job_ids": list(job_ids)})
+
     def rescheduleJob(self, job_ids: Iterable[int]):
         """
         Reschedule the supplied DIRAC jobs.
