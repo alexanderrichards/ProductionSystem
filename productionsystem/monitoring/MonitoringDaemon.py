@@ -1,38 +1,72 @@
-"""Monitoring Daemon."""
-# Py2/3 compatibility layer
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-from builtins import *  # pylint: disable=wildcard-import, unused-wildcard-import, redefined-builtin
+"""
+Monitoring Daemon.
 
-import logging
+Poll external service health and advance production requests through submission,
+monitoring, rescheduling, and removal using the configured database.
+"""
+from __future__ import annotations
+
 import time
-from datetime import datetime
+from concurrent.futures import Future, ThreadPoolExecutor
 
-import requests
+import httpx
 from daemonize import Daemonize
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from productionsystem.sql.registry import SessionRegistry, managed_session
-from productionsystem.sql.models import Requests, Services
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+
+from productionsystem.http_utils import create_ssl_context
+from productionsystem.monitoring.diracrest.DiracRESTClient import dirac_api_client
 from productionsystem.sql.enums import LocalStatus, ServiceStatus
+from productionsystem.sql.models import Requests, Services
+from productionsystem.sql.registry import SessionRegistry
 
 MINS = 60
 
 
 class MonitoringDaemon(Daemonize):
-    """Monitoring Daemon."""
+    """
+    Monitoring Daemon.
 
+    Run periodic service and request checks as a ``Daemonize`` action. Startup
+    verifies DIRAC API connectivity; each monitoring pass persists status
+    changes through the registered SQLAlchemy session.
+    """
     def __init__(self, dburl, delay, cert, verify=False, **kwargs):
-        """Initialise."""
+        """
+        Initialise.
+
+        Args:
+            dburl: SQLAlchemy database URL used by the monitoring loop.
+            delay: Polling interval in minutes between monitoring passes.
+            cert: Client certificate path or ``(cert, key)`` pair for external HTTP checks.
+            verify: TLS verification flag or CA bundle path used by HTTP clients.
+            **kwargs: Additional options forwarded to ``Daemonize``.
+        """
         super(MonitoringDaemon, self).__init__(action=self.main, **kwargs)
         self._dburl = dburl
         self._delay = delay
         self.cert = cert
         self.verify = verify
+        with dirac_api_client() as client:
+            try:
+                if not client.activeConnection():
+                    self.logger.error("Connection to DIRAC API daemon not healthy.")
+                    raise RuntimeError("Connection to DIRAC API daemon not healthy.")
+            except Exception as err:
+                self.logger.exception("Error while testing connection to DIRAC API daemon: %s", err)
+                raise RuntimeError("Failed to connect to DIRAC API daemon.") from err
+        self._request_operations: dict[int, Future[None]] = {}
 
     def exit(self):
-        """Update the monitoringd status on exit."""
+        """
+        Update the monitoringd status on exit.
+
+        Mark the service down, creating its record if necessary, before invoking
+        daemon cleanup. Database failures are logged without preventing cleanup.
+
+        Raises:
+            SystemExit: If the parent daemon exits with a nonzero status.
+        """
         try:
             monitoring_service = Services.get_services(service_name="monitoringd")
         except NoResultFound:
@@ -50,21 +84,65 @@ class MonitoringDaemon(Daemonize):
             except SQLAlchemyError as err:
                 self.logger.exception("Error updating the status of monitoring daemon: %s",
                                       err)
-        super(MonitoringDaemon, self).exit()
+        try:
+            super(MonitoringDaemon, self).exit()
+        except SystemExit as err:
+            if err.code != 0:
+                raise
 
     def main(self):
-        """Daemon main function."""
+        """
+        Daemon main function.
+
+        Initialize the database registry, then check services and requests at
+        the configured minute interval. Keyboard interrupts and unexpected
+        loop failures are logged before the action returns.
+        """
         SessionRegistry.setup(self._dburl)  # pylint: disable=no-member
 
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="request-operations") as executor:
+            self._request_executor = executor
+            try:
+                while True:
+                    self.check_services()
+                    self.monitor_requests()
+                    time.sleep(self._delay * MINS)
+            except KeyboardInterrupt:
+                self.logger.warning("keyboard interrupt!")  # match the dirac-daemon rpyc SIGINT handler
+            except Exception:
+                self.logger.exception("Unhandled exception while running daemon.")
+            finally:
+                executor.shutdown(wait=True, cancel_futures=True)
+                self._reap_request_operations()  # primarily to log any exceptions from background request operations
+
+    def _reap_request_operations(self):
+        """Release completed work and log background failures."""
+        for request_id, operation in list(self._request_operations.items()):
+            if operation.done():
+                del self._request_operations[request_id]
+                if not operation.cancelled():
+                    try:
+                        operation.result()
+                    except BaseException:
+                        self.logger.exception("Unhandled exception while processing request %d", request_id)
+
+    def _process_request(self, request_id: int):
+        """Reload and submit or remove a request using worker-local sessions."""
         try:
-            while True:
-                self.check_services()
-                self.monitor_requests()
-                time.sleep(self._delay * MINS)
-        except KeyboardInterrupt:
-            self.logger.warning("keyboard interrupt!")  # match the dirac-daemon rpyc SIGINT handler
-        except Exception:
-            self.logger.exception("Unhandled exception while running daemon.")
+            request = Requests.get(request_id=request_id, load_parametricjobs=True)
+        except NoResultFound:
+            self.logger.warning("Request %d disappeared before background processing", request_id)
+            return
+
+        if request.status == LocalStatus.REMOVING:
+            request.remove()
+        elif request.status == LocalStatus.APPROVED:
+            request.status = LocalStatus.SUBMITTING
+            request.update()
+            request.submit()
+            request.update()
+            request.monitor()
+            request.update()
 
     def check_services(self):
         """
@@ -78,11 +156,10 @@ class MonitoringDaemon(Daemonize):
         # DIRAC
         status = ServiceStatus.DOWN
         try:
-            if requests.get("https://dirac.gridpp.ac.uk:8443/DIRAC/",
-                            cert=self.cert, verify=self.verify) \
-                    .status_code == 200:
-                status = ServiceStatus.UP
-        except IOError as err:
+            with httpx.Client(verify=create_ssl_context(self.cert, self.verify)) as client:
+                if client.get("https://dirac.gridpp.ac.uk/DIRAC/").status_code == 200:
+                    status = ServiceStatus.UP
+        except (IOError, httpx.HTTPError) as err:
             self.logger.error("Couldn't connect to DIRAC service to get status (might be waiting "
                               "for PEM password): %s", err)
             status = ServiceStatus.UNKNOWN
@@ -118,26 +195,26 @@ class MonitoringDaemon(Daemonize):
         """
         Monitor the DB requests.
 
-        Check the status of ongoing DB requests and either update them or
-        create new Ganga tasks for new requests.
+        Queue submission and removal on a single worker. Monitor other requests
+        synchronously, skipping requests with queued or active background work.
         """
-        monitored_requests = Requests.get(status=(LocalStatus.APPROVED,
+        # clear out completed submissions or removals first so that they can be monitored and not skipped below
+        self._reap_request_operations()
+        monitored_requests = Requests.get(status=[LocalStatus.APPROVED,
                                                   LocalStatus.SUBMITTING,
                                                   LocalStatus.SUBMITTED,
                                                   LocalStatus.RUNNING,
-                                                  LocalStatus.REMOVING),
+                                                  LocalStatus.REMOVING],
                                           load_parametricjobs=True)
         monitored_requests.extend(Requests.get_reschedules())
 
         for request in monitored_requests:
+            if request.id in self._request_operations:
+                continue
             try:
-                if request.status == LocalStatus.APPROVED:
-                    request.status = LocalStatus.SUBMITTING
-                    request.update()
-                    request.submit()
-                    request.update()
-                if request.status == LocalStatus.REMOVING:
-                    request.remove()
+                if request.status in (LocalStatus.APPROVED, LocalStatus.REMOVING):
+                    self._request_operations[request.id] = self._request_executor.submit(self._process_request,
+                                                                                         request.id)
                     continue
                 request.monitor()
                 request.update()

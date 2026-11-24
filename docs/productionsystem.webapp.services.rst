@@ -2,9 +2,6 @@ productionsystem.webapp.services package
 ========================================
 
 .. automodule:: productionsystem.webapp.services
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Submodules
 ----------
@@ -13,4 +10,5 @@ Submodules
 
    productionsystem.webapp.services.CVMFSListing
    productionsystem.webapp.services.HTMLPageServer
-
+   productionsystem.webapp.services.GitListing
+   productionsystem.webapp.services.RESTfulAPI

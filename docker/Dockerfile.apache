@@ -1,0 +1,13 @@
+FROM httpd:alpine
+
+COPY httpd.conf /usr/local/apache2/conf/httpd.conf
+
+COPY client-auth-proxy.conf /usr/local/apache2/conf/extra/client-auth-proxy.conf
+
+RUN sed -i "s;/usr/local/apache2/conf/server.crt;/etc/grid-security/hostcert.pem;" /usr/local/apache2/conf/extra/httpd-ssl.conf
+RUN sed -i "s;/usr/local/apache2/conf/server.key;/etc/grid-security/hostkey.pem;" /usr/local/apache2/conf/extra/httpd-ssl.conf
+
+EXPOSE 80
+EXPOSE 443
+
+CMD ["httpd", "-D", "FOREGROUND"]

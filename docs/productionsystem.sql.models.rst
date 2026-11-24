@@ -2,9 +2,11 @@ productionsystem.sql.models package
 ===================================
 
 .. automodule:: productionsystem.sql.models
-    :members:
-    :undoc-members:
-    :show-inheritance:
+
+Models and schemas are documented in their defining modules below rather
+than duplicated here through the package's lazy exports. For relationships,
+initialization order, and transaction ownership, see
+:doc:`developer/data-model`.
 
 Submodules
 ----------
@@ -16,4 +18,3 @@ Submodules
    productionsystem.sql.models.Requests
    productionsystem.sql.models.Services
    productionsystem.sql.models.Users
-
